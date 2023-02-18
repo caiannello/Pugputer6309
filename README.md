@@ -1,4 +1,4 @@
-
+```
 WELCOME TO THE PUGPUTER 6309 PROJECT !!!
 
 The Pugputer is a little labor of love, made as a tribute to the early home computers of the 1980's.  
@@ -23,4 +23,4 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
   Arduino UNO code - Allows an Uno to be connected to the Pugputer (via parallel IO card) to provide SD Card, SPI, PS/2 keyboard, and minimal (PWM) audio
   Teensy Code - Same as above but for Teensy 4.1 and LV parallel IO card
 
-
+```
