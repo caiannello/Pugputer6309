@@ -1,3 +1,4 @@
+```
 *******************************************************************************
 
 WHATS THE DIFFERENCE BETWEEN THIS PARALLEL CARD AND THE LV ONE?
@@ -100,3 +101,4 @@ compatibility.  For this reason, if working with integers in the Arduino
 which have originated from the HD6309, including the CRC and byte_count of 
 a received message, byte swapping may be involved when casting part of a 
 byte array as an integer.
+```

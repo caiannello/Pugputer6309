@@ -1,3 +1,4 @@
+```
 *******************************************************************************
 
 WHAT'S THE DIFFERENCE BETWEEN THIS LV PARALLEL CARD AND THE NON-LV ONE?
@@ -100,3 +101,4 @@ compatibility.  For this reason, if working with integers in the Teensy
 which have originated from the HD6309, including the CRC and byte_count of 
 a received message, byte swapping may be involved when casting part of a 
 byte array as an integer.
+```
