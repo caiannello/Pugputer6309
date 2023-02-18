@@ -1,0 +1,51 @@
+Name            PARALLEL_IO_LV ;
+Partno          ATF16V8B ;
+Revision        01 ;
+Date            12/06/2022 ;
+Designer        Craig Iannello ;
+Company         Pugbutt Industries LLC ;
+Assembly        Bidirectional Parallel card v1 ;
+Location        IC1 ;
+Device          g16v8a ;
+
+/** inputs **/
+pin 2      = E ;            /* E clock from HD6309              */
+pin 3      = RW ;           /* R/~W pin from HD6309             */
+pin 4      = a5;     	/* cpu address lines */
+pin 5      = a6;
+pin 6      = a7;
+pin 7      = a8;
+pin 8      = boe_n;      /* mcu read data latched by cpu */
+pin 9      = ple;        /* mcu latched some data for CPU */
+pin 11     = io_n;       /* low when cpu is addressing io space */
+
+/** outputs **/
+
+pin 19     = ble;       	/* rising: cpu write data to Tx latch */
+pin 18     = poe_n;         /* falling: cpu reading from Rx latch */
+pin 17     = nmi_n;         /* currently unused, Hi-Z */
+pin 16     = irq_n;         /* normally Hi-Z, but low while mcu writing to Rx Latch (ple high)*/
+pin 15     = nc3;
+pin 14     = nc2;
+pin 13     = nc1;
+pin 12     = nc0;   
+
+/** equations **/
+
+read_n     = !E # !RW;
+write_n    = !E # RW;
+/* cpu write */
+ble        = !write_n & !io_n & !a5 & !a6 & !a7 & !a8;
+/* cpu read */
+poe_n      = read_n  # io_n # a5 # a6 # a7 # a8;
+/* parallel port interrupt when mcu writes. mcu stops irq state when it sees cpu read */
+irq_n      = 'b'0;
+irq_n.oe   = ple;
+nmi_n      = 'b'1;
+nmi_n.oe   = 'b'0;
+
+nc0        = 'b'0;
+nc1        = 'b'0;
+nc2        = 'b'0;
+nc3        = 'b'0;
+

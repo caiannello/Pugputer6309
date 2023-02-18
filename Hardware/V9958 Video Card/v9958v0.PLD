@@ -1,0 +1,45 @@
+Name            V9958V0 ;
+Partno          ATF16V8B ;
+Revision        03 ;
+Date            7/22/2022 ;
+Designer        Craig Iannello ;
+Company         Pugbutt Industries LLC ;
+Assembly        V9958 video card ;
+Location        IC2 ;
+Device          g16v8a ;
+
+/********************************************************************************/
+/* ATF16v8b as glue logic on the V9958 video card for my 6309 homebrew computer */
+/*                                                                              */
+/* VDP:  C400 - C5FF   (this is us)
+/*                                                                              */
+/* Compile using WINCUPL (http://www.atmel.com/tools/wincupl.aspx               */
+/*                                                                              */
+/********************************************************************************/
+/* input signals - we don't use special clock PIN 1 */
+
+pin 2      = RW;       /* R/~W pin from HD6309             */
+pin 3      = ras_n;    /* /RAS from V9958 VDP */     
+pin 4      = E;       /* E clock from HD6309              */
+pin 5      = aux1_n;  /* our chip select from the cpu board */
+pin 6      = a11;     /* because trying to decode address here used too many terms */
+pin 7      = a12;
+pin 8      = a13;
+pin 9      = a14;
+pin 11     = a15;
+pin 12     = casx_n;   /* /CASX from v9958 */
+pin 13     = cas1_n;   /* /CAS1 from v9958 */
+pin 14     = cas0_n;   /* /CAS0 from v9958 */
+
+/* outputs  */
+
+pin 15     = vcs_n;    	/* we want to output low if any of the three cas lines are low */   
+pin 16     = ras;      	/* we output inverse of ras_n here because the latch uses rising edges */
+pin 18     = vdp_read_n;   /* write enable /CSW for V9958: if E high, RW low, and address = 1100011 */
+pin 19     = vdp_write_n;  /* read enable /CSR for V9958: if E high, RW high, and address = 1100011 */
+
+/** equations **/
+vdp_read_n = !RW # aux1_n;  /* set high if address != 1100010 or E low or RW is low */ 
+vdp_write_n = RW # aux1_n;  /* set high if address != 1100010 or E low or RW is high */
+vcs_n = cas0_n & cas1_n & casx_n; 		/* output high if all cas lines are high, else output low */
+ras = !ras_n;  				/* output inverse of /RAS input from V9958 because data latch works on rising edges */

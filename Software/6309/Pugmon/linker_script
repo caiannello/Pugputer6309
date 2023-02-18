@@ -1,0 +1,5 @@
+section ram_start load 0
+section bss load 20
+define lensympat EndOfVars
+section code load d000
+section intvect load fff0

@@ -1,0 +1,87 @@
+%SIGNAL
+PIN   2 =  E 
+PIN   3 =  RW 
+PIN   6 =  a0 
+PIN   7 =  a1 
+PIN   8 =  a2 
+PIN   9 =  a3 
+PIN   4 =  aux0_n 
+PIN   5 =  aux1_n 
+PIN  17 =  irq_n 
+PIN  12 =  nc0 
+PIN  13 =  nc1 
+PIN  14 =  nc2 
+PIN  15 =  nmi_n 
+PIN  18 =  orx 
+PIN  16 =  otx 
+PIN  11 =  srx 
+PIN  19 =  stx 
+%END
+
+%FIELD
+%END
+
+%EQUATION
+irq_n =>
+    1 
+
+irq_n.oe  =>
+    0 
+
+nc0 =>
+    0 
+
+nc1 =>
+    0 
+
+nc2 =>
+    0 
+
+nmi_n =>
+    0 
+
+nmi_n.oe  =>
+    srx
+
+orx =>
+    !E
+  # !RW
+  # aux0_n
+  # a0
+  # a1
+  # a2
+  # a3
+
+otx =>
+    0 
+
+otx.oe  =>
+    0 
+
+read_n =>
+    !E
+  # !RW
+
+stx =>
+    E & !RW & !a0 & !a1 & !a2 & !a3 & !aux0_n
+
+write_n =>
+    !E
+  # RW
+
+nc0.oe  =>
+    1 
+
+nc1.oe  =>
+    1 
+
+nc2.oe  =>
+    1 
+
+orx.oe  =>
+    1 
+
+stx.oe  =>
+    1 
+
+%END

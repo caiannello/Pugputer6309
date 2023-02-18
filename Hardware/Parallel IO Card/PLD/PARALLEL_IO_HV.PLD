@@ -1,0 +1,93 @@
+Name            PARALLEL_IO_HV ;
+Partno          ATF16V8B ;
+Revision        01 ;
+Date            12/06/2022 ;
+Designer        Craig Iannello ;
+Company         Pugbutt Industries LLC ;
+Assembly        Bidirectional Parallel card v1 ;
+Location        IC1 ;
+Device          g16v8a ;
+
+/********************************************************************************/
+/* This device decodes the memory address for the HD6309 computer v0.1          */
+/*                                                                              */
+/* RAM: 0000 - 7FFF                                                             */
+/* UART:C000 - C1FF                                                             */
+/* AUX0:C200 - C3FF                                                             */
+/* AUX1:C400 - C5FF                                                             */
+/* VDP: C600 - C7FF  (decoded by video card)                                    */
+/* ROM: 8000 - FFFF EXCEPT C000 - C7FF                                          */
+/*                                                                              */
+/* Compile using WINCUPL (http://www.atmel.com/tools/wincupl.aspx               */
+/*                                                                              */
+/********************************************************************************/
+/* input signals - we don't use special clock PIN 1 */
+
+pin 2      = E ;            /* E clock from HD6309              */
+pin 3      = RW ;           /* R/~W pin from HD6309             */
+pin 4      = aux0_n;
+pin 5      = aux1_n;
+pin 6      = a0;
+pin 7      = a1;
+pin 8      = a2;
+pin 9      = a3;
+pin 11     = srx;
+/* outputs (available: 12..19) 
+   Note: negative outputs don't work
+   as reported here: 
+   http://ecee.colorado.edu/~mcclurel/WinCUPL_Intro_handouts2.pdf
+   so we define them as active high
+   but code them as active low!
+*/
+
+pin 19     = stx;
+pin 18     = orx;
+pin 17     = irq_n;
+pin 16     = otx;
+pin 15     = nmi_n;
+pin 14     = nc2;
+pin 13     = nc1;
+pin 12     = nc0;   
+
+
+
+
+/** declarations **/
+
+/** equations **/
+/*
+read_n     = !E # !RW;
+write_n    = !E # RW;
+!ram_cs_n  = E & !a15;
+!rom_cs_n  = E & a15 & (!a14 # !a13 # a12 # a11 # a10 # a9);
+!uart_cs_n = E & a15 & a14 & a13 & !a12 & !a11 & !a10 & !a9;
+!led       = E & a15 & a14 & a13 & !a12 & !a11 & !a10 & !a9;
+!aux_n     = E & a15 & a14 & a13 & !a12 & !a11 & !a10 & !a9;
+*/
+read_n     = !E # !RW;
+write_n    = !E # RW;
+
+stx        = !write_n & !aux0_n & !a0 & !a1 & !a2 & !a3;
+orx        = read_n  # aux0_n # a0 # a1 # a2 # a3;
+
+irq_n      = 'b'1;
+irq_n.oe   = 'b'0;
+
+nmi_n      = 'b'0;
+nmi_n.oe   = srx;
+
+otx        = 'b'0;
+otx.oe     = 'b'0;
+nc0        = 'b'0;
+nc1        = 'b'0;
+nc2        = 'b'0;
+
+/*
+ram_cs_n  = !E # a15;
+uart_cs_n = !E # !a15 # !a14 # a13 # a12 # a11 # a10 # a9;
+led       = !E # !a15 # !a14 # a13 # a12 # a11 # a10 # a9;
+aux0_n     = !E # !a15 # !a14 # a13 # a12 # a11 # a10 # !a9;
+aux1_n     = !E # !a15 # !a14 # a13 # a12 # a11 # !a10 # a9;
+rom_cs_n  = !E # !a15 # !RW # (a14 & !a13 & !a12 & !a11 );
+*/
+
