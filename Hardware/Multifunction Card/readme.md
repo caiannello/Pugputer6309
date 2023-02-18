@@ -1,3 +1,4 @@
+```
 Currently, the multifunction card is in the breadboard stage. It consists 
 of the LV parallel interface card, available in the repo, connected to a 
 Teensy 4.1 + sound board.
@@ -33,3 +34,4 @@ in /Software/Teensy 4.1/multipass
 
 For information about the parallel interface signals and protocol,
 see the README in the LV Parallel IO Card's directory.
+```
