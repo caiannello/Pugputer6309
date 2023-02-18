@@ -1,3 +1,4 @@
+```
 PUGPUTER 6309 - Hardware
 -------------------------------------------------------------------------------
 The schematics and board artwork for this project were created using
@@ -29,3 +30,4 @@ Relevant software for Arduino Uno and Teensy 4.1 are provided in the Software
 directory of this repo.
 
 -------------------------------------------------------------------------------
+```
