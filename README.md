@@ -1,9 +1,13 @@
 ```
 WELCOME TO THE PUGPUTER 6309 PROJECT !!!
 
-The Pugputer is a little labor of love, made as a tribute to the early home computers of the 1980's.  
+The Pugputer is a little labor of love, made as a tribute to the 
+early home computers of the 1980's.  
 
-It is based on the wonderful Hitachi HD63C09 CPU- an upgraded licensed clone of the venerable Motorola 6809, and uses vintage parts where appropriate. (Except RAM chips, which are plentiful and affordable these days, and a modern microcontroller to handle SD card, audio, and GPIO.)
+It is based on the wonderful Hitachi HD63C09 CPU- an upgraded licensed clone 
+of the venerable Motorola 6809, and uses vintage parts where appropriate. 
+(Except RAM chips, which are plentiful and affordable these days, and a modern 
+microcontroller to handle SD card, audio, and GPIO.)
 
 Projects in the Hardware directory:
 
@@ -20,7 +24,8 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
   Pugmon - ML Monitor
   Pugboot
   demos of sound and graphics (Assembly and BASIC)
-  Arduino UNO code - Allows an Uno to be connected to the Pugputer (via parallel IO card) to provide SD Card, SPI, PS/2 keyboard, and minimal (PWM) audio
+  Arduino UNO code - Allows an Uno to be connected to the Pugputer (via parallel 
+      IO card) to provide SD Card, SPI, PS/2 keyboard, and minimal (PWM) audio
   Teensy Code - Same as above but for Teensy 4.1 and LV parallel IO card
 
 ```
