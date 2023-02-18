@@ -1,3 +1,4 @@
+```
 Pugputer 6309 - Sofftware and Firmware
 -------------------------------------------------------------------------------
 The assembly projects in this directory are compiled using the very excellent
@@ -24,3 +25,4 @@ pugmon		work-in-progress machine code monitor, mini assembler, BIOS, and
             minimal OS for the pugputer.
 
 -------------------------------------------------------------------------------
+```
