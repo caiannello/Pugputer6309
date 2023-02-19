@@ -1,3 +1,5 @@
+## Hello
+---
 ```
 WELCOME TO THE PUGPUTER 6309 PROJECT !!!
 
@@ -39,11 +41,15 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 (Nice renders using Indigo Renderer by Glare Technologies)
 
 ```
+## Youtube Channel
+---
 Once this project is further along, I plan on making some demo videos and
 putting them on my [youtube channel](https://www.youtube.com/appliedcryogenics).
 In the meantime, there's some older projects on there, but it might still
 be worth a browse. 
 
+## Gallery
+---
 Graphics from SquareSoft's Seiken Densetsu 3 for Super NES (Source code is in software/6309/demos)
 ![mana](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Squaresoft%20Tilemap%20Seiken%20Densetsu%203.jpg)
 
