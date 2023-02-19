@@ -1,6 +1,10 @@
 ```
-Currently, the multifunction card is in the breadboard stage. It consists 
-of the LV parallel interface card, available in the repo, connected to a 
+Note, the Atmega based schematic and layout provided here has not yet 
+left the breadboard stage, and I'm considering instead making one
+based on a hugely more powerful Teensy 4.1 MCU module.
+
+Currently, it is also in the breadboard stage. It consists of the 
+LV parallel interface card, available in the repo, connected to a 
 Teensy 4.1 + sound board.
 
 This folder is a placeholder for a card which incorporates the Teensy and
@@ -11,9 +15,9 @@ following connections:
 
 Parallel Card       Teensy Pin
 -------------       ----------
-VCC					None
-GND 				GND
-+3V3				3v
+VCC                 None
+GND                 GND
++3V3                3v
 
 CWR                 2
 CRD                 3
