@@ -9,6 +9,11 @@ of the venerable Motorola 6809, and uses vintage parts where appropriate.
 (Except RAM chips, which are plentiful and affordable these days, and a modern 
 microcontroller to handle SD card, audio, and GPIO.)
 
+Once this project is further along, I plan on making some demo videos and
+putting them on my [youtube channel](https://www.youtube.com/appliedcryogenics), 
+in the meantime, there's just some old projects on there, but it might still
+be worth a browse. 
+
 Projects in the Hardware directory: 
   (Using CADSOFT EAGLE 4.16r2)
 
