@@ -57,3 +57,4 @@ instead use an off-the-shelf MMU, or even a tiny FPGA which incorporates
 the address decoding, banking logic, and maybe more.
 
 ```
+![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v0%20Schematic.png)
