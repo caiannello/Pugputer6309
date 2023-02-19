@@ -12,12 +12,13 @@ microcontroller to handle SD card, audio, and GPIO.)
 Projects in the Hardware directory: 
 (Using CADSOFT EAGLE 4.16r2)
 
-  6309 CPU Card V0 - HD63C09P CPU, R65C51P2 UART, 64K RAM, 32K ROM 
-  Backplane - Five card slots end-to-end for flatness 
-  V9958 Video Card - Same graphics chip as the MSX 2+ home computer 
-  Parallel IO Card - 5 Volts (Arduino Uno/Nano/Mega, etc.) 
+  6309 CPU Card V0 -    HD63C09P CPU, R65C51P2 UART, 64K RAM, 32K ROM 
+  Backplane -           Five card slots end-to-end for flatness 
+  V9958 Video Card -    Same graphics chip as the MSX 2+ home computer 
+  Parallel IO Card -    5 Volts (Arduino Uno/Nano/Mega, etc.) 
   LV Parallel IO Card - 3.3 Volts (Teensy 4.1, ESP32, Pi, etc.)
-  Multifunction card - Combination parallel card and Atmegs2560 with SD card, Audio, and GPIO
+  Multifunction card -  Combination parallel card and Atmega2560 with SD card, 
+                        Audio, and GPIO
 
 Projects in the Software Directory:  (All are work-in-progress, stay tuned.) 
 (Using LWTOOLS/LWASM 4.20 for the 6309 assembly stuff)
