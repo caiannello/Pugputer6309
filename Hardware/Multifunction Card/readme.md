@@ -15,9 +15,9 @@ following connections:
 
 Parallel Card       Teensy Pin
 -------------       ----------
-VCC					        None
-GND 				        GND
-+3V3				        3v
+VCC                 None
+GND                 GND
++3V3                3v
 
 CWR                 2
 CRD                 3
