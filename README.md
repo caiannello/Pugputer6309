@@ -55,7 +55,7 @@ Graphics from SquareSoft's Seiken Densetsu 3 for Super NES (Source code is in so
 Microsoft Extended BASIC for 6309, modified by Grant Searle, Tom Circuit, and me (Source code is in software/6309/BASIC)
 ![basic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Extended%20BASIC%20on%20VDP.jpg)
 
-(Source code is in software/6309/demos)
+This one uses the library from the ancient Motorola MC6839 FLOATING POINT ROM! (Source code is in software/6309/demos)
 ![mandelbrot](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Mandelbrot%20Demo.jpg)
 
 ![pugmon](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Pugmon%20on%20both%20VDP%20and%20UART.jpg)
