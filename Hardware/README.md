@@ -18,11 +18,11 @@ enough to be editable.
 
 Projects in this directory:
 
-6309 CPU Card V0 		HD63C09P CPU, R65C51P2 UART, 64K RAM, 32K ROM
-Backplane 				Five card slots, end-to-end for flatness
-V9958 Video Card 		Same graphics chip as the MSX 2+ home computer
-Parallel IO Card        IO at 5 Volts (Arduino Uno/Nano/Mega, etc.)
-LV Parallel IO Card 	IO at 3.3 Volts (Teensy 4.1, ESP32, Pi, etc.)
+6309 CPU Card V0      HD63C09P CPU, R65C51P2 UART, 64K RAM, 32K ROM
+Backplane             Five card slots, end-to-end for flatness
+V9958 Video Card      Same graphics chip as the MSX 2+ home computer
+Parallel IO Card      IO at 5 Volts (Arduino Uno/Nano/Mega, etc.)
+LV Parallel IO Card   IO at 3.3 Volts (Teensy 4.1, ESP32, Pi, etc.)
 
 The parallel card is intened to allow microcontrollers such as Arduino to 
 be hooked up to the Pugputer to provide SD card, keyboard, audio, and GPIO.
