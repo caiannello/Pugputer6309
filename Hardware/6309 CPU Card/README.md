@@ -1,3 +1,5 @@
+
+![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v0%20Layout.png)
 ```
 FORWARD -----------------------------------------------------------------------
 
