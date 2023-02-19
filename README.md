@@ -46,3 +46,5 @@ Microsoft Extended BASIC for 6309, modified by Grant Searle, Tom Circuit, and me
 (Source code is in software/6309/demos)
 ![mandelbrot](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Mandelbrot%20Demo.jpg)
 ![pugmon](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Pugmon%20on%20both%20VDP%20and%20UART.jpg)
+Still working on a nice enclosure.. (I wish I had taken shop class in high school!)
+![case design](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/wedge_kb_model.png)
