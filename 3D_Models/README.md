@@ -7,3 +7,4 @@ Indigo Renderer by Glare Technologies through the
 Skindigo addon for SketchUp.
 
 ```
+[](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/wedge_kb_model.png)
