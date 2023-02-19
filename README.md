@@ -41,10 +41,7 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 ```
 ## Youtube Channel
 
-Once this project is further along, I plan on making some demo videos and
-putting them on my [youtube channel](https://www.youtube.com/appliedcryogenics).
-In the meantime, there's some older projects on there, but it might still
-be worth a browse. 
+Once this project is further along, I plan on making some demo videos and putting them on my [youtube channel](https://www.youtube.com/appliedcryogenics). In the meantime, there's some older projects on there, so it may still be worth a browse. 
 
 ## Gallery
 
