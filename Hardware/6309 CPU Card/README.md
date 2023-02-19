@@ -9,7 +9,7 @@ soon:
 
 Problem 1:
 
-Tha PLD used for instruction decoding only sees the 7 high-order address lines.. 
+Tha PLD used for address decoding only sees the 7 high-order address lines.. 
 Which means that every individual peripheral takes up 512 bytes of precious 
 address space! Currently, the PLD is programmed to enable peripherals according 
 to this table:
