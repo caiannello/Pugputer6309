@@ -1,4 +1,4 @@
-![kb wedge](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/wedge_kb_top.png)
+![kb wedge](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Prototype_feb_2023.jpg)
 
 ```
 The keyboard shown in the model can be found here:
