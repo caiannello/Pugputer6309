@@ -1,3 +1,4 @@
+![](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/3D_Models/wedge_kb_bot.png)
 ```
 The 3D Models in this directory are created using 
 Trimble's SketchUp Make v17.2.2555 64-bit for Windows. 
