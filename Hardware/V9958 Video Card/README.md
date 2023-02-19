@@ -12,6 +12,6 @@ This is the same Yamaha graphics processor that is used in the MSX 2+ line of Ja
 
 There's enough empty space on the video card to add this little music synthesizer module, but that is still in the breadboard stage. The chips are one [Yamaha YMF262](https://www.polynominal.com/yamaha-opl3/) FM synthesizer, a YAC512 Stereo DAC, and an MC33074 buffer amplifier.  There's not yet any example code for this module in the repo, but plenty of demos of the chip can be [found online](https://www.youtube.com/watch?v=GBQ2RzsHe1g).
 
-![OPL3 Module](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_layout.png)
+![OPL3 Module](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_prototype.jpg)
 
 ![OPL3 Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_schematic.png)
