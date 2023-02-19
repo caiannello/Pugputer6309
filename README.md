@@ -18,6 +18,7 @@ Projects in the Hardware directory:
                         (Expanded memory is on the to-do list) 
   Backplane -           Five card slots end-to-end for flatness 
   V9958 Video Card -    Same graphics chip as the MSX 2+ home computer 
+                        Optional OPL3 synthesizer module (YMF262)
   Parallel IO Card -    5 Volts (Arduino Uno/Nano/Mega, etc.) 
   LV Parallel IO Card - 3.3 Volts (Teensy 4.1, ESP32, Pi, etc.)
   Multifunction card -  Contains two variations, both in the breadboard 
