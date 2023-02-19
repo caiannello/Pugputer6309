@@ -41,6 +41,7 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 Graphics from SquareSoft's Seiken Densetsu 3 for Super NES
 ![mana](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Squaresoft%20Tilemap%20Seiken%20Densetsu%203.jpg)
 ![bottom](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/wedge_kb_bot.png)
+Microsoft Extended BASIC for 6309, modified by Grant Searle, Tom Circuit, and me
 ![basic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Extended%20BASIC%20on%20VDP.jpg)
 ![mandelbrot](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Mandelbrot%20Demo.jpg)
 ![pugmon](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Pugmon%20on%20both%20VDP%20and%20UART.jpg)
