@@ -1,3 +1,4 @@
+```
 FORWARD -----------------------------------------------------------------------
 
 I have been using this first version, V0, for a while, and while it's been good enough to develop the software, it has some shortcomings I would like to address soon:
@@ -31,3 +32,4 @@ I don't think the small PLD I'm currently using has enough logic in it to handle
 
 I also want to add a new peipheral to the next rev of CPU card to allow the memory paging and expanded memory, and I want to put 512K SRAM on the card instead of the 64K SRAM thats currently there.  I'm not yet decided on how to accomplish these goals. Originally, I was going to use a dual-port SRAM, but they are not cheap, and often they take up a lot of board space. I could instead use an off-the-shelf MMU, or even a tiny FPGA which incorporates the address decoding, banking logic, and maybe more.
 
+```
