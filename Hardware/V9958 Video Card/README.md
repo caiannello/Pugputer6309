@@ -1,6 +1,6 @@
 ## V9958 Video Card
 
-This is the same Yamaha graphics processor that is used in the MSX 2+ line of Japanese home computers. It is a descendant of the TI V9918 VDP which was used in the TI-99/4A home computer and the ColecoVision game console from the early 1980's.
+This is the same Yamaha graphics processor that is used in the MSX 2+ line of Japanese home computers. It is a descendant of the TI V9918 VDP which was used in the TI-99/4A home computer and the ColecoVision game console from the early 1980's. A CXA2075M composite encoder chip is used to provide S-video and composite outputs. The picture quality is decent, though there are some very faint 'jail bars' in composite mode.
 
 ## Video Card Layout and Schematic
 
