@@ -47,6 +47,7 @@ Once this project is further along, I plan on making some demo videos and puttin
 
 ## Gallery
 
+The card in the middle in the below image is a Teensy 4.1 in a ZIF socket with a piggybacked audio card, connected to the backplane via the LV Parallel interface card. The USB host connector of the Teensy is connected to the keyboard, but I hope to have some kind of USB hub, eventually. Also note, the backplane shown doesn't space the cards far enough to allow all five to be populated at once. This has since been corrected in the board design, and the total length is still shorter than the keyboard at 13.8 out of 14.125 inches.
 ![prototype](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Prototype_feb_2023.jpg)
 
 Graphics from SquareSoft's Seiken Densetsu 3 for Super NES ([Source code](https://github.com/caiannello/Pugputer6309/blob/main/Software/6309/Demos/mana_tilemap.asm))
