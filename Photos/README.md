@@ -10,6 +10,7 @@ using the Teensy for the time being, and the included Teensy source
 shows keypresses from connected USB keyboards.
 
 A much easier way is to get a keyboard that has a PS/2 interface. That has
-just two-open-drain signal lines, clock and data, similar to I2C. 
-It's easy to interface PS/2 to even the most minimal microcontroller.
+just two-open-drain signal lines, clock and data, similar to i2c. 
+It's easy to interface PS/2 KB's to even the most minimal 
+microcontrollers.
 ```
