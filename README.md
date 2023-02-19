@@ -13,6 +13,7 @@ Projects in the Hardware directory:
   (Using CADSOFT EAGLE 4.16r2)
 
   6309 CPU Card V0 -    HD63C09P CPU, R65C51P2 UART, 64K RAM, 32K ROM 
+                        (Expanded memory is on the to-do list) 
   Backplane -           Five card slots end-to-end for flatness 
   V9958 Video Card -    Same graphics chip as the MSX 2+ home computer 
   Parallel IO Card -    5 Volts (Arduino Uno/Nano/Mega, etc.) 
