@@ -40,8 +40,8 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 
 ```
 Once this project is further along, I plan on making some demo videos and
-putting them on my [youtube channel](https://www.youtube.com/appliedcryogenics), 
-in the meantime, there's just some old projects on there, but it might still
+putting them on my [youtube channel](https://www.youtube.com/appliedcryogenics).
+In the meantime, there's some older projects on there, but it might still
 be worth a browse. 
 
 Graphics from SquareSoft's Seiken Densetsu 3 for Super NES (Source code is in software/6309/demos)
