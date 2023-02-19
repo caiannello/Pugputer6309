@@ -38,10 +38,11 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 (Nice renders using Indigo Renderer by Glare Technologies)
 
 ```
-Graphics from SquareSoft's Seiken Densetsu 3 for Super NES
+Graphics from SquareSoft's Seiken Densetsu 3 for Super NES (Source code is in software/6309/demos)
 ![mana](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Squaresoft%20Tilemap%20Seiken%20Densetsu%203.jpg)
 ![bottom](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/wedge_kb_bot.png)
-Microsoft Extended BASIC for 6309, modified by Grant Searle, Tom Circuit, and me
+Microsoft Extended BASIC for 6309, modified by Grant Searle, Tom Circuit, and me (Source code is in software/6309/BASIC)
 ![basic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Extended%20BASIC%20on%20VDP.jpg)
+(Source code is in software/6309/demos)
 ![mandelbrot](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Mandelbrot%20Demo.jpg)
 ![pugmon](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Pugmon%20on%20both%20VDP%20and%20UART.jpg)
