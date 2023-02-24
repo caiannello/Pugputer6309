@@ -3,6 +3,14 @@
 PUGPUTER 6309 - Software and Firmware
 -------------------------------------------------------------------------------
 
+Note: All code, especially the parallel interface code, are works in progress.
+
+The software is far enough along to validate the functions of the parallel 
+interface cards and MCU services such as SD card, audio, keyboard, etc.,
+but the API for these services is not yet done, so they are not yet usable
+by the pugputer. I hope to add file handling to BASIC and Pugmon soon.
+
+
 Contents
 
 6309 		Extended Basic, Pugmon, demos of sound and graphics
