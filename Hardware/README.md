@@ -25,7 +25,8 @@ Parallel IO Card      IO at 5 Volts (Arduino Uno/Nano/Mega, etc.)
 LV Parallel IO Card   IO at 3.3 Volts (Teensy 4.1, ESP32, Pi, etc.)
 Multifunction Card    Adds SD card, sound, and GPIO. There's a version for
                       PI Pico, Teensy 4.1, and Atmega2560. All three
-                      Are currently in the breadboard stage!
+                      Are currently in the breadboard stage!!
+                      
 The parallel card is intened to allow microcontrollers such as Arduino to 
 be hooked up to the Pugputer to provide SD card, keyboard, audio, and GPIO.
 Relevant software for Arduino Uno and Teensy 4.1 are provided in the Software
