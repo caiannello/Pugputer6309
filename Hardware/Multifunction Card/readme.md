@@ -1,14 +1,21 @@
 ```
 Note, the Atmega based schematic and layout provided here has not yet 
 left the breadboard stage, and I'm considering instead making one
-based on a hugely more powerful Teensy 4.1 MCU module.
+based on a hugely more powerful Teensy 4.1 or Raspberry Pi Pico 
+instead.
 
-Currently, it is also in the breadboard stage. It consists of the 
-LV parallel interface card, available in the repo, connected to a 
-Teensy 4.1 + sound board.
+Currently, these alternatives are also in the breadboard stage. 
 
-This folder is a placeholder for a card which incorporates the Teensy and
-LV Parallel Interface on the same card.
+RASPBERRY PI PICO VERSION
+
+![Pico Layout](http://url/to/img.png)
+
+![Pico Schematic](http://url/to/img.png)
+
+TEENSY VERSION
+
+Consists of the LV parallel interface card, available in the repo, 
+connected to a Teensy 4.1 + sound board.
 
 The Teensy 4.1 is connected to a parallel interface card with the 
 following connections:
@@ -38,4 +45,6 @@ in /Software/Teensy 4.1/multipass
 
 For information about the parallel interface signals and protocol,
 see the README in the LV Parallel IO Card's directory.
+
 ```
+
