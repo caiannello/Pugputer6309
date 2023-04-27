@@ -6,11 +6,10 @@ instead.
 
 Currently, these alternatives are also in the breadboard stage. 
 
-RASPBERRY PI PICO VERSION
 ```
-![Pico Layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Multifunction%20Card/pico_layout.png)
-
+**RASPBERRY PI PICO VERSION
 ![Pico Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Multifunction%20Card/pico_schematic.png)
+![Pico Layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Multifunction%20Card/pico_layout.png)
 ```
 TEENSY VERSION
 
