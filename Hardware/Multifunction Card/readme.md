@@ -7,11 +7,11 @@ instead.
 Currently, these alternatives are also in the breadboard stage. 
 
 RASPBERRY PI PICO VERSION
+```
+![Pico Layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Multifunction%20Card/pico_layout.png)
 
-![Pico Layout](http://url/to/img.png)
-
-![Pico Schematic](http://url/to/img.png)
-
+![Pico Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Multifunction%20Card/pico_schematic.png)
+```
 TEENSY VERSION
 
 Consists of the LV parallel interface card, available in the repo, 
