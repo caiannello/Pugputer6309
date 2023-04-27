@@ -1,20 +1,14 @@
-```
-Note, the Atmega based schematic and layout provided here has not yet 
-left the breadboard stage, and I'm considering instead making one
-based on a hugely more powerful Teensy 4.1 or Raspberry Pi Pico 
-instead.
+# RASPBERRY PI PICO VERSION
+(There's no firmware for this model yet.)
 
-Currently, these alternatives are also in the breadboard stage. 
-
-```
-**RASPBERRY PI PICO VERSION
 ![Pico Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Multifunction%20Card/pico_schematic.png)
 ![Pico Layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Multifunction%20Card/pico_layout.png)
-```
-TEENSY VERSION
 
-Consists of the LV parallel interface card, available in the repo, 
-connected to a Teensy 4.1 + sound board.
+# TEENSY VERSION
+```
+Currently in breadboard stange. It consists of the LV parallel 
+interface card, available in the repo, connected to a 
+Teensy 4.1 and sound board.
 
 The Teensy 4.1 is connected to a parallel interface card with the 
 following connections:
@@ -39,7 +33,7 @@ DB5                 33
 DB6                 34
 DB7                 35
 
-The firmware for the Teensy is an Arduino sketch provided
+The partial firmware for the Teensy is an Arduino sketch provided
 in /Software/Teensy 4.1/multipass
 
 For information about the parallel interface signals and protocol,
