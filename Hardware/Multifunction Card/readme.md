@@ -40,4 +40,7 @@ For information about the parallel interface signals and protocol,
 see the README in the LV Parallel IO Card's directory.
 
 ```
+#AVR Version
+![AVR Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Multifunction%20Card/schematic.png)
+![AVR Layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Multifunction%20Card/layout.png)
 
