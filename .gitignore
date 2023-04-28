@@ -1,31 +1,6 @@
 
-Hardware/V9958 Video Card/opl3_module.s\#1
-Hardware/V9958 Video Card/opl3_module.s\#2
-*.l#5
-*.l#1
-*.l#2
-*.l#3
-*.l#4
-*.l#6
-*.l#7
-*.b#1
-*.b#2
-*.b#3
-*.b#4
-*.b#5
-*.b#6
-*.b#7
-*.b#8
+*.l#*
+*.b#*
 *.erc
-*.s#1
+*.s#*
 *.pro
-*.b#8
-*.b#7
-*.s#2
-*.s#6
-*.s#5
-*.s#4
-*.s#3
-*.b#8
-*.b#7
-*.b#7
