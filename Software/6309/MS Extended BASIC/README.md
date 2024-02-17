@@ -16,9 +16,9 @@ Pugbutt   Mega-Multipass   Sound / SD Card / IO Card
 
 target toolchain: lwtools lwasm ver 4.10 
 
-NOTES:
+!! NOTES: !!
 
-Uses UART interface by default. To enable VDP output, 
+Uses UART interface by default. (19200,N,8,1) To switch to VDP output, 
 type EXEC &HB000 , also, see demos.
 
 !! The parallel interface is currently just a stub. !!
