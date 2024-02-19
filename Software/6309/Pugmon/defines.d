@@ -27,6 +27,7 @@ VIND     	equ  $F403  	; Port 3: Register-indirect addressing (W)
 ESCAPE      equ  $1B        ; ASCII CODE FOR ESCAPE
 LF          equ  $0A        ; LINE FEED
 CR          equ  $0D        ; CARRIAGE RETURN
+BS          equ  $08
 SPACE       equ  $20        
 TILDE       equ  $7E
 
@@ -107,6 +108,7 @@ FOREGROUND2 equ  $05        ; 0 0  0  0  0 G2 G1 G0
 
 VDP_CURS_DEF_BLINKRATE equ 30    ; vblanks per cursor state toggle
 VDP_CURS_DEF_STYLE     equ %111  ; see vdp_curs_style for bit definitions
+VDP_CURS_DEF_GLYPH     equ $18
 
 DISPMODE    equ  DM_NTSC    ; DM_PAL or DM_NTSC
 LINELENGTH  equ  CON_COLS   ; TODO: HANDLE 40-COLUMN MODES
