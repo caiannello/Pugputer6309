@@ -18,7 +18,7 @@
 ;------------------------------------------------------------------------------
     INCLUDE defines.d
 ;------------------------------------------------------------------------------
-JT_FIRQ         EXTERN      ; ISR jump table entry for IRQ
+JT_FIRQ         EXTERN      ; ISR jump table entry for FIRQ
 ;------------------------------------------------------------------------------
 VDP_INIT        EXPORT
 VDP_PUTC        EXPORT
@@ -54,18 +54,12 @@ VSNEXTISR           RMB  2  ; ADDRESS OF NEXT FIRQ ISR SO UART ISR CAN DELEGATE
 ;------------------------------------------------------------------------------
     INCLUDE font.asm
 ; -----------------------------------------------------------------------------
-; PUGBUTT BANNER
-VDP_PUG     FCB $01,$02,$04,$07,$19,$00,$0F,$11,$14
-            FCC "PUGBUTT INDUSTRIES"
-            FCB $0A,$20,$03,$05,$17,$0B,$0E,$10,$12,$15
-            FCC "PUGPUTER-6309 V0.1"
-            FCB $0A,$20,$20,$06,$09,$0C,$20,$20,$13,$16
-            FCC "PUGBUTT.COM 2023"
-            FCB $0A
-VDP_END_PUG
 ; 16-COLOR PALETTE USED BY PICO-8 PROJECT
 PAL_PICO8   FDB $0000,$1201,$3201,$0204,$5102,$3202,$5505,$7607
             FDB $7200,$7004,$7106,$0106,$1705,$4403,$7503,$7506
+; MONOCHROME CRT TERMINAL NOSTALGIA
+PAL_AMBER   FDB $1000,$6005
+PAL_GREEN   FDB $0001,$0307            
 ; -----------------------------------------------------------------------------
 ; SEND A SEQUENCE OF REGISTER SETTINGS TO VDP (USES A,B,X)
 ; X = ADRS OF SEQ, B = SEQ LEN
@@ -76,13 +70,16 @@ VDP_SETREGS LDA  ,X+
             BNE  VDP_SETREGS
             RTS
 ; -----------------------------------------------------------------------------
-; SET VIDEO MODE TEXT2 (80 X 26 X 2) (USES A,B,X)
-; NOTE: FIRST NYB: FG COLOR, SECOND NYB: BG COLOR
+; SET VDP DEFAULTS: VIDEO FORMAT, TEXT FORMAT, AND PALETTE (USES A,B,X)
+; NOTE: FIRST NYB: TEXT FG COLOR, SECOND NYB: TEXT BG COLOR
+; NOTE: STILL HAVE TO CALL VDP_MODE_TEXT2 TO ENABLE THE TEXT DISPLAY
 ; -----------------------------------------------------------------------------
-MODE_T2_SEQ FCB  $61,$87,$28,$88,$02,$84,$03,$82,$80,$89,$D2,$92
-VDP_SET_T2  LDX  #MODE_T2_SEQ
-            LDB  #(VDP_SET_T2-MODE_T2_SEQ)
+VDP_INI_SEQ FCB  $10,$87,$28,$88,$02,$84,$03,$82,$80,$89,$D2,$92
+VDP_SET_DEF LDX  #VDP_INI_SEQ
+            LDB  #(VDP_SET_DEF-VDP_INI_SEQ)
             JSR  VDP_SETREGS
+            LDX  #PAL_AMBER
+            JSR  VDP_SETPAL
             RTS
 ; -----------------------------------------------------------------------------
 ; SET VDP PALETTE (16-COLORS)  (USES A,B,X)
@@ -99,7 +96,51 @@ PAL_LOOP    LDA  ,X+
             BNE  PAL_LOOP
             RTS
 ; -----------------------------------------------------------------------------
-; Set mode TEXT2 (80x26), setup font and vars
+; COPY BANNER MSG TO 80-COLUMN TEXT SCREEN, AND ENABLE TEXT2 MODE
+; -----------------------------------------------------------------------------
+VDP_PUG     FCB $01,$02,$04,$07,$19,$00,$0F,$11,$14
+            FCC "PUGBUTT INDUSTRIES"
+            FCB $0A,$20,$03,$05,$17,$0B,$0E,$10,$12,$15
+            FCC "PUGPUTER-6309 V0.1"
+            FCB $0A,$20,$20,$06,$09,$0C,$20,$20,$13,$16
+            FCC "PUGBUTT.COM 2023"
+            FCB $0A
+VDP_SHOW_PUG:  
+    LDU  #VDP_PUG
+SCREEN_COPY_LOOP:
+    LDA  ,U+
+    JSR  VDP_PUTC
+    CMPU #VDP_SHOW_PUG
+    BNE  SCREEN_COPY_LOOP 
+    JSR  VDP_WRITE_BUFFER ; COPY BUFFER TO CURRRNT TEXT2 PAGE IN VDP
+    LDB  #1               ; YES VBLANK INTERRUPT (AUTO REFRESH)
+    BSR  VDP_MODE_TEXT2   ; ENABLE TEXT2 SCREEN
+    RTS
+; -----------------------------------------------------------------------------
+; Sets 80-column text mode and turns display on.
+;
+; REGISTER B:  1 - ENABLE VBLANK INTERRUPT (TEXT SCREEN AUTO REFRESH)
+;              0 - DISABLE VBLANK INTERRUPT
+; -----------------------------------------------------------------------------
+VDP_MODE_TEXT2
+    LDA  #%00000100        ; Write DG=0,IE2=0,IE1=0, M5=0,M4=1,M3=0 
+    STA  VREG              ; NO hblank interrupt, TEXT2
+    LDA  #$80              ; To reg 0: (0)(dg)(ie2)(ie1)(m5)(m4)(m3)(0)
+    STA  VREG
+    TSTB
+    BNE  WITHV 
+    LDA #%01010000         ; Screen on, NO vblank interrupt, TEXT2
+    BRA VENCNT
+WITHV   
+    LDA  #%01110000        ; Screen on, YES vblank interrupt, TEXT2
+VENCNT   
+    STA  VREG
+    LDA  #$81              ; To reg 1: (0)(bl)(ie0)(m1)(m2)(0)(si)(mag)
+    STA  VREG   
+    STB VDP_VBLANK_ENABLED
+    RTS            
+; -----------------------------------------------------------------------------
+; INIT VDP DEFAULTS, TEXT FONT, AND VARS
 ; -----------------------------------------------------------------------------
 VDP_INIT    CLRA                        ; INIT GLOBALS
             STA  VDP_CURS_BLINK_CT
@@ -112,12 +153,12 @@ VDP_INIT    CLRA                        ; INIT GLOBALS
             JSR  VDP_CLEAR_BUFFER
             LDX  #PAL_PICO8             ; SET DEFAULT COLOR PALETTE
             JSR  VDP_SETPAL
-            JSR  VDP_SET_T2             ; SET DISPLAY MODE TEXT2
+            JSR  VDP_SET_DEF            ; SET DISPLAY DEFAULTS
             BSR  VDP_LDFONT             ; LOAD FONT
-            LDX  JT_FIRQ+1              ; PRESERVE DEFAULT IRQ ISR ADDRESS,
-            STX  VSNEXTISR              ; FOR USE WHEN A NON-VDP IRQ HAPPENS.
+            LDX  JT_FIRQ+1              ; PRESERVE DEFAULT FIRQ ISR ADDRESS,
+            STX  VSNEXTISR              ; FOR USE WHEN A NON-VDP FIRQ HAPPENS.
             LDX  #VDP_FIRQ              ; GET ADDRESS OF OUR ISR,
-            STX  JT_FIRQ+1              ; AND INSERT IT IN IRQ JUMP TABLE.
+            STX  JT_FIRQ+1              ; AND INSERT IT IN FIRQ JUMP TABLE.
             RTS
 ; -----------------------------------------------------------------------------
 ; LOAD 6X8 FONT FROM ROM TO VDP (2048 BYTES)
@@ -213,9 +254,9 @@ VDP_CLEAR_BUFFER
 BCLRLOOP    STB  ,X+
             CMPX #(VDP_TEXT2_BUFFER+DISPLAYSIZE+80) 
             BNE  BCLRLOOP 
-            ORCC #$50
+            ORCC #$40
             JSR  VDP_DIRTY_ALL
-            ANDCC #$AF
+            ANDCC #$BF
             RTS
 ; -----------------------------------------------------------------------------
 VDP_PUTC:   ; TAKE CHARACTER IN REG A, POKE INTO BUFFER AT CURRENT CURSOR,
@@ -238,32 +279,22 @@ NON_CR
     BNE  NON_BACKSPACE
 
 DO_BS                       ; DOING BACKSPACE
-    PSHS A
+    PSHS A,B,X
+    PSHSW
     LDA  VDP_CURS_COL       
-    BEQ  BS_WRAP
+    BEQ  BS_DONE            ; DO NOTHING IF COL = 0.
     DECA                    ; IF COL > 0,
     STA  VDP_CURS_COL       ; JUST DECREMENT COL.
-    BRA  BS_DECP
-BS_WRAP                     ; IF COL = 0: 
-    LDA  VDP_CURS_ROW
-    BEQ  PC_DONE            ; AND ROW = 0: DO NOTHING.
-    LDA  #(CON_COLS-1)      ; ELSE WRAP TO END OF
-    STA  VDP_CURS_COL       ; PREVIOUS ROW.
-    DEC  VDP_CURS_ROW
-BS_DECP
-    PSHS X                  
     LDX  VDP_CURS_BUFPTR    ; GET INITIAL BUS POS
-    ; TODO: HANDLE DESTRUCTIVE BACKSPACE?
-    ; (SHIFT CHARS FROM HERE TO EOLN LEFT BY ONE POS, 
-    ; OVERWRITING A CHAR IN LEFT POS.. MAYBE IN A DIF FCN?) 
-    ORCC #$50               ; DISABLE INTERRUPTS
+    ORCC #$40               ; DISABLE FIRQ INTERRUPTS
     JSR  VDP_DIRTY_CHAR     ; DIRTY INITIAL BUF POS
     LEAX -1,X               ; DECREMENT BUF POS
     STX  VDP_CURS_BUFPTR
     JSR  VDP_DIRTY_CHAR     ; DIRTY FINAL BUF POS
-    ANDCC #$AF              ; RE-ENABLE INTERRUPTS
-    PULS X
-    PULS A
+    ANDCC #$BF              ; RE-ENABLE INTERRUPTS
+BS_DONE
+    PULSW
+    PULS X,B,A
     RTS                     ; DONE DOING A BACKSPACE
 
 NON_BACKSPACE: 
@@ -276,7 +307,7 @@ DO_LF                       ; HANDLE A CARRIAGE RETURN
     LDX  VDP_CURS_BUFPTR    ; X : STARTING BUF POINTER
     LDB  VDP_CURS_ROW       ; B : STARTING CURSOR ROW
     LDA  VDP_CURS_COL
-    ORCC #$50               ; Disable IRQ and FIRQ interrupts
+    ORCC #$40               ; Disable FIRQ interrupts
     JSR  VDP_DIRTY_CHAR     ; INCLUDE STARTING CHAR IN DIRTY REGION
     LDE  #LF                ; First, fill to eoln with LF chars
     LDA  VDP_CURS_COL
@@ -310,7 +341,7 @@ FILL_LASTLINE_0:
     STB  VDP_CURS_ROW
     STX  VDP_CURS_BUFPTR    ; STORE UPDATED CURSOR BUF POINTER
     JSR  VDP_DIRTY_VISIBLE  ; WE SCROLLED, DIRTY VISIBLE REGION.
-    ANDCC #$AF              ; REENABLE INTERRUPTS
+    ANDCC #$BF              ; REENABLE INTERRUPTS
     PULSW    
     PULS X,B,A    
     RTS
@@ -319,7 +350,7 @@ NON_BOTTOM_NEWLINE_DONE:
     STB  VDP_CURS_ROW
     STX  VDP_CURS_BUFPTR    ; STORE UPDATED CURSOR BUF POINTER
     JSR  VDP_DIRTY_CHAR     ; INCLUDE NEW CHARS IN BUF DIRTY AREA
-    ANDCC #$AF              ; REENABLE
+    ANDCC #$BF              ; REENABLE
     PULSW    
     PULS X,B,A    
     RTS
@@ -329,7 +360,7 @@ NORMAL_PUTC:                ; NORMAL(NON-LF) PUTC
     PSHSW                   ; A : OUTPUT CHAR
     LDX  VDP_CURS_BUFPTR    ; X : STARTING BUF POINTER
     LDB  VDP_CURS_ROW       ; B : STARTING CURSOR ROW
-    ORCC #$50               ; Disable IRQ and FIRQ interrupts
+    ORCC #$40               ; Disable FIRQ interrupts
     JSR  VDP_DIRTY_CHAR
     STA  ,X+                ; STORE CHARACTER AND ADVANCE CURSOR
     LDA  VDP_CURS_COL
@@ -357,18 +388,18 @@ FILL_LASTLINE_1:
     LDB  #(LINECOUNT-1)                 ; AND CURSOR ROW
     STA  VDP_CURS_COL
     STB  VDP_CURS_ROW
-    STX  VDP_CURS_BUFPTR   ; STORE UPDATED CURSOR POSITION
-    JSR  VDP_DIRTY_VISIBLE  ; DIRTY VISIBLE REGION
-    ANDCC #$AF ; REENABLE
+    STX  VDP_CURS_BUFPTR        ; STORE UPDATED CURSOR POSITION
+    JSR  VDP_DIRTY_VISIBLE      ; DIRTY VISIBLE REGION
+    ANDCC #$BF                  ; REENABLE
     PULSW
     PULS X,B,A    
     RTS
 PUTC_DONE: 
     STA  VDP_CURS_COL
     STB  VDP_CURS_ROW
-    STX  VDP_CURS_BUFPTR   ; STORE UPDATED CURSOR POSITION
+    STX  VDP_CURS_BUFPTR        ; STORE UPDATED CURSOR POSITION
     JSR  VDP_DIRTY_CHAR
-    ANDCC #$AF ; REENABLE
+    ANDCC #$BF                  ; REENABLE
     PULSW
     PULS X,B,A
     RTS
@@ -509,44 +540,6 @@ FIRQ_DONE:
     PULSW                   ; POP W TOO
     PULS A,B,X,Y,U
     RTI 
-; -----------------------------------------------------------------------------
-; COPY HELLO MSG AND PUG IMAGE TO 80-COLUMN TEXT SCREEN 
-; 
-; -----------------------------------------------------------------------------
-VDP_SHOW_PUG:  
-    LDU  #VDP_PUG
-SCREEN_COPY_LOOP:
-    LDA  ,U+
-    JSR  VDP_PUTC
-    CMPU #VDP_END_PUG
-    BNE  SCREEN_COPY_LOOP 
-    JSR  VDP_WRITE_BUFFER ; COPY BUFFER TO CURRRNT TEXT2 PAGE IN VDP
-    LDB  #1
-    BSR  VDP_MODE_TEXT2   ; ENABLE TEXT SCREEN WITH AUTO REFRESH
-    RTS
-; -----------------------------------------------------------------------------
-; Sets 80-column text mode and turns display on.
-;
-; REGISTER B:  1 - ENABLE VBLANK INTERRUPT (TEXT SCREEN AUTO REFRESH)
-;              0 - DISABLE VBLANK INTERRUPT
-; -----------------------------------------------------------------------------
-VDP_MODE_TEXT2:
-    LDA  #%00000100        ; Write DG=0,IE2=0,IE1=0,M5=0,M4=0,M3=0
-    STA  VREG
-    LDA  #$80              ; To register 0
-    STA  VREG
-    TSTB
-    BNE  WITHV 
-    LDA #%01010000         ; Write BL=1,IE0=0,M1=1,M2=0,SI=0,MAG=0
-    BRA VENCNT
-WITHV   
-    LDA  #%01110000         ; Write BL=1,IE0=1,M1=1,M2=0,SI=0,MAG=0
-VENCNT   
-    STA  VREG
-    LDA  #$81              ; To register 1
-    STA  VREG   
-    STB VDP_VBLANK_ENABLED
-    RTS
 ;------------------------------------------------------------------------------
     ENDSECT
 ;------------------------------------------------------------------------------
