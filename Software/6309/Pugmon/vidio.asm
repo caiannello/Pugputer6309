@@ -57,9 +57,10 @@ VSNEXTISR           RMB  2  ; ADDRESS OF NEXT FIRQ ISR SO UART ISR CAN DELEGATE
 ; 16-COLOR PALETTE USED BY PICO-8 PROJECT
 PAL_PICO8   FDB $0000,$1201,$3201,$0204,$5102,$3202,$5505,$7607
             FDB $7200,$7004,$7106,$0106,$1705,$4403,$7503,$7506
-; MONOCHROME CRT TERMINAL NOSTALGIA
+; MONOCHROME CRT NOSTALGIA
 PAL_AMBER   FDB $1000,$6005
-PAL_GREEN   FDB $0001,$0307            
+PAL_GREEN   FDB $0001,$0307
+PAL_WHITE   FDB $0100,$6707
 ; -----------------------------------------------------------------------------
 ; SEND A SEQUENCE OF REGISTER SETTINGS TO VDP (USES A,B,X)
 ; X = ADRS OF SEQ, B = SEQ LEN
@@ -78,7 +79,7 @@ VDP_INI_SEQ FCB  $10,$87,$28,$88,$02,$84,$03,$82,$80,$89,$D2,$92
 VDP_SET_DEF LDX  #VDP_INI_SEQ
             LDB  #(VDP_SET_DEF-VDP_INI_SEQ)
             JSR  VDP_SETREGS
-            LDX  #PAL_AMBER
+            LDX  #PAL_WHITE
             JSR  VDP_SETPAL
             RTS
 ; -----------------------------------------------------------------------------
