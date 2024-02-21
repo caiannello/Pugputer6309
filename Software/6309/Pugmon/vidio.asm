@@ -98,12 +98,12 @@ PAL_LOOP    LDA  ,X+
 ; -----------------------------------------------------------------------------
 ; COPY BANNER MSG TO 80-COLUMN TEXT SCREEN, AND ENABLE TEXT2 MODE
 ; -----------------------------------------------------------------------------
-VDP_PUG     FCB $01,$02,$04,$07,$19,$00,$0F,$11,$14
-            FCC "PUGBUTT INDUSTRIES"
-            FCB $0A,$20,$03,$05,$17,$0B,$0E,$10,$12,$15
-            FCC "PUGPUTER-6309 V0.1"
-            FCB $0A,$20,$20,$06,$09,$0C,$20,$20,$13,$16
-            FCC "PUGBUTT.COM 2023"
+VDP_PUG     FCB $00,$01,$02,$03,$04,$05,$06
+            FCC " PUGBUTT INDUSTRIES"
+            FCB $0A,$07,$09,$0B,$0C,$0E,$0F,$10
+            FCC " PUGPUTER-6309 V0.1"
+            FCB $0A,$11,$12,$13,$14,$15,$16,$17
+            FCC " PUGBUTT.COM 2023"
             FCB $0A
 VDP_SHOW_PUG:  
     LDU  #VDP_PUG
