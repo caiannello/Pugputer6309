@@ -4,3 +4,5 @@
 *.erc
 *.s#*
 *.pro
+Software/dev_utils/font.asm
+Software/dev_utils/v9958_palette_font.py
