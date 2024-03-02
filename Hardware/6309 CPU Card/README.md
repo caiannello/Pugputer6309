@@ -1,4 +1,7 @@
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Layout.png)
+
+![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Schematic.png)
+
 ## 6309 CPU Card v2
 ```
 3/1/2024 UPDATE:
@@ -154,5 +157,3 @@ io      = hn3 & hn2 & !hn1                            # for misc cards, connecte
 /via    = ! (  io & a7 & !a6 & a5 & a4 )            # ffb0 - ffbf  W65C22 Versatile Interface Adaptor
                                                     # (Used for SD card, keyboard, game controllers, etc.)
 ```
-![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Schematic.png)
-
