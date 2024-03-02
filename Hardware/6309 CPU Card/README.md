@@ -13,9 +13,9 @@ uses a classic 60-pin card-edge connector similar to a Nintendo Famicom
 cartridge.
 
 Moved previous version to past_revs/ subfolder. 
-
-  v2 Memory Map
-
+```
+## Memory Map v2
+```
   name      strt - end     size     notes
   ----      -----------    ----     -----
   RAM0      0000 - 3fff    16384    RAM page 0 (a14 - a21 from bank reg. 0)
@@ -48,41 +48,48 @@ Moved previous version to past_revs/ subfolder.
   SIO10     ffe8 - ffeb    4        UART
   SIO11     ffec - ffef    4        MAPPER
   intvec    fff0 - ffff    16       Fixed ROM (interrupt vectors)
+```
+## Address Decoding stuff for the PAL
+```
+This is mostly just work-in-progress thoughts about how to go about
+implementing the memoty map on the system and programming the PAL.
+Some of this is implemented with discrete logic on the card because
+the PAL doesnt have enough inputs to handle everything alone.
 
-// combinatorial inputs and aliases
+// combinatorial logic
 
-hn3    = a15 & a14 & a13 & a12         # f...
-hn2    = a11 & a10 & a9 & a8           # .f..
-hn1    = a7 & a6 & a5 & a4             # ..f.
-siol = a7 & a6 & !a5 & !a4             # ffc0 - ffcf
-siom = a7 & a6 & !a5 &  a4             # ffd0 - ffdf
-sioh = a7 & a6 &  a5 & !a4             # ffe0 - ffef
-hiadr  = a19 | a20 | a21 # ram address beyond onboard 512 KB
+hn3    = a15 & a14 & a13 & a12         # f...  implemented with discrete logic
+hn2    = a11 & a10 & a9 & a8           # .f..  .||.
+hn1    = a7 & a6 & a5 & a4             # ..f.  .||.
+siol = a7 & a6 & !a5 & !a4             # ffc0 - ffcf implemented in PAL
+siom = a7 & a6 & !a5 &  a4             # ffd0 - ffdf .||.
+sioh = a7 & a6 &  a5 & !a4             # ffe0 - ffef .||.
+hiadr  = a19 | a20 | a21               # true if address > onboard 512KB (discrete logic)
 
-// inputs to onboard PAL:
+// Inputs to PAL:
 
 hn3, hn2, hn1, hiadr, a7, a6, a5, a4, a3, a2
 
-// outputs from onboard pal:
+// Outputs from the PAL:
 
-extram  = !hn3 & hiadr                                # out to bus
-io      = hn3 & hn2 & !hn1                            # out to bus
-/ram    = ! ( !hn3 & !hiadr )                         # 0000 - efff
-/rom    = ! (  hn3 & ( !hn2 | ( hn2 & hn1 ) ))        # f000 - feff, fff0 - ffff
-/mapper = ! (  io & sioh & a3 &  a2 )                 # ffec - ffef small
-/uart   = ! (  io & sioh & a3 & !a2 )                 # ffe8 - ffeb small
+extram  = !hn3 & hiadr                                # for ram expansion card, connected to bus
+io      = hn3 & hn2 & !hn1                            # for misc cards, connected to bus
+/ram    = ! ( !hn3 & !hiadr )                         # 0000 - efff  (onboard chip select)
+/rom    = ! (  hn3 & ( !hn2 | ( hn2 & hn1 ) ))        # f000 - feff, fff0 - ffff (onboard chip select)
+/mapper = ! (  io & sioh & a3 &  a2 )                 # ffec - ffef (onboard chip select)
+/uart   = ! (  io & sioh & a3 & !a2 )                 # ffe8 - ffeb (onboard chip select)
 
 // outputs from pals on other cards:
 
-/v9958  = ! (  io & sioh  & !a3 & a2 )              # ffe4 - ffe7 small
-/opl3   = ! (  io & sioh  & !a3 & !a2 )             # ffe0 - ffe3 small
+/v9958  = ! (  io & sioh  & !a3 & a2 )              # ffe4 - ffe7  Video Card video chip
+/opl3   = ! (  io & sioh  & !a3 & !a2 )             # ffe0 - ffe3  Video Card music chip
 
-/via    = ! (  io & a7 & !a6 & a5 & a4 )            # ffb0 - ffbf large
+/via    = ! (  io & a7 & !a6 & a5 & a4 )            # ffb0 - ffbf  W65C22 Versatile Interface Adaptor (SD Card, keyboard, etc)
 
 ```
 ![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Schematic.png)
 
-## About the Timer Feature
+## Rambles About the Timer Feature
 ```
 The real-time interupt causes an /IRQ to happen at a rate of 16 Hz.
 
@@ -97,15 +104,13 @@ Date and time aren't the main reason the timer was added, though.
 
 In the use case where there is just a CPU card being used with a
 serial terminal, a timer is needed to properly differentiate between
-certain key presses. For example, when escape is pressed, a single
+certain key presses. For example, when Escape is pressed, a single
 0x1b character is sent to the UART. Pressing cursor-up sends a
 sequence of three characters, starting with the code for escape:
-[0x1b, '[', 'A']   Most terminal emulators, even BASH, start a timer
-when an escape code is received. If no other codes come in before the
-timeout, the system assumes that escape was pressed. If instead, more
-codes arrive, the system assumes an ANSI escape sequence is being
-sent. I hated the idea of implementing this timer with a software
-busy loop, and there's not enough room on the CPU card for dedicated
-clock or timer chips such as the DS1287 or W65C22 VIA, so I went with
-something much more basic.
+0x1b, '[', 'A'.  Most terminal emulators, even BASH, use a timer
+to distinguish between single escape characters and ANSI escape
+sequences. I hated the idea of implementing this timer with a
+software busy loop, and there's not enough room on the CPU card for
+dedicated clock/timer chips such as the DS1287 or W65C22 VIA, so
+I went with something much more basic.
 ```
