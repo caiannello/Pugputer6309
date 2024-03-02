@@ -6,7 +6,12 @@
 
 Added a new v2 CPU card. It has the same HD63C09 clocked at 3.57 MHz,
 32K Flash ROM, and serial UART, but it adds 512k SRAM, up to 4 MB total
-memory available via bank-switching, and a real-time clock interrupt. 
+memory available via bank-switching, and a real-time clock interrupt.
+
+Also, rather than a pin header connection to the backplane, this one
+uses a classic 60-pin card-edge connector similar to a Nintendo Famicom
+cartridge,
+
 
   New memory map
 
