@@ -93,11 +93,11 @@ access any RAM) is to set default values. The banked memory pages are
 to correspond to the same physical addresses in RAM, the default
 values can be determined as follows.
 
-CPU Adrs    Physical Adrs            Bank Reg (E21...E14)
-$0000       %0000000000000000000000  $00
-$4000       %0000000100000000000000  $01
-$8000       %0000001000000000000000  %02
-$c000       %0000001100000000000000  %03
+Page#  CPU Adrs    Physical Adrs            Bank Reg (E21...E14)
+0      $0000       %0000000000000000000000  $00
+1      $4000       %0000000100000000000000  $01
+2      $8000       %0000001000000000000000  %02
+3      $c000       %0000001100000000000000  %03
 
 If instead the user wants access the second 64K of RAM in page 1
 (CPU adrs $4000) ...
