@@ -13,10 +13,10 @@ I sure hope this card works, I'm super excited to build one up and try it!
 
   name      strt - end     size     notes
   ----      -----------    ----     -----
-  RAM0      0000 - 3fff    16384    RAM page 0 (a17 - a24 from bank reg. 0)
-  RAM1      4000 - 7fff    16384    RAM page 1 (a17 - a24 from bank reg. 1)
-  RAM2      8000 - bfff    16384    RAM page 2 (a17 - a24 from bank reg. 2)
-  RAM3      c000 - efff    12288    RAM page 3 (a17 - a24 from bank reg. 3)
+  RAM0      0000 - 3fff    16384    RAM page 0 (a14 - a21 from bank reg. 0)
+  RAM1      4000 - 7fff    16384    RAM page 1 (a14 - a21 from bank reg. 1)
+  RAM2      8000 - bfff    16384    RAM page 2 (a14 - a21 from bank reg. 2)
+  RAM3      c000 - efff    12288    RAM page 3 (a14 - a21 from bank reg. 3)
   ROM       f000 - feff    3840     Fixed ROM  (bootloader)
   IO0       ff00 - ff0f    16
   IO1       ff10 - ff1f    16
