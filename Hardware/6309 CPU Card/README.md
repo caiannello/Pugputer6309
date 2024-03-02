@@ -29,16 +29,19 @@ I sure hope this card works, I'm super excited to build one up and try it!
   IO8       ff80 - ff8f    16
   IO9       ff90 - ff9f    16
   IO10      ffa0 - ffaf    16
-  IO11      ffb0 - ffbf    16       
-  IO12      ffc0 - ffcf    16       VIA
-  SIO0      ffd0 - ffd3    4        
-  SIO1      ffd4 - ffd7    4        
-  SIO2      ffd8 - ffdb    4        
-  SIO3      ffdc - ffdf    4        
-  SIO4      ffe0 - ffe3    4        OPL3
-  SIO5      ffe4 - ffe7    4        V9958 VDP
-  SIO6      ffe8 - ffeb    4        UART
-  SIO7      ffec - ffef    4        MAPPER
+  IO11      ffb0 - ffbf    16       VIA
+  SIO0      ffc0 - ffc3    4      
+  SIO1      ffc4 - ffc7    4      
+  SIO2      ffc8 - ffcb    4      
+  SIO3      ffcc - ffcf    4      
+  SIO4      ffd0 - ffd3    4        
+  SIO5      ffd4 - ffd7    4        
+  SIO6      ffd8 - ffdb    4        
+  SIO7      ffdc - ffdf    4        
+  SIO8      ffe0 - ffe3    4        OPL3
+  SIO9      ffe4 - ffe7    4        V9958 VDP
+  SIO10     ffe8 - ffeb    4        UART
+  SIO11     ffec - ffef    4        MAPPER
   intvec    fff0 - ffff    16       Fixed ROM (interrupt vectors)
 
 // combinatorial inputs
@@ -46,8 +49,11 @@ I sure hope this card works, I'm super excited to build one up and try it!
 hn3    = a15 & a14 & a13 & a12         # f...
 hn2    = a11 & a10 & a9 & a8           # .f..
 hn1    = a7 & a6 & a5 & a4             # .f..
-siol = a7 & a6 & !a5 &  a4             # ffd0 - ffdf
+
+siol = a7 & a6 & !a5 & !a4             # ffc0 - ffcf
+siom = a7 & a6 & !a5 &  a4             # ffd0 - ffdf
 sioh = a7 & a6 &  a5 & !a4             # ffe0 - ffef
+
 hiadr  = a19 | a20 | a21 # ram address beyond onboard 512 KB
 
 // inputs to onboard PAL
@@ -57,18 +63,18 @@ hn3, hn2, hn1, hiadr, a7, a6, a5, a4, a3, a2
 // required outputs on onboard pal
 
 extram  = !hn3 & hiadr                                # out to bus
+io      = hn3 & hn2 & !hn1                            # out to bus
 /ram    = ! ( !hn3 & !hiadr )                         # 0000 - efff
 /rom    = ! (  hn3 & ( !hn2 | ( hn2 & hn1 ) ))        # f000 - feff, fff0 - ffff
 /mapper = ! (  io & sioh & a3 &  a2 )                 # ffec - ffef small
 /uart   = ! (  io & sioh & a3 & !a2 )                 # ffe8 - ffeb small
-io      = hn3 & hn2 & !hn1                            # out to bus
 
 // outputs on offboard pal(s)
 
 /v9958  = ! (  io & sioh  & !a3 & a2 )              # ffe4 - ffe7 small
 /opl3   = ! (  io & sioh  & !a3 & !a2 )             # ffe0 - ffe3 small
 
-/via    = ! (  io & a7 & a6 & !a5 & !a4 )             # ffc0 - ffcf large
+/via    = ! (  io & a7 & !a6 & a5 & a4 )            # ffb0 - ffbf large
 
 OLD README --------------------------------------------------------------------
 
