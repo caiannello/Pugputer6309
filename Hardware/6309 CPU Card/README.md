@@ -1,7 +1,6 @@
-## 6309 CPU Card v2
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Layout.png)
+## 6309 CPU Card v2
 ```
-
 3/1/2024 UPDATE:
 
 Added a new v2 CPU card. It has the same HD63C09 clocked at 3.57 MHz,
@@ -49,7 +48,7 @@ Moved previous version to past_revs/ subfolder.
   SIO11     ffec - ffef    4        MAPPER
   intvec    fff0 - ffff    16       Fixed ROM (interrupt vectors)
 ```
-## Address Decoding stuff for the PAL
+## Address Decoding Notes
 ```
 This is mostly just work-in-progress thoughts about how to go about
 implementing the memoty map on the system and programming the PAL.
@@ -89,7 +88,7 @@ io      = hn3 & hn2 & !hn1                            # for misc cards, connecte
 ```
 ![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Schematic.png)
 
-## Rambles About the Timer Feature
+## Timer Notes
 ```
 The real-time interupt causes an /IRQ to happen at a rate of 16 Hz.
 
