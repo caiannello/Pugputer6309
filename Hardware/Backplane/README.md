@@ -1,4 +1,3 @@
-```
 ## Backplane v2
 
 This is a backplane based on 60-pin, 2.57mm pich, card-edge connectors,
@@ -9,8 +8,6 @@ connector on the original Nintendo Famicom.
 
 This time, the form factor is a box shape instead of the flattened all-in-one-keyboard design used in v0.
 For something more compact, but much more expensive to fabricate, see v0/ .
-
-```
 
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Backplane/Backplane%20Layout.png)
 
