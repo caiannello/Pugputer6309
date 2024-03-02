@@ -72,7 +72,7 @@ io      = hn3 & hn2 & !hn1                            # out to bus
 /mapper = ! (  io & sioh & a3 &  a2 )                 # ffec - ffef small
 /uart   = ! (  io & sioh & a3 & !a2 )                 # ffe8 - ffeb small
 
-// outputs on offboard pal(s)
+// outputs from pals on other cards:
 
 /v9958  = ! (  io & sioh  & !a3 & a2 )              # ffe4 - ffe7 small
 /opl3   = ! (  io & sioh  & !a3 & !a2 )             # ffe0 - ffe3 small

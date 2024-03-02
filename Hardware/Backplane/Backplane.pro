@@ -1,25 +1,25 @@
 EAGLE AutoRouter Statistics:
 
-Job           : C:/Users/craig/Desktop/pugputer master/Hardware/Backplane/Backplane.brd
+Job           : C:/Users/craig/Documents/GitHub/Pugputer6309/Hardware/Backplane/Backplane.brd
 
-Start at      :   03:26:29p ( 2/17/2023)
-End at        :   03:39:58p ( 2/17/2023)
-Elapsed time  :   00:13:29
+Start at      :   01:07:43p ( 3/02/2024)
+End at        :   01:08:27p ( 3/02/2024)
+Elapsed time  :   00:00:44
 
-Signals       :    50   RoutingGrid: 3 mil  Layers: 4
-Connections   :   200   predefined:  0 ( 0 Vias )
+Signals       :    58   RoutingGrid: 5 mil  Layers: 2
+Connections   :   242   predefined:  0 ( 0 Vias )
 
-Router memory :   10199200
+Router memory :   2733632
 
 Passname          :    Busses     Route Optimize1 Optimize2 Optimize3 Optimize4
 
-Time per pass     :  00:00:03  00:05:43  00:01:40  00:02:00  00:01:49  00:02:14
-Number of Ripups  :         0       195         0         0         0         0
-max. Level        :         0         6         0         0         0         0
-max. Total        :         0        12         0         0         0         0
+Time per pass     :  00:00:01  00:00:02  00:00:05  00:00:11  00:00:11  00:00:14
+Number of Ripups  :         0         0         0         0         0         0
+max. Level        :         0         0         0         0         0         0
+max. Total        :         0         0         0         0         0         0
 
-Routed            :        25       200       200       200       200       200
-Vias              :         0       707       462       358       334       316
-Resolution        :    12.5 %   100.0 %   100.0 %   100.0 %   100.0 %   100.0 %
+Routed            :       208       242       242       242       242       242
+Vias              :         0        85        22         0         0         0
+Resolution        :    86.0 %   100.0 %   100.0 %   100.0 %   100.0 %   100.0 %
 
 Final             : 100.0% finished
