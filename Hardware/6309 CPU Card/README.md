@@ -48,7 +48,7 @@ hn2    = a11 & a10 & a9 & a8           # .f..
 hn1    = a7 & a6 & a5 & a4             # .f..
 siol = a7 & a6 & !a5 &  a4             # ffd0 - ffdf
 sioh = a7 & a6 &  a5 & !a4             # ffe0 - ffef
-hiadr  = a19 | a20 | a21 | a22 | a23   # bankreg & %11111000 (address beyond 512 KB)
+hiadr  = a19 | a20 | a21 # ram address beyond onboard 512 KB
 
 // inputs to onboard PAL
 
