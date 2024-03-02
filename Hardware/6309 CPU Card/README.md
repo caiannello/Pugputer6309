@@ -52,7 +52,7 @@ cartridge,
 
 hn3    = a15 & a14 & a13 & a12         # f...
 hn2    = a11 & a10 & a9 & a8           # .f..
-hn1    = a7 & a6 & a5 & a4             # .f..
+hn1    = a7 & a6 & a5 & a4             # ..f.
 
 siol = a7 & a6 & !a5 & !a4             # ffc0 - ffcf
 siom = a7 & a6 & !a5 &  a4             # ffd0 - ffdf
