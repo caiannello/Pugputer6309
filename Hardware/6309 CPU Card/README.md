@@ -103,7 +103,10 @@ If instead the user wants access the second 64K of RAM in page 1
 (CPU adrs $4000) ...
 
 CPU Adrs    Physical Address         Bank Reg 1
-$4000       %0000010000000000000000  $08
+$4000       %0000010000000000000000  $04
+
+So in short, the bank register select which 16KB page will be
+mapped to the specified bank.
 ```
 ## Expanded Memory
 ```
