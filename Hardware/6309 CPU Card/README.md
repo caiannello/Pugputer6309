@@ -77,8 +77,10 @@ the DS1287 or W65C22 VIA, so I went with something simpler.
 ```
 Two SN74LS670D chips were added to the design. These provide a total
 of four bytes registers (which act like dual-ported RAM) mapped to
-CPU addresses $ffec - $ffef. These allow an additional six bits of
-physical address space to be accessed, for a total of 4 megabytes.
+CPU addresses $ffec - $ffef. These allow CPU address space to be
+subdivided into four pages, each expanded with six additional
+address bits, allowing a total of 4 megabytes of physical address
+space.
 
 When RAM is accessed, CPU address lines A14 and A15 are used to select
 which bank register to use, causing that register to be the source of
