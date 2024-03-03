@@ -2,6 +2,7 @@
 ```
 This card contains a W65C22 Versatile Interface Adaptor (VIA) which has some
 timers, two 8-bit GPIO ports (PORTA and PORTB), and some handshaking lines.
+
 PORTB is run through level-shifters to connect to an ATMEGA328P MCU which
 provides SPI, I2C, SPI SD Card, and misc analog/digital IO. Several of these
 signals are brought out to a pin header which should allow connecting various
