@@ -12,8 +12,7 @@ subscription-based business model.
 4.16r2 is old, but pretty nice, and it seems to still work well in Windows 10.
 
 The freeware version of Eagle has limited board size and layercount, but all
-boards are viewable, and I think all the boards except the backplane are small
-enough to be editable.
+boards are viewable. Editing may be another story. TODO: Learn Kicad?
 -------------------------------------------------------------------------------
 
 Projects in this directory:
