@@ -48,7 +48,7 @@ Moved previous version to past_revs/ subfolder.
   SIO8      ffe0 - ffe3    4        OPL3
   SIO9      ffe4 - ffe7    4        V9958 VDP
   SIO10     ffe8 - ffeb    4        UART
-  SIO11     ffec - ffef    4        MAPPER
+  SIO11     ffec - ffef    4        Memory bank registers 0...3
   intvec    fff0 - ffff    16       Fixed ROM (interrupt vectors)
 ```
 ## Memory Paging Scheme
