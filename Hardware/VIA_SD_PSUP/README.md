@@ -6,9 +6,7 @@ PORTB is run through a voltage level-shifter to connect an SD Card interface
 in slow (SPI) mode. There are some spare signals which might be used to
 select other SPI-based peripherals such as clock/calendar, temperature sensor,
 microcontrollers, laser death rays, etc..
-```
-The SD card connections are based on work done in the awesome [Steckschwein project](https://www.steckschwein.de/hardware/).
-```
+
 PORTA is currently unused, but will be either brought out to an expansion header
 or used to interface with a keyboard matrix and game controllers.
 
