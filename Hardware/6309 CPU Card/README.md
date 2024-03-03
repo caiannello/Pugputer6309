@@ -53,9 +53,9 @@ Moved previous version to past_revs/ subfolder.
 ```
 ## Memory Paging Scheme
 ```
-Two SN74LS670D chips were added to the design which provide four
+Two 74LS670 chips are added to the design which provide four
 writable bytes at CPU addresses $ffec - $ffef. These act like dual-
-ported RAMs which enable each of the four 16KB sections of the CPU
+ported RAMs and enable each of the four 16KB sections of the CPU
 address space to be independently mapped a different 16KB page of
 physical memory (up to 4MB.)
 
