@@ -12,15 +12,14 @@ subscription-based business model.
 4.16r2 is old, but pretty nice, and it seems to still work well in Windows 10.
 
 The freeware version of Eagle has limited board size and layercount, but all
-boards are viewable, and I think all the boards except the backplane are small
-enough to be editable.
+boards are viewable. Editing may be another story. TODO: Learn Kicad?
 -------------------------------------------------------------------------------
 
 Projects in this directory:
 
 6309 CPU Card V0      HD63C09P CPU, R65C51P2 UART, 1MB RAM, 32K ROM
 V9958 Video Card      Same graphics chip as the MSX 2+ home computer
-VIA_SD_PSUP           W65C22 VIA, ATMEGA328P, SD Card, SPI, I2C, Parallel, etc.
+VIA_SD_PSUP           Power supply, W65C22 VIA, MCU, SD Card, SPI, I2C, etc.
 Backplane             Five card slots, tombstone-style
 
 -------------------------------------------------------------------------------
