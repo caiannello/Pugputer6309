@@ -36,7 +36,7 @@ Moved previous version to past_revs/ subfolder.
   IO8       ff80 - ff8f    16
   IO9       ff90 - ff9f    16
   IO10      ffa0 - ffaf    16
-  IO11      ffb0 - ffbf    16       VIA
+  IO11      ffb0 - ffbf    16       W65C22 VIA (SD Card, SPI, GPIO)
   SIO0      ffc0 - ffc3    4      
   SIO1      ffc4 - ffc7    4      
   SIO2      ffc8 - ffcb    4      
@@ -45,10 +45,10 @@ Moved previous version to past_revs/ subfolder.
   SIO5      ffd4 - ffd7    4        
   SIO6      ffd8 - ffdb    4        
   SIO7      ffdc - ffdf    4        
-  SIO8      ffe0 - ffe3    4        OPL3
-  SIO9      ffe4 - ffe7    4        V9958 VDP
-  SIO10     ffe8 - ffeb    4        UART
-  SIO11     ffec - ffef    4        Memory bank registers 0...3
+  SIO8      ffe0 - ffe3    4        Music Chip YMF262 (OPL3)
+  SIO9      ffe4 - ffe7    4        Video Chip V9958
+  SIO10     ffe8 - ffeb    4        Serial UART R65C51P2
+  SIO11     ffec - ffef    4        Memory Bank Regs 0...3
   intvec    fff0 - ffff    16       Fixed ROM (interrupt vectors)
 ```
 ## Memory Paging Scheme
