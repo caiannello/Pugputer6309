@@ -18,10 +18,16 @@ enough to be editable.
 
 Projects in this directory:
 
-6309 CPU Card V0      HD63C09P CPU, R65C51P2 UART, 1MB RAM, 32K ROM
-V9958 Video Card      Same graphics chip as the MSX 2+ home computer
-VIA_SD_PSUP           W65C22 VIA, ATMEGA328P, SD Card, SPI, I2C, Parallel, etc.
-Backplane             Five card slots, tombstone-style
+Parallel IO Card      IO at 5 Volts (Arduino Uno/Nano/Mega, etc.)
+LV Parallel IO Card   IO at 3.3 Volts (Teensy 4.1, ESP32, Pi, etc.)
+Multifunction Card    Adds SD card, sound, and GPIO. There's a version for
+                      PI Pico, Teensy 4.1, and Atmega2560. All three
+                      Are currently in the breadboard stage!!
+                      
+The parallel card is intened to allow microcontrollers such as Arduino to 
+be hooked up to the Pugputer to provide SD card, keyboard, audio, and GPIO.
+Relevant software for Arduino Uno and Teensy 4.1 are provided in the Software
+directory of this repo.
 
 -------------------------------------------------------------------------------
 ```
