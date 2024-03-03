@@ -53,38 +53,33 @@ Moved previous version to past_revs/ subfolder.
 ```
 ## Memory Paging Scheme
 ```
-Two SN74LS670D chips were added to the design. These provide a total
-of four bytes registers (which act like dual-ported RAM) mapped to
-CPU addresses $ffec - $ffef. These allow CPU address space to be
-subdivided into four sections, each expanded with six additional
-address bits, allowing a total of 4 megabytes of physical address
-space.
+Two SN74LS670D chips were added to the design which provide four
+writable bytes at CPU addresses $ffec - $ffef. These act like dual-
+ported RAMs which enable each of the four 16KB sections of the CPU
+address space to be independently mapped a different 16KB page of
+physical memory (up to 4MB.)
 
-When RAM is accessed, CPU address lines A14 and A15 are used to select
-which bank register to use, causing that register to be the source of
-the eight extended address bits, E14...E21. These are combined with
-CPU address bits A0...A13 to make the final physical address. The
-initial state of these registers on powerup is unknown, so one of the
-first things the system must do after powerup (and before trying to
-access any RAM) is to set default values. The banked memory pages are
- at CPU addresses $0000, $4000, $8000, and $c000, so if we want those
-to correspond to the same physical addresses in RAM, the default
-values can be determined as follows.
+CPU Address lines A14 and A15 select which register is active, which
+then provides extended address bits E14...E21 to the system. These are
+combined with CPU address bits A0...A13 to form the final 22-bit
+physical address.
 
-Page#  CPU Adrs    Physical Adrs            Bank Reg (E21...E14)
+The initial state of the registers is unknown on startup and must be
+initialized before any RAM access should occur. Initially, these are
+mapped to the first four pages of physical memory by setting the bank
+registers as follows:
+
+Sect   CPU Adrs    22-bit physical Adrs     Bank Reg (E21...E14)
 0      $0000       %0000000000000000000000  $00
 1      $4000       %0000000100000000000000  $01
-2      $8000       %0000001000000000000000  %02
-3      $c000       %0000001100000000000000  %03
+2      $8000       %0000001000000000000000  $02
+3      $c000       %0000001100000000000000  $03
 
-If instead the user wants access the second 64K of RAM in page 1
+If the user instead wants access the second 64K of RAM in page 1
 (CPU adrs $4000) ...
 
 CPU Adrs    Physical Address         Bank Reg 1
 $4000       %0000010000000000000000  $04
-
-So in short, the bank register select which 16KB page will be
-mapped to the specified bank.
 ```
 ## Expanded Memory
 ```
