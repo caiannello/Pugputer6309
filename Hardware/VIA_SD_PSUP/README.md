@@ -3,7 +3,9 @@
 This card contains a W65C22 Versatile Interface Adaptor (VIA) which has some
 timers, two 8-bit GPIO ports (PORTA and PORTB), and some handshaking lines.
 PORTB is run through a voltage level-shifter to connect an SD Card interface
-in slow (SPI) mode.
+in slow (SPI) mode. There are some spare signals which might be used to
+select other SPI-based peripherals such as clock/calendar, temperature sensor,
+microcontrollers, laser death rays, etc..
 ```
 The SD card connections are based on work done in the awesome [Steckschwein project](https://www.steckschwein.de/hardware/).
 ```
