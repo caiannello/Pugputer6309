@@ -3,7 +3,7 @@
 3/1/2024 UPDATE:
 
 Added a new v2 CPU card. It has the same HD63C09 clocked at 3.57 MHz,
-32K Flash ROM, and serial UART, but it adds 512k SRAM, expandable to
+32K Flash ROM, and serial UART, but it adds 1024k SRAM, expandable to
 4 MB, and a real-time clock interrupt.
 
 Also, rather than a pin header connection to the backplane, this one
@@ -78,11 +78,11 @@ Sect   CPU Adrs    22-bit physical Adrs     Bank Reg (E21...E14)
 ```
 ## Expanded Memory
 ```
-For memory addresses beyond the onboard 512KB, one or more bits
-E19...E21 will be set in the bank register. The address decoder
-in the PAL will not select the onboard RAM in this case, and instead
-it will set bus signal XMEM to high. This signal can be used to
-implement memory expansions.
+For memory addresses beyond the onboard 1 MB, one or more bits
+E20...E21 will be set in the bank register. The address decoder
+in the PAL will not select the onboard RAM in this case and will
+instead set bus signal XMEM to high. This can be used to 
+implement expanded memory.
 ```
 ## Real-Time Interrupt
 ```
