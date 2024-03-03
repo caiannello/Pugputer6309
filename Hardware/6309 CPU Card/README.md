@@ -75,11 +75,6 @@ Sect   CPU Adrs    22-bit physical Adrs     Bank Reg (E21...E14)
 2      $8000       %0000001000000000000000  $02
 3      $c000       %0000001100000000000000  $03
 
-If the user instead wants access the second 64K of RAM in page 1
-(CPU adrs $4000) ...
-
-CPU Adrs    Physical Address         Bank Reg 1
-$4000       %0000010000000000000000  $04
 ```
 ## Expanded Memory
 ```
