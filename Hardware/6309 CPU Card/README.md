@@ -56,7 +56,7 @@ Moved previous version to past_revs/ subfolder.
 Two SN74LS670D chips were added to the design. These provide a total
 of four bytes registers (which act like dual-ported RAM) mapped to
 CPU addresses $ffec - $ffef. These allow CPU address space to be
-subdivided into four pages, each expanded with six additional
+subdivided into four sections, each expanded with six additional
 address bits, allowing a total of 4 megabytes of physical address
 space.
 
@@ -126,28 +126,24 @@ implementing the memoty map on the system and programming the PAL.
 Some of this is implemented with discrete logic on the card because
 the PAL doesnt have enough inputs to handle everything alone.
 
-// combinatorial logic
+# Discrete combinatorial logic to help onboard PAL
 
-hn3    = a15 & a14 & a13 & a12         # f...  implemented with discrete logic
-hn2    = a11 & a10 & a9 & a8           # .f..  .||.
-hn1    = a7 & a6 & a5 & a4             # ..f.  .||.
-siol = a7 & a6 & !a5 & !a4             # ffc0 - ffcf implemented in PAL
-siom = a7 & a6 & !a5 &  a4             # ffd0 - ffdf .||.
-sioh = a7 & a6 &  a5 & !a4             # ffe0 - ffef .||.
-hiadr  = a19 | a20 | a21               # true if address > onboard 512KB (discrete logic)
+hn3    = a15 & a14 & a13 & a12         # high adrs nybble == $f
+hn2    = a11 & a10 & a9 & a8           # next adrs nybble == $f
+hiadr  = a19 | a20 | a21               # adrs > 512KB (extended memory)
 
-// Inputs to PAL:
+# Inputs to onboard PAL
 
-hn3, hn2, hn1, hiadr, a7, a6, a5, a4, a3, a2
+hn3, hn2, hiadr, a7, a6, a5, a4, a3, a2
 
-// Outputs from the PAL:
+# Outputs from onboard PAL
 
-extram  = !hn3 & hiadr                                # for ram expansion card, connected to bus
-io      = hn3 & hn2 & !hn1                            # for misc cards, connected to bus
-/ram    = ! ( !hn3 & !hiadr )                         # 0000 - efff  (onboard chip select)
-/rom    = ! (  hn3 & ( !hn2 | ( hn2 & hn1 ) ))        # f000 - feff, fff0 - ffff (onboard chip select)
-/mapper = ! (  io & sioh & a3 &  a2 )                 # ffec - ffef (onboard chip select)
-/uart   = ! (  io & sioh & a3 & !a2 )                 # ffe8 - ffeb (onboard chip select)
+extram  = !hn3 & hiadr                                # bus: select RAM expansion
+io      = hn3 & hn2 & !hn1                            # bus: select misc IO
+/ram    = ! ( !hn3 & !hiadr )                         # onboard: 0000 - efff  : select RAM
+/rom    = ! (  hn3 & ( !hn2 | ( hn2 & hn1 ) ))        # onboard: f000 - feff, fff0 - ffff : select ROM
+/mapper = ! (  io & sioh & a3 &  a2 )                 # onboard: ffec - ffef select banking registers
+/uart   = ! (  io & sioh & a3 & !a2 )                 # onboard: ffe8 - ffeb select serial UART
 
 // outputs from pals on other cards:
 
