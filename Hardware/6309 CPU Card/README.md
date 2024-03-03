@@ -20,10 +20,10 @@ Moved previous version to past_revs/ subfolder.
 ```
   name      strt - end     size     notes
   ----      -----------    ----     -----
-  RAM0      0000 - 3fff    16384    RAM page 0 (a14 - a21 from bank reg. 0)
-  RAM1      4000 - 7fff    16384    RAM page 1 (a14 - a21 from bank reg. 1)
-  RAM2      8000 - bfff    16384    RAM page 2 (a14 - a21 from bank reg. 2)
-  RAM3      c000 - efff    12288    RAM page 3 (a14 - a21 from bank reg. 3)
+  MEM0      0000 - 3fff    16384    Mem sect 0 (a14 - a21 from bank reg. 0)
+  MEM1      4000 - 7fff    16384    Mem sect 1 (a14 - a21 from bank reg. 1)
+  MEM2      8000 - bfff    16384    Mem sect 2 (a14 - a21 from bank reg. 2)
+  MEM3      c000 - efff    12288    Mem sect 3 (a14 - a21 from bank reg. 3)
   ROM       f000 - feff    3840     Fixed ROM  (bootloader)
   IO0       ff00 - ff0f    16
   IO1       ff10 - ff1f    16
@@ -36,7 +36,7 @@ Moved previous version to past_revs/ subfolder.
   IO8       ff80 - ff8f    16
   IO9       ff90 - ff9f    16
   IO10      ffa0 - ffaf    16
-  IO11      ffb0 - ffbf    16       W65C22 VIA (SD Card, SPI, GPIO)
+  IO11      ffb0 - ffbf    16       W65C22 VIA (SD Card, SPI, KB, GPIO)
   SIO0      ffc0 - ffc3    4      
   SIO1      ffc4 - ffc7    4      
   SIO2      ffc8 - ffcb    4      
@@ -79,21 +79,21 @@ Sect   CPU Adrs    22-bit physical Adrs     Bank Reg (E21...E14)
 ## Expanded Memory
 ```
 For memory addresses beyond the onboard 512KB, one or more bits
-E19...E21 must be set in the bank register. The address decoder
+E19...E21 will be set in the bank register. The address decoder
 in the PAL will not select the onboard RAM in this case, and instead
 it will set bus signal XMEM to high. This signal can be used to
-implement memory expansion up to 4 MB total.
+implement memory expansions.
 ```
 ## Real-Time Interrupt
 ```
 The real-time interupt causes an /IRQ to happen at a rate of 16 Hz.
 
-This IRQ is shared with the UART, so the UART interrupt will happen
-first and see that nothing serial happened to cause the interrupt,
-so the the ISR will fall-through to a timer ISR which simply counts
-ticks. This enables date and time to be tracked. There's no battery
-backup, so current date and time must be provided on each powerup,
-either manually or via the network.
+This IRQ is shared with the UART, so the UART ISR will be called
+first, see that nothing serial happened to cause the interrupt,
+and fall-through to a timer ISR which simply counts ticks. This
+enables date and time to be tracked. There's no battery backup,
+so current date and time must be provided on each powerup, either
+manually or via network.
 
 Date and time aren't the main reason the timer was added, though.
 
