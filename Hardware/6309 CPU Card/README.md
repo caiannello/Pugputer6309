@@ -3,7 +3,7 @@
 3/1/2024 UPDATE:
 
 Added a new v2 CPU card. It has the same HD63C09 clocked at 3.57 MHz,
-32K Flash ROM, and serial UART, but it adds 1024k SRAM, expandable to
+32K Flash ROM, and serial UART, but it adds 1 MB SRAM, expandable to
 4 MB, and a real-time clock interrupt.
 
 Also, rather than a pin header connection to the backplane, this one
