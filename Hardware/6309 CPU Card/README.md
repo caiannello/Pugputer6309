@@ -120,17 +120,20 @@ the PAL doesnt have enough inputs to handle everything alone.
 
 hn3    = a15 & a14 & a13 & a12         # high adrs nybble == $f
 hn2    = a11 & a10 & a9 & a8           # next adrs nybble == $f
-hiadr  = a19 | a20 | a21               # adrs > 512KB (extended memory)
+hn1    = a7 & a6 & a5 & a4             # next adrs nybble == $f
+sioh   = a7 & a6 & a5 & !a4            # onboard IO space
+hiadr  = a20 | a21                     # adrs > 1024KB (extended memory)
 
 # Inputs to onboard PAL
 
-hn3, hn2, hiadr, a7, a6, a5, a4, a3, a2
+hn3, hn2, hn1, hiadr, sioh, a3, a2, a19
 
 # Outputs from onboard PAL
 
 extram  = !hn3 & hiadr                                # bus: select RAM expansion
 io      = hn3 & hn2 & !hn1                            # bus: select misc IO
-/ram    = ! ( !hn3 & !hiadr )                         # onboard: 0000 - efff  : select RAM
+/ram0    = ! ( !hn3 & !hiadr & !a19)                  # onboard: 0000 - efff  : select RAM 0
+/ram1    = ! ( !hn3 & !hiadr & a19)                   # onboard: 0000 - efff  : select RAM 1
 /rom    = ! (  hn3 & ( !hn2 | ( hn2 & hn1 ) ))        # onboard: f000 - feff, fff0 - ffff : select ROM
 /mapper = ! (  io & sioh & a3 &  a2 )                 # onboard: ffec - ffef select banking registers
 /uart   = ! (  io & sioh & a3 & !a2 )                 # onboard: ffe8 - ffeb select serial UART
