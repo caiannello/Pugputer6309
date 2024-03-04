@@ -7,3 +7,6 @@
 Software/dev_utils/font.asm
 Software/dev_utils/v9958_palette_font.py
 3D_Models/AutoSave_cardedge_sys_v2.skp
+*.skb
+*.scr
+*.skb
