@@ -7,4 +7,5 @@ Indigo Renderer by Glare Technologies through the
 Skindigo addon for SketchUp.
 
 ```
+![Cardedge system](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/cardedge_sys_v2.png)
 ![Origami case](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/wedge_kb_model.png)
