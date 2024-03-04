@@ -20,8 +20,8 @@ rather than the flattened all-in-one-keyboard design of v0, but the PCB
 fabrication cost will be much cheaper since the layer count is halved.
 
 If there is interest in keeping the design flat, I'm thinking of making a
-backplane with right-angle card-edge connectors, but again, it might be
-much more expensive to make.
+backplane with right-angle connectors laid end-to-end, but again, it
+would be significantly more expensive to fabricate.
 ```
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Backplane/Backplane%20Layout.png)
 
