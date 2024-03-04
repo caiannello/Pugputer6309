@@ -1,7 +1,7 @@
 ## Backplane v2
 ```
 This is a backplane for use with Pugputer v2, based on card edge-connectors
-instead of pin headers. It is 3.7" x 3.5"
+instead of pin headers. It is 3.7" x 3.5".
 
 The connectors are 0.1" pitch, 60-pins, which I think is the same as the
 cartridge slot on the original Nintendo Famicom.
