@@ -111,38 +111,39 @@ the DS1287 or W65C22 VIA, so I went with something simpler.
 ```
 ## Address Decoding Notes
 ```
-This is mostly just work-in-progress thoughts about how to go about
-implementing the memoty map on the system and programming the PAL.
-Some of this is implemented with discrete logic on the card because
-the PAL doesnt have enough inputs to handle everything alone.
+These are thoughts about how to go about implementing the memory map on the 
+system and programming the PAL. Some of this is implemented with discrete 
+logic on the CPU card because the PAL doesnt have enough inputs to handle 
+everything alone.
 
 # Discrete combinatorial logic to help onboard PAL
 
-hn3    = a15 & a14 & a13 & a12         # high adrs nybble == $f
-hn2    = a11 & a10 & a9 & a8           # next adrs nybble == $f
-hn1    = a7 & a6 & a5 & a4             # next adrs nybble == $f
-sioh   = a7 & a6 & a5 & !a4            # onboard IO space
-hiadr  = a20 | a21                     # adrs > 1024KB (extended memory)
+hn3 = a15 & a14 & a13 & a12                   # high adrs nybble == $f
+hn2 = a11 & a10 & a9 & a8                     # next adrs nybble == $f
+ssf = a7 & a6 & a5
+hn1 = ssf & a4                                # next adrs nybble == $f
 
 # Inputs to onboard PAL
 
-hn3, hn2, hn1, hiadr, sioh, a3, a2, a19
+eclk, r//w, hn3, hn2, hn1, ssf, e21, e20, e19, a3, a2
 
 # Outputs from onboard PAL
 
-extram  = !hn3 & hiadr                                # bus: select RAM expansion
-io      = hn3 & hn2 & !hn1                            # bus: select misc IO
-/ram0    = ! ( !hn3 & !hiadr & !a19)                  # onboard: 0000 - efff  : select RAM 0
-/ram1    = ! ( !hn3 & !hiadr & a19)                   # onboard: 0000 - efff  : select RAM 1
-/rom    = ! (  hn3 & ( !hn2 | ( hn2 & hn1 ) ))        # onboard: f000 - feff, fff0 - ffff : select ROM
-/mapper = ! (  io & sioh & a3 &  a2 )                 # onboard: ffec - ffef select banking registers
-/uart   = ! (  io & sioh & a3 & !a2 )                 # onboard: ffe8 - ffeb select serial UART
+/rd   = !eclk | !r//w                         # bus: memory read
+/wr   = !eclk | r//w                          # bus: memory write
+io    = hn3 & hn2 & !hn1                      # bus: IO select
+xmem  = !hn3 & e20 | e21                      # bus: expansion mem select
+/ram0 = hn3 | e20 | e21 | e19                 # onboard: ram chip 0 select
+/ram1 = hn3 | e20 | e21 | !e19                # onboard: ram chip 1 select
+/rom  = !(  hn3 & ( !hn2 | ( hn2 & hn1 ) ))   # onboard: ROM select
+/mapw = !io | !(ssf & !hn1) | !a3 | !a2       # onboard: bank reg. write
+/uart = !(io & (ssf & !hn1) & a3 & !a2)       # onboard: UART select
 
-// outputs from pals on other cards:
+// outputs from PALs on other cards:
 
-/v9958  = ! (  io & sioh  & !a3 & a2 )              # ffe4 - ffe7  Video Card video chip
-/opl3   = ! (  io & sioh  & !a3 & !a2 )             # ffe0 - ffe3  Video Card music chip
+/v9958  = ! (  io & a7 & a6 & a5 & !a4 & !a3 & a2 )   # ffe4 - ffe7  Video Card video chip
+/opl3   = ! (  io & a7 & a6 & a5 & !a4 & !a3 & !a2 )  # ffe0 - ffe3  Video Card music chip
 
-/via    = ! (  io & a7 & !a6 & a5 & a4 )            # ffb0 - ffbf  W65C22 Versatile Interface Adaptor
-                                                    # (Used for SD card, keyboard, game controllers, etc.)
+/via    = ! (  io & a7 & !a6 & a5 & a4 )      # ffb0 - ffbf  W65C22 Versatile Interface Adaptor
+                                              # (Used for SD card, keyboard, game controllers, etc.)
 ```
