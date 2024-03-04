@@ -6,6 +6,10 @@ instead of pin headers. It is 3.7" x 3.5".
 The connectors are 0.1" pitch, 60-pins, which I think is the same as the
 cartridge slot on the original Nintendo Famicom.
 
+Signals are straight passthrough for each pin; there are no swapped signals.
+Power tracves are wider to carry more current, and all four ground pins are
+connected to a common ground plane.
+
 Because this connector is not keyed in any way, cards could be inserted
 backwards, which would definitely be bad! For this reason, alignment marks
 indicating Pin 1 are printed at Pin 1 on each slot as well as the cards
