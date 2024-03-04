@@ -17,8 +17,8 @@ boards are viewable. Editing may be another story. TODO: Learn Kicad?
 
 Projects in this directory:
 
-6309 CPU Card V0      HD63C09P CPU, R65C51P2 UART, 1MB RAM, 32K ROM
-V9958 Video Card      Same graphics chip as the MSX 2+ home computer
+6309 CPU Card V2      HD63C09P CPU, R65C51P2 UART, 1MB RAM, 32K ROM, RTC
+V9958 Video Card      Same graphics chip as the MSX 2+ home computer + OPL3
 VIA_SD_PSUP           Power supply, W65C22 VIA, MCU, SD Card, SPI, I2C, etc.
 Backplane             Five card slots, tombstone-style
 
