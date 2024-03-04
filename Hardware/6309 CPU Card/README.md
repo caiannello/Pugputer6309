@@ -53,21 +53,19 @@ Moved previous version to past_revs/ subfolder.
 ```
 ## Memory Paging Scheme
 ```
-Two 74LS670 chips are added to the design which provide four
-writable bytes at CPU addresses $ffec - $ffef. These act like dual-
-ported RAMs and enable each of the four 16KB sections of the CPU
-address space to be independently mapped a different 16KB page of
-physical memory (up to 4MB.)
+Two 74LS670 chips are added to the design which provide four writable bytes at
+CPU addresses $ffec - $ffef. These act like dual-ported RAMs and enable each 
+of the four 16KB sections of the CPU address space to be independently mapped a
+different 16KB page of physical memory (up to 4MB.)
 
-CPU Address lines A14 and A15 select which register is active, which
-then provides extended address bits E14...E21 to the system. These are
-combined with CPU address bits A0...A13 to form the final 22-bit
-physical address.
+CPU Address lines A14 and A15 select which register is active, which then 
+provides extended address bits E14...E21 to the system. These are combined with
+CPU address bits A0...A13 to form the final 22-bit physical address.
 
-The initial state of the registers is unknown on startup and must be
-initialized before any RAM access should occur. Initially, these are
-mapped to the first four pages of physical memory by setting the bank
-registers as follows:
+The initial state of the registers is unknown on startup and must be 
+initialized before any RAM access should occur. Initially, these are mapped to
+the first four pages of physical memory by setting the bank registers as 
+follows:
 
 Sect   CPU Adrs    22-bit physical Adrs     Bank Reg (E21...E14)
 0      $0000       %0000000000000000000000  $00
@@ -78,36 +76,31 @@ Sect   CPU Adrs    22-bit physical Adrs     Bank Reg (E21...E14)
 ```
 ## Expanded Memory
 ```
-For memory addresses beyond the onboard 1 MB, one or more bits
-E20...E21 will be set in the bank register. The address decoder
-in the PAL will not select the onboard RAM in this case and will
-instead set bus signal XMEM to high. This can be used to 
-implement expanded memory.
+For memory addresses beyond the onboard 1 MB, one or more bits E20...E21 will 
+be set. The PAL will not select onboard RAM and will instead set XMEM bus 
+signal. This can be used to select memory expansions.
 ```
 ## Real-Time Interrupt
 ```
 The real-time interupt causes an /IRQ to happen at a rate of 16 Hz.
 
-This IRQ is shared with the UART, so the UART ISR will be called
-first, see that nothing serial happened to cause the interrupt,
-and fall-through to a timer ISR which simply counts ticks. This
-enables date and time to be tracked. There's no battery backup,
-so current date and time must be provided on each powerup, either
-manually or via network.
+This IRQ is shared with the UART, so the UART ISR will be called first, see 
+that nothing serial happened to cause the interrupt, and fall-through to a 
+timer ISR which simply counts ticks. This enables date and time to be tracked.
+There's no battery backup, so current date and time must be provided on each 
+powerup, either manually or via network.
 
 Date and time aren't the main reason the timer was added, though.
 
-In the use case where there is just a CPU card being used with a
-serial terminal, a timer is needed to properly differentiate between
-certain key presses. For example, when escape is pressed, a single
-0x1b character is sent to the UART, but pressing cursor-up sends a
-sequence of three characters, starting with that same escape code:
-0x1b, '[', 'A'.
-Most terminal emulators, even BASH, use a timer to distinguish between
-single escape characters and ANSI escape sequences. I hated the idea
-of implementing this timer with a software busy loop, but there's not
-enough room on the CPU card for dedicated clock/timer chips such as
-the DS1287 or W65C22 VIA, so I went with something simpler.
+In the use case where there is just a CPU card being used with a serial 
+terminal, a timer is needed to properly differentiate between certain key 
+presses. For example, when escape is pressed, a single 0x1b character is sent 
+to the UART, but pressing cursor-up sends a sequence of three characters, 
+starting with that same escape code: 0x1b, '[', 'A'. Most terminals use a 
+timer to distinguish between single escape characters and ANSI escape 
+sequences. I didn't want to implement this timeout with a software busy loop,
+and there's not enough room on the CPU card for dedicated clock/timer chips 
+such as the DS1287 or W65C22, so I went with this simpler option.
 ```
 ## Address Decoding Notes
 ```
@@ -139,11 +132,11 @@ xmem  = !hn3 & e20 | e21                      # bus: expansion mem select
 /mapw = !io | !(ssf & !hn1) | !a3 | !a2       # onboard: bank reg. write
 /uart = !(io & (ssf & !hn1) & a3 & !a2)       # onboard: UART select
 
-// outputs from PALs on other cards:
+# outputs from PALs on other cards:
 
 /v9958  = ! (  io & a7 & a6 & a5 & !a4 & !a3 & a2 )   # ffe4 - ffe7  Video Card video chip
 /opl3   = ! (  io & a7 & a6 & a5 & !a4 & !a3 & !a2 )  # ffe0 - ffe3  Video Card music chip
 
 /via    = ! (  io & a7 & !a6 & a5 & a4 )      # ffb0 - ffbf  W65C22 Versatile Interface Adaptor
-                                              # (Used for SD card, keyboard, game controllers, etc.)
+                                              # (SPI, I2C, SD card, KB, gamepad, wifi, etc.)
 ```
