@@ -87,7 +87,7 @@ The /NMI input is edge-sensitive, unlike /IRQ which is level sensitive, so it
 should be OK that the implementation will keep /NMI low for half the time, as
 long as we dont someday need to share /NMI.
 
-The /NMI ISR will simply counts ticks, which is enough to allow tracking of
+The /NMI ISR will simply count ticks, which is enough to allow tracking of
 date and time. There's no battery backup, so current date and time must be
 provided on each powerup, either manually or via network. 
 
@@ -121,10 +121,10 @@ everything alone.
 
 # Discrete combinatorial logic to help onboard PAL
 
-hn3 = a15 & a14 & a13 & a12                   # high adrs nybble == $f
-hn2 = a11 & a10 & a9 & a8                     # next adrs nybble == $f
+hn3 = a15 & a14 & a13 & a12                # high adrs nybble == $f
+hn2 = a11 & a10 & a9 & a8                  # next adrs nybble == $f
 ssf = a7 & a6 & a5
-hn1 = ssf & a4                                # next adrs nybble == $f
+hn1 = ssf & a4                             # next adrs nybble == $f
 
 # Inputs to onboard PAL
 
@@ -132,21 +132,21 @@ eclk, r//w, hn3, hn2, hn1, ssf, e21, e20, e19, a3, a2
 
 # Outputs from onboard PAL
 
-/rd   = !eclk | !r//w                         # bus: memory read
-/wr   = !eclk | r//w                          # bus: memory write
-io    = hn3 & hn2 & !hn1                      # bus: IO select
-xmem  = !hn3 & e20 | e21                      # bus: expansion mem select
-/ram0 = hn3 | e20 | e21 | e19                 # onboard: ram chip 0 select
-/ram1 = hn3 | e20 | e21 | !e19                # onboard: ram chip 1 select
-/rom  = !(  hn3 & ( !hn2 | ( hn2 & hn1 ) ))   # onboard: ROM select
-/mapw = !io | !(ssf & !hn1) | !a3 | !a2       # onboard: bank reg. write
-/uart = !(io & (ssf & !hn1) & a3 & !a2)       # onboard: UART select
+/rd   = !eclk | !r//w                      # bus: memory read
+/wr   = !eclk | r//w                       # bus: memory write
+io    = hn3 & hn2 & !hn1                   # bus: IO select
+xmem  = !hn3 & e20 | e21                   # bus: expansion mem select
+/ram0 = hn3 | e20 | e21 | e19              # onboard: ram chip 0 select
+/ram1 = hn3 | e20 | e21 | !e19             # onboard: ram chip 1 select
+/rom  = !hn3 | hn2 & !hn1                  # onboard: ROM select
+/mapw = !io | !ssf | hn1 | !a3 | !a2       # onboard: bank reg. write
+/uart = !io | !ssf | hn1 | !a3 | a2        # onboard: UART select
 
 # outputs from PALs on other cards:
 
-/v9958  = ! (  io & a7 & a6 & a5 & !a4 & !a3 & a2 )   # ffe4 - ffe7  Video Card video chip
-/opl3   = ! (  io & a7 & a6 & a5 & !a4 & !a3 & !a2 )  # ffe0 - ffe3  Video Card music chip
+/v9958  = !io | !a7 | !a6 | !a5 | a4 | a3 | !a2   # ffe4 - ffe7  Video Card video chip
+/opl3   = !io | !a7 | !a6 | !a5 | a4 | a3 | a2    # ffe0 - ffe3  Video Card music chip
 
-/via    = ! (  io & a7 & !a6 & a5 & a4 )      # ffb0 - ffbf  W65C22 Versatile Interface Adaptor
-                                              # (SPI, I2C, SD card, KB, gamepad, wifi, etc.)
+/via    = !io | !a7 | a6 | !a5 | !a4       # ffb0 - ffbf  W65C22 Versatile Interface Adaptor
+                                           # (SPI, I2C, SD card, KB, gamepad, wifi, etc.)
 ```
