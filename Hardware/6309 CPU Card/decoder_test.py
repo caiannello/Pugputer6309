@@ -86,10 +86,8 @@ for bank in bankregs:
     if io or not nrom:
       phyadrs = "    N/A"
     else:
-
       # a21...a14 come from bank register
       # a13...a0  come from cpu address
-
       phyadrs = f"${(adrs & 0b11111111111111) | (bank << 14):06x}"
 
     print(f"Bk: ${bank:02x}, CPUAdrs: ${adrs:04x}, PhyAdrs: {phyadrs}, Sel: {sel}")
