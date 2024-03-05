@@ -24,7 +24,6 @@ for bank in bankregs:
       b = x&1
       x>>=1
       e[ad+14] = b
-
     # 0000 - efff  and bk 00 - 1f   RAM 0 chip
     # 0000 - efff  and bk 20 - 3f   RAM 1 chip
     # 0000 - efff  and bk 40 - ff   Offboard memory
@@ -37,6 +36,7 @@ for bank in bankregs:
     # ffec - ffef  Memory Bank Regs 0...3
 
     # preliminary logic - discrete logic on cpu card 
+
     hn3 = a[15]&a[14]&a[13]&a[12]  # high nybble is $f
     hn2 = a[11]&a[10]&a[9]&a[8]    # next nybble is $f
     ssf = a[7]&a[6]&a[5]
@@ -59,7 +59,6 @@ for bank in bankregs:
 
     # make a text string indicating what's been selected,
     # and maybe do some sanity checks. 
-
     sel = ''
     if not nvia:
       sel+='/via'
