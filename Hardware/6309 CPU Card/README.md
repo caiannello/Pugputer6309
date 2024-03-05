@@ -79,27 +79,38 @@ For memory addresses beyond the onboard 1 MB, one or more bits E20...E21 will
 be set. The PAL will not select onboard RAM and will instead set XMEM bus 
 signal. This can be used to select memory expansions.
 ```
-## Real-Time Interrupt
+## Real-Time Interrupt - Notes
 ```
 The real-time interupt causes an /NMI to happen at a rate of 16 Hz.
 
-The /NMI input is edge-sensitive, unlike /IRQ which is level sensitive,
-so it should be OK that this circuit keeps /NMI low for half the time.
-The /NMI ISR simply counts ticks, which is enough to allow tracking of
+The /NMI input is edge-sensitive, unlike /IRQ which is level sensitive, so it
+should be OK that the implementation will keep /NMI low for half the time, as
+long as we dont someday need to share /NMI.
+
+The /NMI ISR will simply counts ticks, which is enough to allow tracking of
 date and time. There's no battery backup, so current date and time must be
-provided on each powerup, either manually or via network.
+provided on each powerup, either manually or via network. 
 
-Date and time aren't the main reason the timer was added, though.
+There's a design decision to be made regarding timekeeping: Rollover. With 16
+ticks per second, the count gets big fairly quickly. If we kept count as a 
+16-bit value, it would roll over every 1.14 hours! (Not good enough for dates.)
+A 32-bit counter would roll over every 8.5 years, which is better, but what if
+we wanted a high-reliability hobbyist retrocomputer? A 64-bit counter would 
+give us 365 million centuries! Aww yeah baby.
 
-In the use case where there is just a CPU card being used with a serial 
-terminal, a timer is needed to properly differentiate between certain key 
-presses. For example, when escape is pressed, a single 0x1b character is sent 
-to the UART, but pressing cursor-up sends a sequence of three characters, 
-starting with that same escape code: 0x1b, '[', 'A'. Most terminals use a 
-timer to distinguish between single escape characters and ANSI escape 
-sequences. I didn't want to implement this timeout with a software busy loop,
-and there's not enough room on the CPU card for dedicated clock/timer chips 
-such as the DS1287 or W65C22, so I went with this simpler option.
+Despite the above rambles, date and time aren't even the main reason the 
+real-time feature was added:
+
+In the use-case I've been running up against with v0 is that when there is just
+a CPU card being used with a serial terminal. A timer is needed to properly 
+differentiate between certain key presses. For example, when escape is pressed,
+a single 0x1b character is sent to the UART, but pressing cursor-up sends a 
+sequence of three characters, starting with that same code: 0x1b, '[', 'A'. 
+Most terminals use a timer to distinguish between single escape characters and
+ANSI escape sequences. I didn't want to implement this timeout with a software
+busy loop, so work began on CPU card rev 2. There's not enough room on the 
+board for dedicated clock/timer chip such as the DS1287 or W65C22, so I went 
+with this simpler option.
 ```
 ## Address Decoding Notes
 ```
