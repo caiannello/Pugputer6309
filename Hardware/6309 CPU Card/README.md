@@ -138,7 +138,7 @@ io    = hn3 & hn2 & !hn1                   # bus: IO select
 xmem  = !hn3 & e20 | e21                   # bus: expansion mem select
 /ram0 = hn3 | e20 | e21 | e19              # onboard: ram chip 0 select
 /ram1 = hn3 | e20 | e21 | !e19             # onboard: ram chip 1 select
-/rom  = !hn3 | hn2 & !hn2 | hn2 & !hn1     # onboard: ROM select
+/rom  = !hn3 | hn2 & !hn1                  # onboard: ROM select
 /mapw = !io | !ssf | hn1 | !a3 | !a2       # onboard: bank reg. write
 /uart = !io | !ssf | hn1 | !a3 | a2        # onboard: UART select
 
