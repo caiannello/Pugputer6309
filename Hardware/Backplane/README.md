@@ -1,15 +1,32 @@
 ## Backplane v2
+```
+This is a backplane for use with Pugputer v2, based on card edge-connectors
+instead of pin headers. It is 3.7" x 3.5".
 
-This is a backplane based on 60-pin, 2.57mm pich, card-edge connectors,
-compatible with CPU Card v2 and the other v2 cards.
+The connectors are 0.1" pitch, 60-pins, which I think is the same as the
+cartridge slot on the original Nintendo Famicom.
 
-I think these are the same dimensions as the cartridge
-connector on the original Nintendo Famicom.
+Signals are straight passthrough for each pin; there are no swapped signals.
+Power traces are wider (24 mil) to carry more current, and all 20 ground
+pins are connected to a common ground plane for the board.
 
-This time, the form factor is a box, rather than the flattened all-in-one-keyboard design of v0.
+Because this connector is not keyed in any way, cards could be inserted
+backwards, which would definitely be bad! For this reason, alignment marks
+indicating Pin 1 are printed at Pin 1 on each slot as well as the cards
+that plug into them.
 
-(For something more compact, but much more expensive to fabricate, see v0/ .)
+The slots are spaced at 0.7", which is plenty of clearance for all currently
+designed cards. If one card is taller than this, it can be placed in the
+rightmost slot.
 
+This backplane will cause the system to have a brick-like form factor
+rather than the flattened all-in-one-keyboard design of v0, but the PCB
+fabrication cost will be much cheaper since the layer count is halved.
+
+If there is interest in keeping the design flat, I'm thinking of making a
+backplane with right-angle connectors laid end-to-end, but again, it
+would be significantly more expensive to fabricate.
+```
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Backplane/Backplane%20Layout.png)
 
 ![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Backplane/Backplane%20Schematic.png)
