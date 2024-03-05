@@ -82,6 +82,7 @@ for bank in bankregs:
     if not nrom:
       sel+='/rom'
 
+    # figure out 22-bit physical address, if appropriate.
     if io or not nrom:
       phyadrs = "    N/A"
     else:
