@@ -81,13 +81,13 @@ signal. This can be used to select memory expansions.
 ```
 ## Real-Time Interrupt
 ```
-The real-time interupt causes an /IRQ to happen at a rate of 16 Hz.
+The real-time interupt causes an /NMI to happen at a rate of 16 Hz.
 
-This IRQ is shared with the UART, so the UART ISR will be called first, see 
-that nothing serial happened to cause the interrupt, and fall-through to a 
-timer ISR which simply counts ticks. This enables date and time to be tracked.
-There's no battery backup, so current date and time must be provided on each 
-powerup, either manually or via network.
+The /NMI input is edge-sensitive, unlike /IRQ which is level sensitive,
+so it should be OK that this circuit keeps /NMI low for half the time.
+The /NMI ISR simply counts ticks, which is enough to allow tracking of
+date and time. There's no battery backup, so current date and time must be
+provided on each powerup, either manually or via network.
 
 Date and time aren't the main reason the timer was added, though.
 
