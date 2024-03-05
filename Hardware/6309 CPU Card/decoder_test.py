@@ -44,21 +44,19 @@ for bank in bankregs:
 
     # outputs from PAL (not counting /rd,/wr,aux0)
 
-    # fff0 - ffef - IO space
+    # fff0 - ffef  IO space
 
     io = hn3 & hn2 & (not hn1)
 
-    # 0000 - efff  AND...
-    # bk 00 - 1f   RAM 0 chip.
+    # 0000 - efff  and bk 00 - 1f   RAM 0 chip
 
     nram0 = hn3 | e[20] | e[21] | e[19]
 
-    # bk 20 - 3f   RAM 1 chip.
+    # 0000 - efff  and bk 20 - 3f   RAM 1 chip
 
     nram1 = hn3 | e[20] | e[21] | (not e[19])
 
-    # 0000 - efff  AND...  
-    # bk 40 - ff   Offboard memory
+    # 0000 - efff  and bk 40 - ff   Offboard memory
 
     xmem = (not hn3) & (e[20] | e[21])
 
@@ -115,7 +113,7 @@ for bank in bankregs:
     if io or not nrom:
       phyadrs = "  N/A  "
     else:
-      
+
       # a21...a14 come from bank register
       # a13...a0  come from cpu address
 
