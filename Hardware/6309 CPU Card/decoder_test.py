@@ -24,16 +24,6 @@ for bank in bankregs:
       b = x&1
       x>>=1
       e[ad+14] = b
-    # preliminary logic - discrete logic on cpu card 
-    hn3 = a[15]&a[14]&a[13]&a[12]  # high nybble is $f
-    hn2 = a[11]&a[10]&a[9]&a[8]    # next nybble is $f
-    ssf = a[7]&a[6]&a[5]
-    hn1 = ssf&a[4]                 # third nybble is $f
-
-    # inputs to PAL - hn3,hn2,hn1,ssf,e21,e20,e19,a3,a2
-    # (not counting eclk and r//w)
-
-    # outputs from PAL (not counting /rd,/wr,aux0)
 
     # 0000 - efff  and bk 00 - 1f   RAM 0 chip
     # 0000 - efff  and bk 20 - 3f   RAM 1 chip
@@ -46,12 +36,22 @@ for bank in bankregs:
     # ffe8 - ffeb  Serial UART R65C51P2
     # ffec - ffef  Memory Bank Regs 0...3
 
+    # preliminary logic - discrete logic on cpu card 
+    hn3 = a[15]&a[14]&a[13]&a[12]  # high nybble is $f
+    hn2 = a[11]&a[10]&a[9]&a[8]    # next nybble is $f
+    ssf = a[7]&a[6]&a[5]
+    hn1 = ssf&a[4]                 # third nybble is $f
+
+    # inputs to PAL - hn3,hn2,hn1,ssf,e21,e20,e19,a3,a2
+    # (not counting eclk and r//w)
+
+    # outputs from PAL (not counting /rd,/wr,aux0)
     nram0 = hn3 | e[20] | e[21] | e[19]
     nram1 = hn3 | e[20] | e[21] | (not e[19])
     xmem  = (not hn3) & (e[20] | e[21])
     nrom  = (not hn3) | hn2 & (not hn1 )
     io    = hn3 & hn2 & (not hn1)
-    nvia  =  (not io) | (not a[7]) | a[6] | (not a[5]) | (not a[4])
+    nvia  = (not io) | (not a[7]) | a[6] | (not a[5]) | (not a[4])
     nopl3 = (not io) | (not a[7]) | (not a[6]) | (not a[5]) | a[4] | a[3] | a[2]   
     n9958 = (not io) | (not a[7]) | (not a[6]) | (not a[5]) | a[4] | a[3] | (not a[2])
     nuart = (not io) | (not ssf) | hn1 | (not a[3]) | a[2]
