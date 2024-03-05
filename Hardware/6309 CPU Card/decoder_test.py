@@ -84,7 +84,7 @@ for bank in bankregs:
       sel+='/rom'
 
     if io or not nrom:
-      phyadrs = "  N/A  "
+      phyadrs = "    N/A"
     else:
 
       # a21...a14 come from bank register
