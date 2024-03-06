@@ -24,6 +24,7 @@ for bank in bankregs:
       b = x&1
       x>>=1
       e[ad+14] = b
+    
     # 0000 - efff  and bk 00 - 1f   RAM 0 chip
     # 0000 - efff  and bk 20 - 3f   RAM 1 chip
     # 0000 - efff  and bk 40 - ff   Offboard memory
