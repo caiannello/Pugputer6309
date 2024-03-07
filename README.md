@@ -39,7 +39,12 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 (Nice renders using Indigo Renderer by Glare Technologies)
 
 ```
-## Youtube Channel
+
+## Contact
+
+If you are interested in this project or MC6809 and HD6309 CPU's in general, I post sporadic updates about this project on [this facebook group.](https://www.facebook.com/groups/6809assembly) and can be reached there. I would be really happy to hear about anyone building up any parts of this project, requests, bug reports, etc.
+
+## Todo: Youtube Videos
 
 Once this project is further along, I plan on making some demo videos and putting them on my [youtube channel](https://www.youtube.com/appliedcryogenics). In the meantime, there's some older projects on there, so it may still be worth a browse. 
 
