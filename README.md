@@ -42,7 +42,7 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 
 ## Contact
 
-If you are interested in this project or MC6809 and HD6309 CPU's in general, I post sporadic updates about this project on [this facebook group.](https://www.facebook.com/groups/6809assembly) and can be reached there. I would be really happy to hear about anyone building up any parts of this project, requests, bug reports, etc.
+If you are interested in this project or MC6809 and HD6309 CPU's in general, I post sporadic updates about this project on [this facebook group.](https://www.facebook.com/groups/6809assembly), and can be reached there (Craig Iannello). I'd be happy to hear about builds, feature requests, bug reports, etc. I'm wondering if theres any interest in making a version of this system that uses mostly through-hole components. Theres a version of the CPU card like this, though the RAM is halfed to 512KB rather than 1MB for space reasons.  
 
 ## Todo: Youtube Videos
 
