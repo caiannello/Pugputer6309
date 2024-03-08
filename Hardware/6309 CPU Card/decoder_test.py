@@ -87,8 +87,10 @@ for adrs in range(0x0000,65536, 4):
     sel+='/rom'
 
   # figure out 22-bit physical address, if appropriate.
-  if io or not nrom:
-    phyadrs = "    N/A"
+  if io:
+    phyadrs = "     IO"
+  elif not nrom:
+    phyadrs = "    ROM"
   else:
     # a21...a14 come from bank register
     # a13...a0  come from cpu address

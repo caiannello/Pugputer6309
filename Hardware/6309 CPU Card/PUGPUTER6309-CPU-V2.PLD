@@ -47,6 +47,14 @@ pin 13     = hn3;
 
 /* outputs
   /ram0, /ram1, /rom, /uart, /mapwr, io, xmem
+
+  TODO: currently, theres only around 4K of ROM accessible in the 
+  memory map. This is enough for a bootloader and serial monitor, 
+  but it's not enough room for MS BASIC or a video driver. It would 
+  be nice enable the memory mapper to optionally map in pages of the
+  onboard 32KB ROM into the CPU address space. One way might be 
+  to repurpose extended address bit E21 so that instead of enabling 
+  another 2MB of expansin memory, it exposes some ROM.
 */
 
 pin 23     = read_n;
