@@ -24,7 +24,8 @@ Projects in the Hardware directory:
 Projects in the Software Directory:  (All are work-in-progress, stay tuned.) 
   (Using LWTOOLS/LWASM 4.20 for the 6309 assembly stuff)
 
-  6309 Extended Basic -   Microsoft, Grant Searle, Tom Circuit, and me
+  6309 Extended Basic -   Microsoft, Walter K. Zydhek, Grant Searle,
+                          Tom Circuit, and me
   Pugmon -                ML Monitor
   Pugboot -               Minimal bootloader
   Demos -                 graphics and sound examples in Assembly and BASIC
