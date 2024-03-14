@@ -68,7 +68,7 @@ Backplane
 
 ### v0 System (All-in one keyboard design)
 
-This system has smaller cards with pin headers and can lie flat inside a keyboard enclosure, but it only has 64K of RAM and no bank switching.
+This system has smaller cards with pin headers and can lie flat inside a keyboard enclosure, but it only has 64K of RAM and no bank switching, and the backplane is expensive to fabricate because it is a 4-layer board.
 
 The card in the middle in the below image is a prototype multifunction card. It comprises a Teensy 4.1 in a ZIF socket with a piggybacked audio card, connected to the backplane via the LV Parallel interface. The USB host connector of the Teensy is connected to the keyboard, but I hope to have some kind of USB hub, eventually. Also note, the backplane shown doesn't space the cards far enough to allow all five to be populated at once. This has since been corrected in the board design, and the total length is still shorter than the keyboard at 13.8 out of 14.125 inches.
 ![prototype](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Prototype_feb_2023.jpg)
