@@ -59,12 +59,17 @@ This one uses the library from the ancient [Motorola MC6839 FLOATING POINT ROM!]
 ![pugmon](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Pugmon%20on%20both%20VDP%20and%20UART.jpg)
 
 ### CPU Card v2 (Card cage design)
+
 CPU Card with 1MB RAM and UART
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Layout.png)
+
 Backplane
 ![backplane v2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/backplane_v2.jpg)
 
 ### v0 System (All-in one keyboard design)
+
+This system has smaller cards with pin headers and can lie flat inside a keyboard enclosure, but it only has 64K of RAM and no bank switching.
+
 The card in the middle in the below image is a prototype multifunction card. It comprises a Teensy 4.1 in a ZIF socket with a piggybacked audio card, connected to the backplane via the LV Parallel interface. The USB host connector of the Teensy is connected to the keyboard, but I hope to have some kind of USB hub, eventually. Also note, the backplane shown doesn't space the cards far enough to allow all five to be populated at once. This has since been corrected in the board design, and the total length is still shorter than the keyboard at 13.8 out of 14.125 inches.
 ![prototype](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Prototype_feb_2023.jpg)
 
