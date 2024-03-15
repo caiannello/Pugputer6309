@@ -33,7 +33,8 @@ RAM Expansion         Gives the Pugputer more memory than actual pugs. (3 MB)
 ![V9958 Layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/V9958%20Video%20Card%20Layout.png)
 ![V9958 Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/V9958%20Video%20Card%20Schematic.png)
 
-![OPL3 Module](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_layout.png)
+![OPL3 Module](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_layout.png)![OPL3 Module Prototype](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_prototype.jpg)
+
 ![OPL3 Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_schematic.png)
 
 ![3MB layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/RAM%20Expansion/layout.png)
