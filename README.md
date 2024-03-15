@@ -20,7 +20,7 @@ Projects in the Hardware directory:
   V9958 Video v2   -    Same graphics chip as the MSX 2+ home computer 
                         Optional OPL3 synthesizer module (YMF262)
   VIA_SD_PSUP v2        SD Card, SPI, I2C, ADC, parallel port, and power supply.
-  3MB RAM Expansion     Should be enough for anybody.
+  3 MB RAM Expansion    Gives the Pugputer more memory than actual pugs. 
 
 Projects in the Software Directory:  (All are work-in-progress, stay tuned.) 
   (Using LWTOOLS/LWASM 4.20 for the 6309 assembly stuff)
