@@ -36,5 +36,8 @@ Backplane             Five card slots, tombstone-style
 ![OPL3 Module](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_layout.png)
 ![OPL3 Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_schematic.png)
 
+![3MB layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/RAM%20Expansion/layout.png)
+![3MB schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/RAM%20Expansion/schematic.png)
+
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Backplane/Backplane%20Layout.png)
 ![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Backplane/Backplane%20Schematic.png)
