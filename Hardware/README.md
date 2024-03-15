@@ -21,7 +21,7 @@ Projects in this directory:
 V9958 Video Card      Same graphics chip as the MSX 2+ home computer + OPL3
 VIA_SD_PSUP           Power supply, W65C22 VIA, MCU, SD Card, SPI, I2C, etc.
 Backplane             Five card slots, tombstone-style
-
+RAM Expansion         Gives the Pugputer more memory than actual pugs. (3 MB)
 -------------------------------------------------------------------------------
 ```
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Layout.png)
@@ -34,7 +34,11 @@ Backplane             Five card slots, tombstone-style
 ![V9958 Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/V9958%20Video%20Card%20Schematic.png)
 
 ![OPL3 Module](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_layout.png)
+
 ![OPL3 Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_schematic.png)
+
+![3MB layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/RAM%20Expansion/layout.png)
+![3MB schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/RAM%20Expansion/schematic.png)
 
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Backplane/Backplane%20Layout.png)
 ![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Backplane/Backplane%20Schematic.png)
