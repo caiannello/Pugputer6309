@@ -36,15 +36,6 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 (Nice renders using Indigo Renderer by Glare Technologies)
 
 ```
-
-## Contact
-
-If you are interested in this project or MC6809 and HD6309 CPU's in general, I post sporadic updates about this project on [this facebook group.](https://www.facebook.com/groups/6809assembly), and can be reached there (Craig Iannello). It's really great as far as technical groups go in that people are respectful and friendly, unlike some forums where trolls circle new members like sharks. (I'm looking at you, AVR Freaks!) If you'd prefer email, the address is my github user name as shown above, at that giant search engine company with a name which starts with a G.
-
-## Todo: Youtube Videos
-
-Once this project is further along, I plan on making some demo videos and putting them on my [youtube channel](https://www.youtube.com/appliedcryogenics). In the meantime, there's some older projects on there, so it may still be worth a browse. 
-
 ## Gallery
 
 Graphics from SquareSoft's Seiken Densetsu 3 for Super NES ([Source code](https://github.com/caiannello/Pugputer6309/blob/main/Software/6309/Demos/mana_tilemap.asm))
@@ -79,3 +70,11 @@ The card in the middle in the below image is a prototype multifunction card. It 
 
 Still working on a nice enclosure.. (I wish I had taken shop class in high school!) ([SketchUp Models](https://github.com/caiannello/Pugputer6309/tree/main/3D_Models))
 ![case design](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/wedge_kb_model.png)
+
+## Contact
+
+If you are interested in this project or MC6809 and HD6309 CPU's in general, I post sporadic updates about this project on [this facebook group.](https://www.facebook.com/groups/6809assembly), and can be reached there (Craig Iannello). It's really great as far as technical groups go in that people are respectful and friendly, unlike some forums where trolls circle new members like sharks. (I'm looking at you, AVR Freaks!) If you'd prefer email, the address is my github user name as shown above, at that giant search engine company with a name which starts with a G.
+
+## Todo: Youtube Videos
+
+Once this project is further along, I plan on making some demo videos and putting them on my [youtube channel](https://www.youtube.com/appliedcryogenics). In the meantime, there's some older projects on there, so it may still be worth a browse. 
