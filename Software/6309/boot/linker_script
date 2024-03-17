@@ -1,5 +1,6 @@
 section ram_start load 0
-section bss load 20
+section bss load 30
 define lensympat EndOfVars
-section code load e000
+section code load f000
+section io load ff00
 section intvect load fff0

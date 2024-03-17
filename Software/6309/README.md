@@ -22,7 +22,7 @@ basic   Microsoft Extended BASIC 6809 (from 1982) which started out as the
 	EXEC &HB000 to switch to VDP output. Also, theres no 
 	SD card support yet.
             
-pugboot lightweight bootloader and minimal BIOS - UART only, no VDP
+boot    minimal BIOS, bootloader, ML monitor
 
 pugmon	work-in-progress machine code monitor, mini assembler, BIOS, and
         minimal OS for the pugputer. VDP and UART

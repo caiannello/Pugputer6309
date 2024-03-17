@@ -1,32 +1,46 @@
 ;------------------------------------------------------------------------------
 ; PROJECT: PUGMON 
 ; VERSION: 0.0.1
-;    FILE: string.asm
+;    FILE: helpers.asm
 ;  AUTHOR: CRAIG IANNELLO, PUGBUTT.COM
 ;
 ; Description:
 ;
-; Functions related to char/string formatting and manipulation.
+; General-purpose functions related to chars/strings, numbers and math, 
+; data structures, etc. 
 ;
 ;------------------------------------------------------------------------------
+
     INCLUDE defines.d       ; Global settings and definitions
+
 ;------------------------------------------------------------------------------
 ; Functions exported for use by other modules
 ;------------------------------------------------------------------------------
+
+; char fcns
+
 C_ISPRINT   EXPORT          ; test if char in A is printable
-S_HEXA      EXPORT
+
+; string fcns
+
+S_HEXA      EXPORT          ; char to hex
 S_INTD      EXPORT
 S_CPY       EXPORT
 S_LEN       EXPORT
 S_EOL       EXPORT
+
+; crc fcns
+crc_tab_gen EXPORT
+crc_init    EXPORT
+crc_get     EXPORT
+crc16_byte  EXPORT
+
 ;------------------------------------------------------------------------------
-; Misc Variables
-;------------------------------------------------------------------------------
-    SECT bss                
-;------------------------------------------------------------------------------
+    SECT bss            ; Misc Vars used by helpers
 TMP8        RMB  1
 TMP16       RMW  1
-;------------------------------------------------------------------------------
+CRC_TAB     RMB  512    ; crc-16 (xmodem) lookup table
+CRC_VAL     RMB  2      ; crc-16 temp val and result
     ENDSECT
 ;------------------------------------------------------------------------------
     SECT code
@@ -128,7 +142,44 @@ AD3OLD:     ADDB #'0        ; ADD ASCII O TO MAKE A CHARACTER
             STB ,X+         ; AND NCREMENT X
             RTS 
 ; -----------------------------------------------------------------------------
+; CRC-16 / XMODEM routines ( polynomial: $1021, initial val: $0000 )
+; -----------------------------------------------------------------------------
+crc_tab_gen clre            ; generate crc lookup table (uses e,f,a,b,x)
+tab_loop    tfr  e,a        ;   for e = 0 to 255:  (table index iterator e):
+            clrb            ;     d = e
+            ldf  #8         ;     for f = 8 to 1: (8-bits iterator f):
+tab_inner   lsld            ;       d = d << 1
+            bcc  skip_poly  ;       skip next op if carry clear
+            ldx  #$1021     ;         d ^= polynomial
+            eorr x,d
+skip_poly   decf            ;       decrement f
+            bne  tab_inner  ;       if f > 0 (bits left) do next f
+            tfr  e,x
+            std  CRC_TAB,x  ;     crc_table[e] = d
+            ince            ;     increment e
+            bne  tab_loop   ;     if e>0 (hasn't wrapped) do next e
+            rts             ;   end
+; -----------------------------------------------------------------------------
+crc_init    pshs X          ; init CRC calculation
+            ldx  #0         
+            stx  CRC_VAL 
+            puls X
+            rts
+; -----------------------------------------------------------------------------
+crc_get     ldd  CRC_VAL    ; get final CRC result in D
+            rts
+; -----------------------------------------------------------------------------
+crc16_byte  ldw  CRC_VAL    ; update CRC from A (uses a,e,f,x)
+            eorr e,a        ; a ^= (CRC_VAL >> 8)
+            tfr  a,x
+            ldx  CRC_TAB,x  ; x = crc_table[a]
+            tfr  f,e        ; crc_val <<= 8
+            clrf
+            eorr x,w        ; crc_val ^= x
+            stw  CRC_VAL
+            rts
+; -----------------------------------------------------------------------------
     ENDSECT
 ;------------------------------------------------------------------------------
-; END OF STRING.ASM
+; End of helpers.asm
 ;------------------------------------------------------------------------------

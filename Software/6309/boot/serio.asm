@@ -7,8 +7,7 @@
 ; Description:
 ;
 ; This file implements a buffered, interrupt-driven serial port based on
-; a Rockwell R65C51P2 UART. This, along with the video display, (vidio.asm), 
-; comprise the two methods of interacting with pugmon. 
+; a Rockwell R65C51P2 UART. 
 ;
 ;------------------------------------------------------------------------------
 UT_INIT     EXPORT
@@ -24,6 +23,18 @@ V_CBRK      EXTERN
 S_INTD      EXTERN
 ;------------------------------------------------------------------------------
     INCLUDE defines.d       ; global settings and definitions
+;------------------------------------------------------------------------------
+SBUFSZ      equ  $7E        ; SIZE OF THE SERIAL INPUT / OUTPUT BUFFERS
+SUARTCTL    equ  $1F        ; %0001 1111 = 19200 BAUD,
+                            ;              EXTERNAL RECEIVER CLOCK,
+                            ;              8 DATA BITS,
+                            ;              1 STOP BIT.
+SUARTCMD    equ  $09        ; %0000 1001 = ODD PARITY CHECK, BUT
+                            ;              PARITY CHECK DISABLED.
+                            ;              NORMAL RECEIVER MODE, NO ECHO.
+                            ;              RTSB LOW, TX INTERRUPT DISABLED.
+                            ;              IRQB RX INTERRUPT ENABLED.
+                            ;              DATA TERMINAL READY, DTRB LOW.
 ;------------------------------------------------------------------------------
     SECT bss
 ;------------------------------------------------------------------------------

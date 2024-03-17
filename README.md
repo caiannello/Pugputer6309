@@ -27,8 +27,8 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 
   6309 Extended Basic -   Microsoft, Walter K. Zydhek, Grant Searle,
                           Tom Circuit, and me
+  boot -                  Minimal bootloader (Also unfinished, but coming soon!)
   Pugmon -                ML Monitor (Far from complete)
-  Pugboot -               Minimal bootloader (Also unfinished, but coming soon!)
   Demos -                 graphics and sound examples in Assembly and BASIC
 
 3D Models 

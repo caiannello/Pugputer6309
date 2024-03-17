@@ -9,10 +9,6 @@ UT_STA      equ  $F001      ; READ: UART STATUS REG, WRITE: UART RESET
 UT_CMD      equ  $F002      ; COMMAND REG (IRQ ENABLE FOR TX/RX)
 UT_CTL      equ  $F003      ; CONTROL REG (COMMS SETTINGS)
 
-; Parallel
-
-PA_DAT      equ  $F200      ; PARALLEL I/O CARD DATA R/W
-
 ; -----------------------------------------------------------------------------
 ; MISC CONSTANTS
 ; -----------------------------------------------------------------------------
@@ -25,72 +21,6 @@ TILDE       equ  $7E
 
 ESC_CTDN    equ   $40       ; countdown to await an ansi sequence
 ESC_N       equ   $50       ; waitloop iterations per timeout tick
-; -----------------------------------------------------------------------------
-; PER-MODULE DEFINITIONS
-; -----------------------------------------------------------------------------
-
-; CONSOLE (conio.asm) ---------------------------------------------------------
-
-CON_COLS    equ  80         ; Console text dimensions. The same size is used
-CON_ROWS    equ  26         ; for both the VDP and UART console screens. They
-							; share a common backing buffer.
-CON_LINE_MAX_CHARS 	equ 255 ; max line input size in chars
-CON_SCREEN_SIZE   	equ (CON_COLS*CON_ROWS)
-CON_BUF_SIZE		equ (CON_SCREEN_SIZE+CON_LINE_MAX_CHARS)
-
-; SERIAL PORT (serio.asm) -----------------------------------------------------
-
-SBUFSZ      equ  $7E        ; SIZE OF THE SERIAL INPUT / OUTPUT BUFFERS
-SUARTCTL    equ  $1F        ; %0001 1111 = 19200 BAUD,
-                            ;              EXTERNAL RECEIVER CLOCK,
-                            ;              8 DATA BITS,
-                            ;              1 STOP BIT.
-SUARTCMD    equ  $09        ; %0000 1001 = ODD PARITY CHECK, BUT
-                            ;              PARITY CHECK DISABLED.
-                            ;              NORMAL RECEIVER MODE, NO ECHO.
-                            ;              RTSB LOW, TX INTERRUPT DISABLED.
-                            ;              IRQB RX INTERRUPT ENABLED.
-                            ;              DATA TERMINAL READY, DTRB LOW.
-
-; PARALLEL PORT (pario.asm) ---------------------------------------------------
-
-PBUFSZ      equ  528        ; SIZE OF THE PARALLEL INPUT / OUTPUT BUFFERS
-							; PROTOCOL: A5, 5A, U8 MSG_TYPE, U16 BYTE_CNT, 
-							; U8 PAYLOAD[], U16 CRC16.
-							; MAX PAYLOAD SIZE IS 516 BYTES, USED IN FILE
-							; TRANSFERS: 4-BYTE FILE IDX, 512-BYTE DATA.
-
-; MESSAGE TYPES
-
-; These are for talking to an MCU connected to the parallel port to provide
-; SD Card, keyboard, audio, etc. For example Arduino sketches, See repo, 
-; "Software/Arduino UNO" or "Software/Teensy 4.1" 
-
-                               ; $00 - $0f : General messages -----------------
-
-PAR_MSG_ACK           EQU $00  ; Acknowledge
-PAR_MSG_NAK           EQU $01  ; Can't acknowledge (CRC error?)
-PAR_MSG_NCOMP         EQU $02  ; Can't comply (Optional reason text in 
-                               ; payload.)
-PAR_MSG_STATUS        EQU $03  ; Returns current t_status struct
-
-                               ; $10 - $1f : SD Card messages -----------------
-
-PAR_MSG_GET_DIR       EQU $10  ; Send current or specified dir
-PAR_MSG_CH_DIR        EQU $11  ; Change to specified dir or '..'
-PAR_MSG_MAKE_DIR      EQU $12  ; Create specified dir
-PAR_MSG_GET_FILE      EQU $13  ; Transmit specified file from SD
-PAR_MSG_PUT_FILE      EQU $14  ; Receive specified file to SD
-PAR_MSG_DEL           EQU $15  ; Delete specified file or directory
-PAR_MSG_DUMP          EQU $16  ; Used during file / dir transfer.
-                               ; Each data payload starts with a
-                               ; uint32_t file byte-index.
-PAR_MSG_DUMP_END      EQU $17  ; Same as DUMP, but last part of file.
-
-                               ; $20 - $2f : Keyboard messages ----------------
-
-PAR_MSG_KEYS_HIT      EQU $20  ; payload is array of t_kb structs
-
 ; -----------------------------------------------------------------------------
 ; ConDriver structure
 ;
