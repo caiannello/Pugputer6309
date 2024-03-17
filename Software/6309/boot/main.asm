@@ -1,32 +1,50 @@
 ;------------------------------------------------------------------------------
-; PROJECT: PUGMON 
-; VERSION: 0.0.1
+; PROJECT: Pugputer 6309 - bootloader 
+; VERSION: 0.0.2
 ;    FILE: main.asm
 ;  AUTHOR: CRAIG IANNELLO, PUGBUTT.COM
 ;
 ; Description:
 ;
-; PUGMON IS INTENDED TO BE A FULLY-FEATURED MACHINE-CODE MONITOR, DEBUGGER, 
-; DISASSEMBLER, AND MINI ASSEMBLER FOR THE PUGBUTT INDUSTRIES PUGPUTER, A 
-; SYSTEM BASED ON THE HITACHI HD63C09, A DESCENDENT OF THE MOTOROLA MC6809.
+; This will be the firmware for the Rev 2 hardware. We have 32K of FLASH, but 
+; because I'm hoping to keep most of the CPU's address space dedicated to RAM,
+; I'm leaving only 3840 bytes of the FLASH exposed, from $F000 to $FF00, to
+; contain the system firmware.
 ;
-; RELEASED IN THE MID-1980'S, THE HD6309 WAS MARKETED AS 100% COMPATIBLE WITH
-; THE MC6809, BUT AFTER A FEW YEARS, IT WAS DISCOVERED THAT THIS PART HAD SOME
-; SECRET ENHANCEMENTS: IT CAN BE SWITCHED INTO "NATIVE MODE", WHICH OFFERS
-; SIGNIFICANTLY FASTER EXECUTION SPEED, ADDITIONAL REGISTERS, AND NEW 
-; INSTRUCTIONS SUCH AS MEMORY BLOCK-COPY AT 4X SPEED.
+; Planned features:
 ;
-; I PLAN ON RUNNING THE HD6309 IN NATIVE MODE AT ALL TIMES, SO THIS UTILITY 
-; WILL NOT WORK ON MC6809 SYSTEMS, FOR NOW ANYWAY.
+;   - Interrupt handler ISRs / stubs for all interrupts, reconfigurable via a
+;     jump table in RAM.
 ;
-; NOTES:
-;
-; PUGMON SUPPORTS TWO CONSOLE INTERFACES: A SERIAL PORT BASED ON THE ROCKWELL
-; R65C51P2 UART, AT 19.2 KBAUD, AND A VIDEO DISPLAY BASED ON THE YAMAHA V9958.
-; BECAUSE RAM IS CHEAP THESE DAYS, I'M IMPLEMENTING A FULL-SCREEN EDITOR,
-; WITH ANSI CURSOR KEYS, REMINSCENT OF COMMODORE MACHINES, SO ONE WILL BE ABLE
-; TO CURSOR-UP TO A LINE OF HEX-DUMP OR DISASSEMBLY AND CHANGE IT IN-SITU. 
+;   - NMI handler which increments a 64-bit real-time counter in RAM
+;   
+;   - Buffered, interrupt-driven serial interface at 19200 baud
 ; 
+;   - BIOS functions for IO, SD Card, date and time, and a way to plug 
+;     additional IO devices during boot for video and keyboard. (See notes)
+; 
+;   - Init VIA card, if present, and attempts boot from SD card.
+; 
+;   - If nothing is bootable, starts built-in ML monitor:
+; 
+;       ML mon features:
+; 
+;         - Serial interface by default ( + video/kbd after boot )
+;         - Simple memory inspection / edit / call / jump
+;         - XMODEM file transfer / serial boot
+;         - Catches illegal-instruction interrupt by default, or can be
+;           redirected to a custom handler by a running application.
+; 
+; Notes:
+;   
+; Due to small flash size (3840 bytes) and large font size (2048 bytes) it's 
+; not easy to include full text-mode video support in firmware. Besides that,
+; a system may have a different video solution from the existing V9958 card.
+; It may be possible to have v9958 support in firmware using a pared-down 
+; font and/or data compression, but for now, the video driver will get 
+; loaded into RAM during boot and then plugged-in to the BIOS. This will 
+; enable video/keyboard support in the ML monitor in addition to the default
+; serial interface.
 ;------------------------------------------------------------------------------
     INCLUDE defines.d       ; Global settings and definitions
 ;------------------------------------------------------------------------------
