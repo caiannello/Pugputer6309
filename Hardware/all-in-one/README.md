@@ -6,8 +6,8 @@ just a first-draft to get an idea of how big such a board might be, and it
 hasn't been error-checked!
 
 Features
-  ~10" x ~5" size
-  Voltage regulators - +12VDC input
+  11.3" x 3.5" size
+  Voltage regulators - +12VDC in, +5VDC & +3.3VDC out
   HD63C09 CPU + 14.31818 MHz crystal (3.57 MHz bus clock)
   4 MB SRAM
   32 KB FLASH
