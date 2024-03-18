@@ -1,8 +1,10 @@
 ```
 PUGPUTER 6309 - All-In-One Motherboard
 -------------------------------------------------------------------------------
-This board is combination of all existing Pugputer 6309 circuit cards. Some of
-the cards it's based on aren't yet tested! 
+This board is combination of all existing Pugputer 6309 circuit cards.
+
+WARNING: Some of those cards aren't yet tested! I put the chances of this
+board needing an ugly bodge at about 75%  :D
 
 Features
   11.3" x 3.5" size
