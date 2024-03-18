@@ -1,5 +1,5 @@
 ```
-PUGPUTER 6309 - All-In-One design
+PUGPUTER 6309 - All-In-One Motherboard
 -------------------------------------------------------------------------------
 This board is combination of all existing Pugputer 6309 circuit cards. It's
 just a first-draft to get an idea of how big such a board might be, and it
