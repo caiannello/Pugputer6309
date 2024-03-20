@@ -21,6 +21,7 @@ Projects in the Hardware directory:
                         Optional OPL3 synthesizer module (YMF262)
   VIA_SD_PSUP v2 -      SD Card, SPI, I2C, ADC, parallel port, and power supply.
   3 MB RAM Exp. v2 -    Gives the Pugputer more memory than actual pugs. 
+  all-in-one v2 -       Combines all of the above on one 11.3" x 3.5" board
 
 Projects in the Software Directory:  (All are work-in-progress, stay tuned.) 
   (Using LWTOOLS/LWASM 4.20 for the 6309 assembly stuff)
