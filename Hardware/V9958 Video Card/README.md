@@ -6,10 +6,9 @@ This is the same Yamaha graphics processor that is used in the MSX 2+ line of ho
 
 The V9958 Video Display Processor is starting to get more scarce, and the price is up to $40+ a piece now, and rising. The kind folks on the MSX Facebook Group have suggested the TN-VDP Tang Nano 20K project, which offers an FPGA-based replacement of this chip.
 
-I haven't put any hardware out yet, though, so I'm not married to the V9958, and I have a strong suspicion that a single Raspberry Pi Pico W could replace both the video card and the VIA card to provide graphics, sound, SD card, and WLAN?
+I haven't put any hardware out yet, though, so I'm not married to V9958 compatibility, and I have a strong suspicion that a single Raspberry Pi Pico W could replace both the video card and the VIA card and maybe do WLAN too?
 
-I have a Pimaroni "Pico Demo" board which does 15-bit RGB VGA, stereo sound, and SD card! I expect I'd need to give up some of that color depth in order to allocate an interface to the Pugputer bus, but I don't know if the Pico has enough oomph in its PIO's to handle video, I2S, SD Card, WLAN, and bus transactions at
-the same time? If someone has the know-how to weigh in on this possibility and maybe sketch out a bus interface and some pseudocode, I would be very grateful! I'm at caiannello at rhymes-with-moogle-pot-calm.  <3
+I have a Pimaroni "Pico Demo" board which does 15-bit RGB VGA, stereo sound, and SD card! I think I'd need to give up some of that color depth in order to allocate a bus interface, but I don't know if the Pico has enough oomph in its PIO's to handle so many features at once? If someone has the know-how to weigh in on this possibility and maybe willing to sketch out a bus interface and some pseudocode, I would be very grateful! I'm at caiannello at rhymes-with-moogle-pot-calm.  <3
 
 ## Video Card Layout and Schematic
 
