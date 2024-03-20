@@ -14,13 +14,13 @@ microcontroller to handle SD card and GPIO.)
 Projects in the Hardware directory: 
   (Using CADSOFT EAGLE 4.16r2)
 
-  [6309 CPU Card v2](https://github.com/caiannello/Pugputer6309/blob/main/Hardware/6309 CPU Card) -    HD63C09P CPU, R65C51P2 UART, 1MB RAM, 32K ROM, RTC
+  6309 CPU Card v2 -    HD63C09P CPU, R65C51P2 UART, 1MB RAM, 32K ROM, RTC
                         (Mem expandable to 4MB) 
-  [Backplane v2](https://github.com/caiannello/Pugputer6309/blob/main/Hardware/Backplane) -        Five card slots, tombstone style 
-  [V9958 Video v2](https://github.com/caiannello/Pugputer6309/blob/main/Hardware/V9958 Video Card) -      Same graphics chip as the MSX 2+ home computer 
+  Backplane v2 -        Five card slots, tombstone style 
+  V9958 Video v2 -      Same graphics chip as the MSX 2+ home computer 
                         Optional OPL3 synthesizer module (YMF262)
-  [VIA_SD_PSUP v2](https://github.com/caiannello/Pugputer6309/blob/main/Hardware/VIA_SD_PSUP) -      SD Card, SPI, I2C, ADC, parallel port, and power supply.
-  [3 MB RAM Exp. v2](https://github.com/caiannello/Pugputer6309/blob/main/Hardware/RAM Expansion) -    Gives the Pugputer more memory than actual pugs. 
+  VIA_SD_PSUP v2 -      SD Card, SPI, I2C, ADC, parallel port, and power supply.
+  3 MB RAM Exp. v2 -    Gives the Pugputer more memory than actual pugs. 
 
 Projects in the Software Directory:  (All are work-in-progress, stay tuned.) 
   (Using LWTOOLS/LWASM 4.20 for the 6309 assembly stuff)
