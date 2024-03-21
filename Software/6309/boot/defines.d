@@ -1,4 +1,25 @@
 ; -----------------------------------------------------------------------------
+; BIOS Functions - function type codes passed in reg A when doing a BIOS call.
+;
+; Built-in file reference numbers:  0: NULL, 1:StdOut, 2:StdErr, 3-7: Reserved
+; 
+;
+; -----------------------------------------------------------------------------
+B_QUERY     equ  $00        ; fills out a structure of IO devices and open filerefs
+
+B_OPEN      equ  $01        ; B: Device ref, E: flags (returns fileref or null in A, status in B)
+B_CLOSE     equ  $02        ; B: fileref (returns status in A)
+
+B_PUTC      equ  $10        ; B: Output fileref, E: The char
+B_PUTS      equ  $11        ; B: Output fileref, Y: adrs of null-terminated string
+B_PUT       equ  $12        ; B: Output fileref, X: adrs of bytes, Y: len
+
+B_GETC      equ  $20        ; B: Input fileref (rets char in A, or carry-set if None)
+B_GETS      equ  $21        ; B: Input fileref, X: buffer adrs, Y: buffer len. Returns strlen in X.
+B_GET       equ  $22        ; B: Input fileref, X: buffer adrs, Y: req. len. Returns getlen in X.
+
+
+; -----------------------------------------------------------------------------
 ; DEVICE ADDRESSES
 ; -----------------------------------------------------------------------------
 

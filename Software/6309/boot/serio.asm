@@ -19,7 +19,7 @@ UT_CUR_XY   EXPORT
 UT_CLEAR_EOL EXPORT
 ;------------------------------------------------------------------------------
 JT_IRQ      EXTERN          ; RAM interrupt jump table, IRQ vector
-V_CBRK      EXTERN
+JT_CBRK     EXTERN          ; RAM interrupt jump table, Ctrl-C Break vector
 S_INTD      EXTERN
 ;------------------------------------------------------------------------------
     INCLUDE defines.d       ; global settings and definitions
@@ -85,7 +85,7 @@ CHK_RX      TIM  #8,TSTA    ; IF BIT 3 = 0: WE HAVENT RECEIVED A BYTE,
 HANDL_RX    LDA  UT_DAT     ; GET RX BYTE FROM UART
             CMPA #03        ; IF CONTROL-C, JUMP TO THE CBREAK HANDLER.
             BNE  NOTBREAK
-            JMP  V_CBRK
+            JMP  JT_CBRK
 NOTBREAK    LDB  SRXCNT     ; CHECK IF RX BUFFER HAS ROOM.
             CMPB #(SBUFSZ-1)
             BGE  CHK_TX     ; BUF FULL, TRASH THE BYTE. TODO: SET ERR BIT
