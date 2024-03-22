@@ -4,8 +4,7 @@
 #
 # It parses font.asm, shows character set, and shows the color palette. It
 # gets pretty close to showing things in the weird aspect ratio of the 
-# V9958, so it might be a good starting point for a pugputer graphics editor,
-# image viewer, or maybe even a pugputer emulator.
+# V9958 in 80x26 text mode.
 # -----------------------------------------------------------------------------
 import pygame, sys, time
 from pygame.locals import *

@@ -1,5 +1,5 @@
 ```
-Pugputer 6309 - Sofftware and Firmware
+Pugputer 6309 - Software and Firmware
 -------------------------------------------------------------------------------
 The assembly projects in this directory are compiled using the very excellent
 cross-toolchain LWTOOLS 4.20 in Linux. I believe there are builds of LWTOOLS 
