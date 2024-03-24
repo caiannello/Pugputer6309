@@ -1,0 +1,158 @@
+Partlist
+
+Exported from all_in_one_v2.brd at  3/24/2024 09:36:40a
+
+EAGLE Version 4.16r2 Copyright (c) 1988-2006 CadSoft
+
+Part     Value                       Package                         Library           Position (inch)       Orientation
+
+C1       22p                         C0603                           rcl               (1.893748 2.9875)     MR0
+C2       22p                         C0603                           rcl               (1.893748 3.175)      MR0
+C3       0.1u                        C0603                           rcl               (1.05 2.55)           MR180
+C4       0.1u                        C0603                           rcl               (2.006248 1.993752)   MR180
+C5       0.1u                        C0603                           rcl               (3.775 0.3)           MR270
+C6       0.1u                        C0603                           rcl               (2.381252 0.156252)   MR0
+C8       0.1u                        C0603                           rcl               (3.131252 2.631252)   MR270
+C9       22p                         C0603                           rcl               (2.281252 1.818752)   MR90
+C10      22p                         C0603                           rcl               (2.468748 1.818752)   MR90
+C11      0.1u                        C0603                           rcl               (1.3 3.025)           MR180
+C12      0.1u                        C0603                           rcl               (1.725 0.443752)      MR180
+C13      0.1u                        C0603                           rcl               (0.875 1.125)         MR180
+C14      0.1u                        C0603                           rcl               (0.875 0.575)         MR180
+C15      0.1u                        C0603                           rcl               (1.275 1.075)         MR0
+C16      0.1u                        C0603                           rcl               (1.725 0.2)           MR180
+C17      0.1u                        C0603                           rcl               (1.125 2.125)         MR0
+C18      0.1u                        C0603                           rcl               (4.775 0.3)           MR270
+C20      47u                         C0805                           rcl               (9.85 1.425)          MR270
+C21      22p                         C0603                           rcl               (10.9625 0.3375)      MR0
+C22      22p                         C0603                           rcl               (10.9625 0.5375)      MR0
+C23      0.1u                        C0603                           rcl               (6.425 2.1875)        MR0
+C24      0.1u                        C0603                           rcl               (8.35 0.475)          MR90
+C25      0.1u                        C0603                           rcl               (9.6375 1.3375)       MR270
+C27      0.1u                        C0603                           rcl               (10.6375 2.05)        MR90
+C28      0.1u                        C0603                           rcl               (10.5125 2.05)        MR90
+C29      0.1u                        C0603                           rcl               (10.3875 2.05)        MR90
+C30      0.01u                       C0603                           rcl               (9.6625 1.575)        MR90
+C31      0.01u                       C0603                           rcl               (8.7625 1.525)        MR270
+C32      47u                         C0805                           rcl               (8.475 1.5)           MR90
+C33      47u                         C0805                           rcl               (9.9 2.15)            MR90
+C34      220u                        C1206                           rcl               (10.9 2.9625)         MR90
+C35      220u                        C1206                           rcl               (10.7125 2.9625)      MR90
+C36      220u                        C1206                           rcl               (10.525 2.9625)       MR90
+C37      220u                        C1206                           rcl               (10.3375 2.9625)      MR90
+C38      220u                        C1206                           rcl               (9.775 2.9625)        MR90
+C39      220u                        C1206                           rcl               (10.0875 2.9625)      MR90
+C40      0.1u                        C0603                           rcl               (9.3375 0.8375)       MR270
+C41      0.1u                        C0603                           rcl               (10.6125 1.225)       MR90
+C42      5p                          C0603                           rcl               (10.1875 1.5625)      MR0
+C43      47p                         C0603                           rcl               (10.475 1.5625)       MR0
+C44      330p                        C0603                           rcl               (10.6375 1.8625)      MR270
+C45      330p                        C0603                           rcl               (10.5125 1.8625)      MR270
+C46      330p                        C0603                           rcl               (10.3875 1.8625)      MR270
+C47      0.1u                        C0603                           rcl               (10.15 0.5875)        MR270
+C48      0.1u                        C0603                           rcl               (7.693748 1.431252)   MR180
+C50      0.1u                        C0603                           rcl               (3.775 1.1125)        MR270
+C51      0.1u                        C0603                           rcl               (4.775 1.1125)        MR270
+C52      0.1u                        C0603                           rcl               (3.775 1.925)         MR270
+C53      0.1u                        C0603                           rcl               (4.775 1.925)         MR270
+C54      0.1u                        C0603                           rcl               (3.775 2.7375)        MR270
+C55      0.1u                        C0603                           rcl               (4.775 2.7375)        MR270
+C56      0.1u                        C0603                           rcl               (3.4625 0.875)        MR180
+C57      220U                        C025-050X050                    rcl               (7.175 2.5875)        R270
+C58      0.1u                        C0603                           rcl               (6.8375 1.1875)       MR180
+C59      0.1u                        C0603                           rcl               (6.975 2.4)           MR90
+C60      0.1u                        C0603                           rcl               (6.8375 1.7625)       MR180
+C61      22u                         C1206                           rcl               (6.7875 2.6625)       MR270
+C62      22u                         C1206                           rcl               (6.7875 2.45)         MR90
+C63      22u                         C0805                           rcl               (6.9875 2.7625)       MR180
+C64      22p                         C0603                           rcl               (8.1375 2.0125)       MR0
+C65      22p                         C0603                           rcl               (8.1375 1.825)        MR0
+C66      0.1u                        C0603                           rcl               (7.25 2.225)          MR270
+C67      0.1u                        C0603                           rcl               (7.1875 1.9125)       MR270
+C68      0.1u                        C0603                           rcl               (7.25 2.05)           MR180
+C69      0.1u                        C0603                           rcl               (7.95 2.2625)         MR270
+C70      0.1u                        C0603                           rcl               (5.95 2.3125)         MR180
+C71      0.1u                        C0603                           rcl               (6.8375 0.6125)       MR180
+D1       1N4148                      DO35-10                         diode             (5.7625 1.775)        R270
+FB1                                  R0603                           rcl               (8.5 1.325)           MR0
+IC1      HD63C09P                    DIL40                           07-Retrocomputing (1.2 2.2)             R270
+IC2      PLD_ATF22V10B               DIL24-3                         07-Retrocomputing (1.9 1.3375)          R270
+IC3      74ALS21D                    SO14                            74xx-us           (1.4 0.85)            MR270
+IC4      EEP_32KX8_AT28C256          DIL28-6                         07-Retrocomputing (2.6 0.9375)          R90
+IC5      UART_W65C51N                DIL28-6                         07-Retrocomputing (2.475 2.475)         R0
+IC6      POR_APX803L05-33SA-7        SOT23                           07-Retrocomputing (1.3 2.9)             MR270
+IC7      PLD_ATF16V8B                DIL20                           07-Retrocomputing (7.6 0.875)           R270
+IC8      74LS670D                    SO16                            74xx-us           (1 0.3)               MR270
+IC9      74LS670D                    SO16                            74xx-us           (1 0.85)              MR270
+IC10     IS61C5128AS                 SOIC32_11.3MM_WID               07-Retrocomputing (4.275 0.4875)        MR270
+IC11     74HC4040D                   SO16                            07-Retrocomputing (1.4 0.3875)          MR90
+IC12     IS61C5128AS                 SOIC32_11.3MM_WID               07-Retrocomputing (5.275 0.4875)        MR270
+IC13     74ALS21D                    SO14                            74xx-us           (1.2 1.9)             MR90
+IC14     CXA2075M                    CXA2075M                        07-Retrocomputing (10.325 2.3625)       MR90
+IC15     R1LP0408DSB-5SI#S1          RENESAS_32-TSOP-II              07-Retrocomputing (8.8375 0.65)         MR90
+IC16     SN74AHC574PWRSO             SOIC20                          07-Retrocomputing (9.7125 0.65)         MR90
+IC17     YAMAHA_V9958                V9958                           07-Retrocomputing (9.525 0.65)          R180
+IC18     74ALS04D                    SO14                            74xx-us           (10.4 0.65)           MR0
+IC19     IS61C5128AS                 SOIC32_11.3MM_WID               07-Retrocomputing (4.275 1.3)           MR270
+IC20     IS61C5128AS                 SOIC32_11.3MM_WID               07-Retrocomputing (5.275 1.3)           MR270
+IC21     IS61C5128AS                 SOIC32_11.3MM_WID               07-Retrocomputing (4.275 2.1125)        MR270
+IC22     IS61C5128AS                 SOIC32_11.3MM_WID               07-Retrocomputing (5.275 2.1125)        MR270
+IC23     IS61C5128AS                 SOIC32_11.3MM_WID               07-Retrocomputing (4.275 2.925)         MR270
+IC24     IS61C5128AS                 SOIC32_11.3MM_WID               07-Retrocomputing (5.275 2.925)         MR270
+IC25     PLD_ATF16V8B                DIL20                           07-Retrocomputing (3.3375 1.4375)       MR90
+IC26     W65C22S6TBG-14              DIL40                           07-Retrocomputing (6.2625 1.225)        R90
+IC27     PLD_ATF16V8B                DIL20                           07-Retrocomputing (6.075 2.875)         R90
+IC28     TXB0104D                    SOIC14                          07-Retrocomputing (6.9 0.8625)          MR0
+IC29     MIC5317_3.3V                SOT23-5                         07-Retrocomputing (6.9875 2.575)        MR270
+IC30     TXB0104D                    SOIC14                          07-Retrocomputing (6.9 1.4375)          MR0
+IC31     TXB0104D                    SOIC14                          07-Retrocomputing (6.9 2.0125)          MR0
+J2       XRGB                        MINI_DIN8                       07-Retrocomputing (10.65 3.5875)        R180
+J3       S-VIDEO                     MINI_DIN8                       07-Retrocomputing (9.9 3.5875)          R180
+J5                                   RCA_JACK_CUI_RCJ-014_CP-1403-ND 07-Retrocomputing (8.675 3.1375)        R0
+J6                                   RCA_JACK_CUI_RCJ-014_CP-1403-ND 07-Retrocomputing (9.2375 3.1375)       R0
+J9       DCJ0202                     DCJ0202                         con-jack          (6.625 3.1375)        R180
+J10      MICROSD_AMPHENOL_GTFP084328 MICROSD_AMPHENOL_GTFP08432B1HR  07-Retrocomputing (7.9875 2.875)        MR180
+JP1                                  2X03                            pinhead           (7.5125 1.7)          R0
+JP2                                  1X10                            pinhead           (9 1.95)              R0
+JP3                                  1X10                            pinhead           (9 2.85)              R0
+JP4                                  2X30                            pinhead           (0.45 1.65)           R270
+MISC                                 2X07                            pinhead           (7.25 3.15)           R0
+PAR_IO                               2X06                            pinhead           (7.0625 0.2375)       R0
+PWR                                  LED3MM                          led               (3.45 2.3)            R90
+Q1       14.31818M                   HC49/S                          crystal           (1.7375 3.081252)     R270
+Q2       1.8432M                     HC49/S                          crystal           (2.375 1.943752)      R180
+Q3       21.47727M                   HC49/S                          crystal           (10.825 0.4375)       R270
+Q4       12M                         HC49/S                          crystal           (7.95 1.95)           R90
+R1       1k                          R0603                           rcl               (1.725 0.325)         MR180
+R3       75R                         R0603                           rcl               (10.9 2.775)          MR90
+R4       75R                         R0603                           rcl               (10.7125 2.775)       MR90
+R5       75R                         R0603                           rcl               (10.525 2.775)        MR90
+R6       43R                         R0603                           rcl               (10.3375 2.775)       MR90
+R7       3.32K 1%                    R0603                           rcl               (10.25 2.643752)      MR180
+R8       75R                         R0603                           rcl               (9.775 2.775)         MR90
+R9       75R                         R0603                           rcl               (10.0875 2.775)       MR90
+R10      240R                        R0603                           rcl               (10.7 2.4875)         MR90
+R11      4.7k                        R0603                           rcl               (10.425 1.225)        MR180
+R12      2k2                         R0603                           rcl               (10.15 1.325)         MR90
+R13      2k2                         R0603                           rcl               (10.375 1.425)        MR90
+R14      470R                        R0603                           rcl               (9.225 1.3)           MR180
+R15      470R                        R0603                           rcl               (9.425 1.3)           MR180
+R16      470R                        R0603                           rcl               (9.1 1.475)           MR180
+R17      4.7k                        R0603                           rcl               (8.925 1.325)         MR180
+R18      4.7k                        R0603                           rcl               (8.7 1.325)           MR180
+R19      75R                         R0603                           rcl               (11.025 2.9625)       MR270
+R20      0R                          R0603                           rcl               (8.4875 1.675)        MR270
+R23      470R                        R0603                           rcl               (3.5375 2.4125)       MR0
+R24      1k                          R0603                           rcl               (7.7375 1.65)         MR90
+R25      0R                          R0603                           rcl               (7.3 1.8)             MR270
+R26      0R                          R0603                           rcl               (7.625 2.925)         MR90
+RN1      4.7K                        SIL9                            resistor-sil      (0.75 2.75)           R90
+RN2      4.7K                        SIL9                            resistor-sil      (2.55 3.1)            R180
+RN3                                  SIL9                            resistor-sil      (7.925 2.7125)        R180
+SERIAL                               1X06                            pinhead           (3.4625 3.2)          R180
+T1       MMBT2222A                   SOT23-BEC                       transistor        (1.918752 0.5375)     MR0
+U$2      PUG                         LARGE_PUG                       07-Retrocomputing (9.6625 1.618752)     R0
+U1       VREG_5V_VR10S05             VREG_5V_CP_POWER_VR10S05        07-Retrocomputing (6.6 2.575)           R270
+U2       ATMEGA238PTQFP_             TQFP32-08                       02_atmel          (7.575 2.1375)        MR0
+UART_PWR                             1X02                            pinhead           (3.506248 2.75)       R0
+XO1      XODC_32KHZ_OM-7604-C7       32K_XO_OM-7604-C7               07-Retrocomputing (1.7375 0.575)        MR270

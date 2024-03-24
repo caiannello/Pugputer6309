@@ -1,0 +1,51 @@
+Partlist
+
+Exported from 6309 CPU Card v2.brd at  3/24/2024 09:29:57a
+
+EAGLE Version 4.16r2 Copyright (c) 1988-2006 CadSoft
+
+Part     Value                 Package             Library           Position (inch)       Orientation
+
+C1       22p                   C0603               rcl               (0.4375 2.156248)     MR270
+C2       22p                   C0603               rcl               (0.25 2.156248)       MR270
+C3       0.1u                  C0603               rcl               (0.781248 1.281252)   MR90
+C4       0.1u                  C0603               rcl               (0.781248 2.293748)   MR90
+C5       0.1u                  C0603               rcl               (2.968748 2.375)      MR0
+C6       0.1u                  C0603               rcl               (4.218748 0.718752)   MR270
+C7       220U                  C025-050X050        rcl               (0.175 0.55)          R180
+C8       0.1u                  C0603               rcl               (4.593748 1.468752)   MR180
+C9       22p                   C0603               rcl               (5.406248 0.406252)   MR0
+C10      22p                   C0603               rcl               (5.406248 0.593748)   MR0
+C11      0.1u                  C0603               rcl               (0.3125 1.531252)     MR90
+C12      0.1u                  C0603               rcl               (2.468752 1.1875)     MR270
+C13      0.1u                  C0603               rcl               (1.1875 0.5625)       MR270
+C14      0.1u                  C0603               rcl               (1.75 0.5625)         MR270
+C15      0.1u                  C0603               rcl               (2.343752 0.562504)   MR270
+C16      0.1u                  C0603               rcl               (2.25 1.4375)         MR270
+C17      0.1u                  C0603               rcl               (2.25 1.968752)       MR270
+C18      0.1u                  C0603               rcl               (3.725 2.375)         MR0
+IC1      HD63C09P              DIL40               07-Retrocomputing (1.125 1.4375)        R0
+IC2      PLD_ATF22V10B         DIL24-3             07-Retrocomputing (1.4375 2.1875)       R0
+IC3      74ALS21D              SO14                74xx-us           (2.5625 0.6875)       MR180
+IC4      EEP_32KX8_AT28C256    DIL28-6             07-Retrocomputing (3.5625 0.875)        R180
+IC5      UART_W65C51N          DIL28-6             07-Retrocomputing (4.75 0.8125)         R90
+IC6      POR_APX803L05-33SA-7  SOT23               07-Retrocomputing (0.4375 1.5625)       MR180
+IC8      74LS670D              SO16                74xx-us           (2 0.6875)            MR180
+IC9      74LS670D              SO16                74xx-us           (1.4375 0.6875)       MR180
+IC10     IS61C5128AS           SOIC32_11.3MM_WID   07-Retrocomputing (3.1875 1.875)        MR0
+IC11     74HC4040D             SO16                07-Retrocomputing (2.5 1.5625)          MR180
+IC12     IS61C5128AS           SOIC32_11.3MM_WID   07-Retrocomputing (3.95 1.875)          MR0
+IC13     74ALS21D              SO14                74xx-us           (2.468752 2.093752)   MR180
+J1       CARDEDGE_2.54_60POS   CARDEDGE_2.54_60POS 07-Retrocomputing (1.5625 0)            R0
+PWR                            LED3MM              led               (0.218752 2.3125)     R0
+Q1       14.31818M             HC49/S              crystal           (0.343748 2)          R0
+Q2       1.8432M               HC49/S              crystal           (5.281248 0.5)        R270
+R1       1k                    R0603               rcl               (2.375 1.3125)        MR270
+R2       470R                  R0603               rcl               (0.375 2.375)         MR0
+RN1      10K                   SIL9                resistor-sil      (0.625 0.8)           R180
+RN2      10K                   SIL9                resistor-sil      (5.3125 1.25)         R90
+SERIAL                         1X06                pinhead           (5.0625 2.093748)     R90
+T1       MMBT2222A             SOT23-BEC           transistor        (2.3125 1.156252)     MR270
+U$2      PUG                   LARGE_PUG           07-Retrocomputing (2.875 1.218752)      R0
+UART_PWR                       1X02                pinhead           (4.443748 2.125)      R0
+XO1      XODC_32KHZ_OM-7604-C7 32K_XO_OM-7604-C7   07-Retrocomputing (2.625 1.25)          MR0

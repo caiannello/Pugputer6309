@@ -1,0 +1,27 @@
+Partlist
+
+Exported from 3MB RAM Expansion.brd at  3/24/2024 09:35:17a
+
+EAGLE Version 4.16r2 Copyright (c) 1988-2006 CadSoft
+
+Part     Value               Package             Library           Position (inch)       Orientation
+
+C1       0.1u                C0603               rcl               (2.25 1.3125)         MR90
+C2       0.1u                C0603               rcl               (2.25 2.125)          MR90
+C3       0.1u                C0603               rcl               (3.625 1.3125)        MR90
+C4       0.1u                C0603               rcl               (3.625 2.125)         MR90
+C5       0.1u                C0603               rcl               (5 1.25)              MR90
+C6       0.1u                C0603               rcl               (5 2.125)             MR90
+C7       220U                C025-050X050        rcl               (0.175 0.55)          R180
+C8       0.1u                C0603               rcl               (0.75 2.0625)         MR180
+IC1      IS61C5128AS         SOIC32_11.3MM_WID   07-Retrocomputing (1.75 1.0625)         MR90
+IC2      IS61C5128AS         SOIC32_11.3MM_WID   07-Retrocomputing (1.75 1.9375)         MR90
+IC3      IS61C5128AS         SOIC32_11.3MM_WID   07-Retrocomputing (3.125 1.0625)        MR90
+IC4      IS61C5128AS         SOIC32_11.3MM_WID   07-Retrocomputing (3.125 1.9375)        MR90
+IC5      IS61C5128AS         SOIC32_11.3MM_WID   07-Retrocomputing (4.5 1.0625)          MR90
+IC6      IS61C5128AS         SOIC32_11.3MM_WID   07-Retrocomputing (4.5 1.9375)          MR90
+IC7      PLD_ATF16V8B        DIL20               07-Retrocomputing (0.675 1.45)          R270
+J1       CARDEDGE_2.54_60POS CARDEDGE_2.54_60POS 07-Retrocomputing (1.5625 0)            R0
+PWR                          LED3MM              led               (0.218752 2.3125)     R0
+R2       470R                R0603               rcl               (0.375 2.375)         MR0
+U$1      PUG                 LARGE_PUG           07-Retrocomputing (3.2625 1.075)        R0

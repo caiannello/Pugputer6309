@@ -1,0 +1,46 @@
+Partlist
+
+Exported from Via Card v2.brd at  3/24/2024 09:34:09a
+
+EAGLE Version 4.16r2 Copyright (c) 1988-2006 CadSoft
+
+Part     Value                       Package                        Library           Position (inch)       Orientation
+
+C1       0.1u                        C0603                          rcl               (2.1875 1.375)        MR90
+C2       0.1u                        C0603                          rcl               (0.625 0.875)         MR270
+C3       0.1u                        C0603                          rcl               (2.5625 2.3125)       MR180
+C4       22p                         C0603                          rcl               (4.125 1.375)         MR0
+C5       22p                         C0603                          rcl               (4.125 1.125)         MR0
+C6       22u                         C0805                          rcl               (3.7875 0.381248)     MR0
+C7       220U                        C025-050X050                   rcl               (0.2 0.675)           R270
+C8       22u                         C1206                          rcl               (4.25 0.5)            MR270
+C9       22u                         C1206                          rcl               (4.25 0.25)           MR90
+C10      0.1u                        C0603                          rcl               (3.156248 1.4375)     MR180
+C11      0.1u                        C0603                          rcl               (3.156252 1.5625)     MR0
+C12      0.1u                        C0603                          rcl               (3.875 1.5625)        MR270
+C13      0.1u                        C0603                          rcl               (3.875 1.75)          MR270
+C14      0.1u                        C0603                          rcl               (2.5375 1.675)        MR180
+C15      0.1u                        C0603                          rcl               (2.5375 1.018748)     MR180
+D1       1N4148                      DO35-10                        diode             (1.9875 2.0625)       R180
+IC1      W65C22S6TBG-14              DIL40                          07-Retrocomputing (1.225 1.5375)        R0
+IC2      PLD_ATF16V8B                DIL20                          07-Retrocomputing (1.1625 0.825)        R0
+IC3      TXB0104D                    SOIC14                         07-Retrocomputing (2.65 2.043752)       MR0
+IC4      MIC5317_3.3V                SOT23-5                        07-Retrocomputing (3.8125 0.275)        MR90
+IC5      TXB0104D                    SOIC14                         07-Retrocomputing (2.6625 1.3875)       MR0
+IC6      TXB0104D                    SOIC14                         07-Retrocomputing (2.65 0.731248)       MR0
+J1       CARDEDGE_2.54_60POS         CARDEDGE_2.54_60POS            07-Retrocomputing (1.5625 0)            R0
+J2       DCJ0202                     DCJ0202                        con-jack          (5.181248 0.325)      R90
+J3       MICROSD_AMPHENOL_GTFP084328 MICROSD_AMPHENOL_GTFP08432B1HR 07-Retrocomputing (4.868752 1.156256)   MR270
+JP3                                  2X03                           pinhead           (3.468748 0.9875)     R0
+MISC                                 2X07                           pinhead           (5.05 2.0375)         R90
+PAR_IO                               2X06                           pinhead           (0.9625 2.2)          R0
+PWR                                  LED3MM                         led               (0.2125 2.324996)     R0
+Q1       12M                         HC49/S                         crystal           (3.9375 1.25)         R90
+R1       0R                          R0603                          rcl               (2.906248 2.218752)   MR0
+R2       470R                        R0603                          rcl               (0.375 2.3125)        MR0
+R3       1k                          R0603                          rcl               (0.875 1.6875)        MR270
+R4       0R                          R0603                          rcl               (2.906252 1.875)      MR0
+RN1                                  SIL9                           resistor-sil      (4.5 1.25)            R90
+U$1      PUG                         LARGE_PUG                      07-Retrocomputing (2.8875 1.168752)     R0
+U1       VREG_5V_VR10S05             VREG_5V_CP_POWER_VR10S05       07-Retrocomputing (4.5875 0.375)        R270
+U2       ATMEGA238PTQFP_             TQFP32-08                      02_atmel          (3.5 1.5)             MR0

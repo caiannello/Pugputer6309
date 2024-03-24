@@ -1,0 +1,74 @@
+Partlist
+
+Exported from V9958 Video Card V2.brd at  3/24/2024 09:36:09a
+
+EAGLE Version 4.16r2 Copyright (c) 1988-2006 CadSoft
+
+Part     Value                   Package                         Library           Position (inch)       Orientation
+
+C1       47u                     C0805                           rcl               (1.825 1.025)         MR0
+C2       22p                     C0603                           rcl               (0.675 2.25)          MR180
+C3       22p                     C0603                           rcl               (0.4625 2.25)         MR0
+C4       0.1u                    C0603                           rcl               (0.8125 1.825004)     MR270
+C5       0.1u                    C0603                           rcl               (0.35 0.875)          MR90
+C6       5p                      C0603                           rcl               (3.75 1.9625)         MR0
+C7       220u                    C025-050X050                    rcl               (0.2625 0.5125)       R90
+C8       47p                     C0603                           rcl               (3.75 2.0625)         MR0
+C9       330p                    C0603                           rcl               (3.6 1.5375)          MR0
+C10      330p                    C0603                           rcl               (3.6 1.6875)          MR0
+C11      330p                    C0603                           rcl               (3.6 1.8375)          MR0
+C12      0.1u                    C0603                           rcl               (2.65 2.075)          MR90
+C13      0.1u                    C0603                           rcl               (3.75 1.5875)         MR180
+C14      0.1u                    C0603                           rcl               (3.75 1.6875)         MR180
+C15      0.1u                    C0603                           rcl               (1.825 1.1)           MR0
+C16      0.1u                    C0603                           rcl               (3.75 1.7875)         MR180
+C17      0.01u                   C0603                           rcl               (4.15 1.5375)         MR180
+C18      0.01u                   C0603                           rcl               (3.75 2.2375)         MR180
+C19      47u                     C0805                           rcl               (0.125 0.5125)        MR90
+C20      47u                     C0805                           rcl               (3.75 2.3125)         MR0
+C21      47u                     C0805                           rcl               (4.15 1.4625)         MR0
+C22      220u                    C1206                           rcl               (4.5 1.6375)          MR180
+C23      220u                    C1206                           rcl               (4.5 1.7625)          MR180
+C24      220u                    C1206                           rcl               (4.5 1.8875)          MR180
+C25      220u                    C1206                           rcl               (4.5 2.1375)          MR180
+C26      220u                    C1206                           rcl               (4.5 2.2375)          MR180
+C27      0.1u                    C0603                           rcl               (1.6 1.375)           MR270
+C28      220u                    C1206                           rcl               (4.5 1.5125)          MR180
+C29      0.1u                    C0603                           rcl               (0.925 1.425)         MR270
+C30      0.1u                    C0603                           rcl               (0.306248 1.581248)   MR270
+FB1                              R0603                           rcl               (1.825 0.95)          MR180
+IC1      YAMAHA_V9958            V9958                           07-Retrocomputing (1.55 1.575)          R0
+IC2      PLD_ATF16V8B            DIL20                           07-Retrocomputing (0.95 0.75)           R0
+IC3      74ALS04D                SO14                            74xx-us           (0.55 1.625)          MR180
+IC9      CXA2075M                CXA2075M                        07-Retrocomputing (4.05 1.8875)         MR180
+IC10     R1LP0408DSB-5SI#S1      RENESAS_32-TSOP-II              07-Retrocomputing (2.05 1.55)           MR270
+IC11     SN74AHC574PWRSO         SOIC20                          07-Retrocomputing (1.225 1.55)          MR270
+J1       XRGB                    MINI_DIN8                       07-Retrocomputing (5.5 1.406252)        R90
+J2       S-VIDEO                 MINI_DIN8                       07-Retrocomputing (5.5 2.125)           R90
+J3       CARDEDGE_2.54_60POSEDGE CARDEDGE_2.54_60POS             07-Retrocomputing (1.5625 0)            R0
+J4                               RCA_JACK_CUI_RCJ-014_CP-1403-ND 07-Retrocomputing (5.125 0.843752)      R270
+J5                               RCA_JACK_CUI_RCJ-014_CP-1403-ND 07-Retrocomputing (5.125 0.281252)      R270
+JP2                              1X10                            pinhead           (3.6125 0.6125)       R270
+JP3                              1X10                            pinhead           (4.5125 0.6125)       R270
+PWR                              LED3MM                          led               (0.218752 2.3125)     R0
+Q1       21.47727M               HC49/S                          crystal           (0.5625 2.15)         R0
+R1       75R                     R0603                           rcl               (4.3375 1.5125)       MR180
+R2       75R                     R0603                           rcl               (4.3375 1.6375)       MR180
+R3       75R                     R0603                           rcl               (4.3375 1.7625)       MR180
+R4       43R                     R0603                           rcl               (4.3375 1.8875)       MR180
+R5       3.32K 1%                R0603                           rcl               (4.3375 2.0125)       MR180
+R6       75R                     R0603                           rcl               (4.3375 2.1375)       MR180
+R7       75R                     R0603                           rcl               (4.3375 2.2375)       MR180
+R8       240R                    R0603                           rcl               (4.5 2.0125)          MR180
+R9       2k2                     R0603                           rcl               (3.75 1.8875)         MR180
+R10      4.7k                    R0603                           rcl               (0.6 1.325)           MR270
+R11      2k2                     R0603                           rcl               (3.75 2.1625)         MR180
+R12      470R                    R0603                           rcl               (3.6 1.6125)          MR0
+R13      470R                    R0603                           rcl               (3.6 1.7625)          MR0
+R14      470R                    R0603                           rcl               (3.6 1.9125)          MR0
+R15      75R                     R0603                           rcl               (4.8625 1.0125)       MR0
+R16      4.7k                    R0603                           rcl               (2.1875 0.875)        MR0
+R17      4.7k                    R0603                           rcl               (2.375 0.875)         MR180
+R18      0R                      R0603                           rcl               (3.218752 2.031252)   MR180
+R19      470R                    R0603                           rcl               (0.1625 2.1375)       MR90
+U$1      PUG                     LARGE_PUG                       07-Retrocomputing (3.387504 1.2875)     R0

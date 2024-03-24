@@ -19,6 +19,8 @@ Features
   Yamaha YMF-262 - OPL3 music synthesizer
   60-pin bus connector
 
+See the V9958 Video Card folder for the design files of the music synth module.
+
 -------------------------------------------------------------------------------
 ```
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/all-in-one/layout.png)

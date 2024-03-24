@@ -1,0 +1,22 @@
+Partlist
+
+Exported from opl3_module.brd at  3/24/2024 09:37:13a
+
+EAGLE Version 4.16r2 Copyright (c) 1988-2006 CadSoft
+
+Part     Value          Package       Library           Position (inch)       Orientation
+
+C1       0.1u           C0603         rcl               (0.068748 0.675)      R270
+C2       2700p          C0603         rcl               (0.9 0.7)             MR90
+C3       2700p          C0603         rcl               (0.8 0.7)             MR90
+C5       47p            C0603         rcl               (0.8 0.275)           MR270
+C6       10u            C0805         rcl               (0.9 0.275)           MR270
+FB1                     R0603         rcl               (0.125 0.4)           MR90
+IC1      YMF262-M       YMF262_SOP24  07-Retrocomputing (0.425 0.5)           R270
+IC2      14.31818M      XTAL_CSX-750F 07-Retrocomputing (0.9 0.5)             R270
+IC3                     YAC512        07-Retrocomputing (0.375 0.5)           MR90
+IC4      MC33074        SOIC14        07-Retrocomputing (0.85 0.5)            MR90
+JP1                     1X10          pinhead           (0.55 0.95)           MR0
+JP2                     1X10          pinhead           (0.55 0.05)           MR0
+R1       33R            R0603         rcl               (0.631252 0.443748)   MR270
+R3       10K            R0603         rcl               (0.9375 0.7)          R180
