@@ -53,45 +53,67 @@
 V_DZINST        EXTERN      ; mon.asm
 V_CBRK          EXTERN
 V_SWI           EXTERN
+V_NMI           EXTERN      ; time.asm
 MON_INIT        EXTERN
 MON_ENTRY       EXTERN
 NEW_CTX         EXTERN
 V_SW2           EXTERN      ; bios.asm
+BIOS_INIT       EXTERN
 UT_INIT         EXTERN      ; serio.asm
+UT_PUTC         EXTERN
+UT_PUTS         EXTERN
+STXIE           EXTERN
 EndOfVars       EXTERN      ; provided by linker, start of unused RAM
 ;------------------------------------------------------------------------------
-; Functions exported for use by other modules
+; Stuff exported for use by other modules
 ;------------------------------------------------------------------------------
-JT_IRQ          EXPORT      ; RAM jump to ISR for IRQ - Serial, VIA, OPL3
+RTC_TICKS       EXPORT      ; Number of 1/16 sec ticks since poweron or epoch
+RTC_TICKS_PRIV  EXPORT
+RTC_MTX         EXPORT      ; Mutex for the above
+RTC_SET         EXPORT      ; Semaphore to update private val from public val
 JT_FIRQ         EXPORT      ; RAM jump to ISR for FIRQ - video HBLANK, VBLANK
+JT_IRQ          EXPORT      ; RAM jump to ISR for IRQ - Serial, VIA, OPL3
 JT_CBRK         EXPORT      ; RAM jump to ISR for user break (Ctrl-C)
 ;------------------------------------------------------------------------------
-    SECT ram_start          ; Public variables - Section address $0000 
-DP_WARM         RMB  1      ; If not $55 on reset, we do a cold start
+; Public variables - Section address $0000
+;------------------------------------------------------------------------------
+    SECT ram_start           
+WARM_ST         RMB  1      ; If not $55 on reset, we do a cold start
 USER_RAM        RMB  2      ; Start adrs of free RAM not used by bootloader
 RTC_TICKS       RMB  8      ; Number of 1/16 sec ticks since poweron or epoch
+RTC_TICKS_PRIV  RMB  8
 RTC_MTX         RMB  1      ; Mutex for the above
-RTC_CHANGE      RMB  1      ; Semaphore to update private val from public val
-BANKREG_1       RMB  1      ; shadow copies of the (unreadable) bank regs
-BANKREG_2       RMB  1
-BANKREG_3       RMB  1
+RTC_SET         RMB  1      ; Semaphore to update private val from public val
+SBANK_1         RMB  1      ; Readable copies of the mem bank registers
+SBANK_2         RMB  1
+SBANK_3         RMB  1
 RAM_JTAB                    ; BEGIN RAM ISR JUMP TABLE ------------------------
 JT_DZINST       RMB  3      ; DIVIDE BY ZERO OR ILLEGAL INSTRUCTION
-JT_SW3          RMB  3      ; SWI 3 
+JT_SW3          RMB  3      ; SWI 3 - UNUSED
 JT_SW2          RMB  3      ; SWI 2 - BIOS CALL
-JT_FIRQ         RMB  3      ; FIRQ 
-JT_IRQ          RMB  3      ; IRQ 
-JT_SWI          RMB  3      ; SWI 
+JT_FIRQ         RMB  3      ; FIRQ - VIDEO (VBLANK, HBLANK)
+JT_IRQ          RMB  3      ; IRQ - UART, VIA, OPL3
+JT_SWI          RMB  3      ; SWI - SW BREAKPOINT
 JT_CBRK         RMB  3      ; CTRL-C BREAK - END RAM JUMP TABLE ---------------
     ENDSECT
 ;------------------------------------------------------------------------------
-    SECT bss                ; Private variables - section address $0030
-RTC_TICKS_PRIV  RMB  8      ; number of 1/16 sec ticks since poweron or epoch
+; Private variables - section address $0100
+;------------------------------------------------------------------------------
+    SECT bss
 STACK           RMB  1024   ; System stack
 STACK_END
     ENDSECT
 ;------------------------------------------------------------------------------
-    SECT code               ; Section address  $F000 - $FF00
+; ROM Code/Data - Section address  $F000 - $FF00
+;------------------------------------------------------------------------------
+    SECT code
+
+; Memory bank registers 0..3 (Base address in defines.d)
+; These are write-only, so we keep copies of 1 through 3 in SBANK_1...SBANK_3
+MBANK_0     equ  BANK_BASE+0
+MBANK_1     equ  BANK_BASE+1
+MBANK_2     equ  BANK_BASE+2
+MBANK_3     equ  BANK_BASE+3
 
 ; Bootloader definitions and ROM constants (See also defines.d)
 
@@ -115,45 +137,8 @@ END_EXAMP
 ; the interrupt vector table at $fff0 and can't be changed. The rest are 
 ; directed though a RAM jump table so other modules can add or replace 
 ; handlers at runtime. More on this below.
+; Note: NMI ISR is in time.asm.
 ; -----------------------------------------------------------------------------
-
-; -----------------------------------------------------------------------------
-; NMI ISR - Called @ 16 Hz. Maintains internal 64-bit tick count.
-;
-; Notes: A public version of this value, RTC_TICKS, is provided. To read it,
-; software should first set the RTC_MTX semaphore to prevent the count from
-; changing while it is being read. Afterwards, software should clear RTC_MTX 
-; to resume updates.
-;
-; To change the internal tick count, software should set RTC_MTX, change the
-; value of RTC_TICKS, and then set RTC_CHANGE. This will cause the ISR to 
-; set its internal count to the new value. After it has done so, it will clear
-; both flags to signal that it's done.
-; -----------------------------------------------------------------------------
-
-V_NMI       LDD  (RTC_TICKS_PRIV+0) ; increment private tick count
-            ADDD #1
-            STD  (RTC_TICKS_PRIV+0)
-            BCC  TIK_COUNTED
-            LDD  (RTC_TICKS_PRIV+4)
-            ADDD #1
-            STD  (RTC_TICKS_PRIV+4)
-TIK_COUNTED LDA  RTC_MTX            ; Check RTC_MTX semaphore, and if it's
-            BNE  RTC_SKIP           ; in use, dont update public value.
-            LDD  RTC_TICKS_PRIV     ; Sem. clear: Copy private val to
-            STD  RTC_TICKS          ; to public val.
-            LDD  RTC_TICKS_PRIV+4
-            STD  RTC_TICKS+4
-            RTI                     ; RTC Done.
-RTC_SKIP    LDA  RTC_CHANGE         ; Set new internal tick count?
-            BEQ  RTC_DONE           ; If no, we're done.
-            LDD  RTC_TICKS          ; Sem. set: Copy public val to
-            STD  RTC_TICKS_PRIV     ; to private val.
-            LDD  RTC_TICKS+4
-            STD  RTC_TICKS_PRIV+4
-            CLR  RTC_CHANGE         ; Clear both semaphores to
-            CLR  RTC_MTX            ; signal completion.
-RTC_DONE    RTI                     ; RTC Done.
 
 ; -----------------------------------------------------------------------------
 ; Default stubs for some configurable ISRs (Remaining handlers are in mon.asm,
@@ -170,17 +155,16 @@ V_IRQ       RTI             ; IRQ - UART TX/RX, VIA I/O, OPL3 music
 ; modify the ROM.
 ;
 ; To add a handler, a program should make a copy of the preexisting jump 
-; taget before poking the address of its own handler in its place.
+; target before poking the address of its own handler in its place.
 ;
 ; For a vector like IRQ, which is shared among UART, OPL3 music, and VIA,
-; the ISR for each one should check if the interrupt was actually caused by
-; the relevant device, and if not, it should jump to the address it found
-; there during init. It should be OK for any one device per vector to not 
-; be able to tell what caused the interrupt, as long as it's the last handler
-; in the chain.
+; each ISR should check if the interrupt was actually caused by the relevant 
+; device, and if not, it should jump to the address it found during init.
+; It should be OK for any one device per vector to not be able to tell what 
+; caused the interrupt, as long as it's the last handler in the chain.
 ;
 ; If we get to the point where we ever want to remove handlers in a robust
-; way, this should probably be reimplemented as a proper doubly-linked list.
+; way, this should probably be reimplemented as a doubly-linked list.
 ; -----------------------------------------------------------------------------
 ROM_JTAB    JMP  V_DZINST   ; Divide by zero, illegal instruction
             JMP  V_SW3      ; Unused
@@ -190,28 +174,27 @@ ROM_JTAB    JMP  V_DZINST   ; Divide by zero, illegal instruction
             JMP  V_SWI      ; Breakpoint
             JMP  V_CBRK     ; Ctrl-C break (Pseudo-ISR from BIOS)
 ; -----------------------------------------------------------------------------
-; RESET VECTOR ENTRYPOINT
+; Reset Vector Entrypoint - Initialize system
 ; -----------------------------------------------------------------------------
 V_RESET     LDMD #$01       ; Enable 6309 native mode
+            TFR  0,DP       ; Set direct page to Public vars
 
             ; Setup bank registers to first 4 pages of RAM
-            
+
             LDA  #$00       ; Map RAM physical adrs $000000
-            STA  $FFEC      ; ..to CPU adrs $0000
+            STA  MBANK_0    ; ..to CPU adrs $0000 
                             ; (and keep it that way, else things will break.)
             LDA  #$01       ; Map RAM $004000
-            STA  $FFED      ; ..to CPU adrs $4000
-            STA  BANKREG_1  ; make a readable copy of this register setting
+            STA  MBANK_1    ; ..to CPU adrs $4000
+            STA  <SBANK_1   ; make a readable copy of this register setting
             LDA  #$02       ; Map RAM $008000
-            STA  $FFEE      ; ..at CPU adrs $8000
-            STA  BANKREG_2  ; make readable copy of this reg
+            STA  MBANK_2    ; ..at CPU adrs $8000
+            STA  <SBANK_2   ; make readable copy of this reg
             LDA  #$03       ; Map RAM $00C000
-            STA  $FFEF      ; ..at CPU adrs $C000            
-            STA  BANKREG_3  ; make readable copy of this reg
+            STA  MBANK_3    ; ..at CPU adrs $C000            
+            STA  <SBANK_3   ; make readable copy of this reg
 
-            ; handle cold-start / warm-start behavior
-
-            LDA  DP_WARM    ; Get warm start flag
+            LDA  <WARM_ST   ; Get warm start flag
             CMPA #$55       ; and if its $55, 
             BEQ  WARMST     ; skip the cold-start initialization.
 
@@ -223,17 +206,17 @@ COLDST      LDX  #0         ; Zero all public and private vars
             ; init some helpful public vars
 
             LDX  #EndOfVars ; Get start address of free RAM,
-            STX  USER_RAM   ; and note it in public variable
+            STX  <USER_RAM  ; and note it in public variable
             LDA  #$55       
-            STA  DP_WARM    ; We'll do a warm start next time
+            STA  <WARM_ST   ; We'll do a warm start next time
             CLR  NEW_CTX    ; No break register context to show yet
 
-            ; init interrupt jump table
+            ; Copy interrupt jump table to RAM
 
-            LDX  #ROM_JTAB  ; Copy interrupt jump table to RAM
+            LDX  #ROM_JTAB  
             LDY  #RAM_JTAB  ; 
-            LDW  #(3*7)     ; 7 JMPs is 18 bytes
-            TFM  X+,Y+      ; Use 6309'S nice block-bopy instruction.
+            LDW  #(3*7)     ; 7 JMPs is 21 bytes
+            TFM  X+,Y+      ; Use 6309'S nice block-copy instruction.
 
             ; Copy example program to RAM
 
@@ -245,7 +228,7 @@ COLDST      LDX  #0         ; Zero all public and private vars
             LDS  #(STACK_END-1)     ; Init stack pointer (enables NMI)
             
             ; Init BIOS
-
+            JSR  BIOS_INIT
             ; Init hardware peripherals
             
             ; JSR  pa_init  ; Init VIA/SD card
@@ -256,8 +239,18 @@ COLDST      LDX  #0         ; Zero all public and private vars
 
             ; Warm start
 
-WARMST      LDY  #MSG_HELLO ; Show bootloader title banner
-            ; JSR  con_puts            
+WARMST      LDA  #SUARTCTL  ; Initialize UART baud, parity, etc. (defines.d)
+            STA  UT_CTL
+            LDA  #SUARTCMD
+            STA  UT_CMD
+            LDY  #MSG_HELLO ; Bootloader title banner
+            JSR  UT_PUTS
+WAITTX      LDA  STXIE
+            BNE  WAITTX            
+            JMP  WARMST
+            ; TODO: Bootloader shouldnt need to go through the bios fcns
+            ; table since we are compiled along with the bios code.
+
             ; TODO: Try to boot from SD.. if couldnt boot, 
             JMP  MON_ENTRY  ; Start ML monitor.
 

@@ -21,8 +21,10 @@ S_HEXA          EXTERN      ; string.asm
 S_CPY           EXTERN
 S_LEN           EXTERN
 S_EOL           EXTERN
+UT_PUTC         EXTERN
+UT_PUTS         EXTERN
 ;------------------------------------------------------------------------------
-; Functions exported for use by other modules
+; Stuff exported for use by other modules
 ;------------------------------------------------------------------------------
 V_DZINST        EXPORT
 V_SWI           EXPORT
@@ -148,8 +150,8 @@ CTX_WORD    LDA  #SPACE     ; DO X, Y, U, PC
             DECE
             BNE  CTX_WORD
             JSR  S_EOL      ; ADD CR+LF+NULL TO OUTPUT STRING
-            LDY  #LINBUF
-            ;JSR  con_puts   ; OUTPUT CTX STRING TO CONSOLE
+            LDY  #LINBUF    ; context string
+            JSR  UT_PUTS
             RTS             ; END REG CONTEXT PRINT 
 ;------------------------------------------------------------------------------
 ; PRINTS UP TO 16 BYTES OF MEMORY, STARTING AT DUMP_ADRS, AS HEX + ASCII, AND
@@ -200,8 +202,10 @@ LINEDONE    STY  DUMP_ADRS  ; LINE DONE. UPDATE DUMP POSITION TO NEXT ROW,
             STA  ,U+              
             TFR  U,X
             JSR  S_EOL      ; ADD CR+LF+NULL TO OUTPUT STRING
-            LDY  #LINBUF
-            ;JSR  con_puts   ; OUTPUT CTX STRING TO CONSOLE
+            LDA  #B_PUTS    ; BIOS PUTS functon
+            LDB  #F_STDOUT  ; to consule
+            LDX  #LINBUF    ; Bootloader title banner
+            SWI2            ; Go!
             RTS
 ;------------------------------------------------------------------------------
 ; HEX+ASCII DUMP MEM FROM DUMP_ADRS THROUGH EDUMP_ADRS 

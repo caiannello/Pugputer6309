@@ -1,35 +1,63 @@
 ; -----------------------------------------------------------------------------
+; IO DEVICE BASE ADDRESSES
+; -----------------------------------------------------------------------------
+
+BANK_BASE   equ  $FFEC      : ffec - ffef: Memory Bank Regs 0...3 (Built-in)
+ACIA_BASE   equ  $FFE8      ; ffe8 - ffeb: Serial UART R65C51P2 (Built-in)
+VDP_BASE    equ  $FFE4      ; ffe4 - ffe7: Video Chip V9958
+OPL3_BASE   equ  $FFE0      ; ffe0 - ffe3: Music Chip YMF262 (OPL3)
+VIA_BASE    equ  $FFB0      ; ffb0 - ffbf: W65C22 VIA (SD Card, SPI, KB, GPIO)
+
+; UART registers (Base IO address is in defines.d)
+
+UT_DAT      equ  ACIA_BASE+0  ; R65C51P2 UART DATA REGISTER (RD: RX, WR: TX)
+UT_STA      equ  ACIA_BASE+1  ; READ: UART STATUS REG, WRITE: UART RESET
+UT_CMD      equ  ACIA_BASE+2  ; COMMAND REG (IRQ ENABLE FOR TX/RX)
+UT_CTL      equ  ACIA_BASE+3  ; CONTROL REG (COMMS SETTINGS)
+
+SBUFSZ      equ  $7E        ; SIZE OF THE SERIAL INPUT / OUTPUT BUFFERS
+SUARTCTL    equ  $1F        ; %0001 1111 = 19200 BAUD,
+                            ;              EXTERNAL RECEIVER CLOCK,
+                            ;              8 DATA BITS,
+                            ;              1 STOP BIT.
+SUARTCMD    equ  $09        ; %0000 1001 = ODD PARITY CHECK, BUT
+                            ;              PARITY CHECK DISABLED.
+                            ;              NORMAL RECEIVER MODE, NO ECHO.
+                            ;              RTSB LOW, TX INTERRUPT DISABLED.
+                            ;              IRQB RX INTERRUPT ENABLED.
+                            ;              DATA TERMINAL READY, DTRB LOW.
+
+; -----------------------------------------------------------------------------
+; Built-in file reference numbers
+; -----------------------------------------------------------------------------
+F_NULL      equ  $00        ; NULL file
+F_STDOUT    equ  $01        ; Standard text output
+F_STDIN     equ  $02
+F_STDERR    equ  $03        ; Standard error text output
+
+; filerefs reserved for devices usable with console
+
+F_UART      equ  $04        ; Optionally directed to stdout and/or stdin
+F_VDP       equ  $05        ; Qptionally directed to stdout
+F_VIA_KB    equ  $06        ; Optionally directed to stdin
+; -----------------------------------------------------------------------------
 ; BIOS Functions - function type codes passed in reg A when doing a BIOS call.
-;
-; Built-in file reference numbers:  0: NULL, 1:StdOut, 2:StdErr, 3-7: Reserved
-; 
-;
 ; -----------------------------------------------------------------------------
-B_QUERY     equ  $00        ; fills out a structure of IO devices and open filerefs
-
-B_OPEN      equ  $01        ; B: Device ref, E: flags (returns fileref or null in A, status in B)
-B_CLOSE     equ  $02        ; B: fileref (returns status in A)
-
-B_PUTC      equ  $10        ; B: Output fileref, E: The char
-B_PUTS      equ  $11        ; B: Output fileref, Y: adrs of null-terminated string
-B_PUT       equ  $12        ; B: Output fileref, X: adrs of bytes, Y: len
-
-B_GETC      equ  $20        ; B: Input fileref (rets char in A, or carry-set if None)
-B_GETS      equ  $21        ; B: Input fileref, X: buffer adrs, Y: buffer len. Returns strlen in X.
-B_GET       equ  $22        ; B: Input fileref, X: buffer adrs, Y: req. len. Returns getlen in X.
-
-
-; -----------------------------------------------------------------------------
-; DEVICE ADDRESSES
-; -----------------------------------------------------------------------------
-
-; Serial
-
-UT_DAT      equ  $F000      ; R65C51P2 UART DATA REGISTER (RD: RX, WR: TX)
-UT_STA      equ  $F001      ; READ: UART STATUS REG, WRITE: UART RESET
-UT_CMD      equ  $F002      ; COMMAND REG (IRQ ENABLE FOR TX/RX)
-UT_CTL      equ  $F003      ; CONTROL REG (COMMS SETTINGS)
-
+B_DQUERY    equ  $00        ; Get info about devices connected to the system
+B_REG_DEV   equ  $01        ; Register a device with the BIOS
+B_DEREG_DEV equ  $02        ; De-register a device with the bios
+B_FSTAT     equ  $03        ; Get info about a device or file
+B_FDIR      equ  $04        ; Get a file directory
+B_FOPEN     equ  $05        ; B: Device ref, E: flags (returns fileref or null in A, status in B)
+B_FCLOSE    equ  $06        ; B: fileref (returns status in A)
+B_FDELETE   equ  $07        ; Delete a file
+B_FMOVE     equ  $08        ; Move or rename a file
+B_PUTC      equ  $09        ; B: Output fileref, E: The char
+B_PUTS      equ  $0A        ; B: Output fileref, X: adrs of null-terminated string
+B_PUT       equ  $0B        ; B: Output fileref, X: adrs of bytes, Y: len
+B_GETC      equ  $0C        ; B: Input fileref (rets char in A, or carry-set if None)
+B_GETS      equ  $0D        ; B: Input fileref, X: buffer adrs, Y: buffer len. Returns strlen in X.
+B_GET       equ  $0E        ; B: Input fileref, X: buffer adrs, Y: req. len. Returns getlen in X.
 ; -----------------------------------------------------------------------------
 ; MISC CONSTANTS
 ; -----------------------------------------------------------------------------
@@ -42,6 +70,29 @@ TILDE       equ  $7E
 
 ESC_CTDN    equ   $40       ; countdown to await an ansi sequence
 ESC_N       equ   $50       ; waitloop iterations per timeout tick
+; -----------------------------------------------------------------------------
+; Structure definitions
+; -----------------------------------------------------------------------------
+
+; -----------------------------------------------------------------------------
+; 16-byte circular buffer
+; -----------------------------------------------------------------------------
+circbuf     STRUCT          
+flags       rmb  1          ; flags (1: empty, 2: full, 4: overrun, 8: underrun)
+len         rmb  1          ; num of bytes in buf
+head        rmb  1          ; head (write index)
+tail        rmb  1          ; tail (read idx)
+buf         rmb  16         ; buffer
+            ENDS
+; -----------------------------------------------------------------------------
+; Doubly linked lists may someday be used to keep track of IO devices so they
+; can more easilly be removed from the system.
+; -----------------------------------------------------------------------------
+dl_node     STRUCT          ; doubly-linked list node
+prev        rmw  1          ; pointer to prev node, or NULL if none
+next        rmw  1          ; pointer to next node, or NULL if none
+member      rmw  1          ; pointer to member, or NULL if none
+    ENDS
 ; -----------------------------------------------------------------------------
 ; ConDriver structure
 ;

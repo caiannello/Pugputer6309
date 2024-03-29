@@ -13,28 +13,18 @@
 UT_INIT     EXPORT
 UT_GETC     EXPORT
 UT_PUTC     EXPORT
+UT_PUTS     EXPORT
 UT_CLRSCR   EXPORT
 UT_CUR_HOME EXPORT
 UT_CUR_XY   EXPORT
 UT_CLEAR_EOL EXPORT
+STXIE       EXPORT
 ;------------------------------------------------------------------------------
 JT_IRQ      EXTERN          ; RAM interrupt jump table, IRQ vector
 JT_CBRK     EXTERN          ; RAM interrupt jump table, Ctrl-C Break vector
 S_INTD      EXTERN
 ;------------------------------------------------------------------------------
     INCLUDE defines.d       ; global settings and definitions
-;------------------------------------------------------------------------------
-SBUFSZ      equ  $7E        ; SIZE OF THE SERIAL INPUT / OUTPUT BUFFERS
-SUARTCTL    equ  $1F        ; %0001 1111 = 19200 BAUD,
-                            ;              EXTERNAL RECEIVER CLOCK,
-                            ;              8 DATA BITS,
-                            ;              1 STOP BIT.
-SUARTCMD    equ  $09        ; %0000 1001 = ODD PARITY CHECK, BUT
-                            ;              PARITY CHECK DISABLED.
-                            ;              NORMAL RECEIVER MODE, NO ECHO.
-                            ;              RTSB LOW, TX INTERRUPT DISABLED.
-                            ;              IRQB RX INTERRUPT ENABLED.
-                            ;              DATA TERMINAL READY, DTRB LOW.
 ;------------------------------------------------------------------------------
     SECT bss
 ;------------------------------------------------------------------------------
@@ -154,6 +144,8 @@ UT_CLEAR_EOL
             BSR  UT_PUTC
             PULS A
             RTS
+;------------------------------------------------------------------------------
+; Send char in a out the UART
 ;------------------------------------------------------------------------------
 UT_PUTC     PSHS A,B,X
 BUFWAIT     LDB  STXCNT     ; CHECK TX BUF BYTE COUNT

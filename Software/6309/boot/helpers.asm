@@ -178,7 +178,61 @@ crc16_byte  ldw  CRC_VAL    ; update CRC from A (uses a,e,f,x)
             eorr x,w        ; crc_val ^= x
             stw  CRC_VAL
             rts
-; -----------------------------------------------------------------------------
+;------------------------------------------------------------------------------
+; Methods for working with the 16-byte circular buffer structure (in defines.d)
+;
+; circbuf     STRUCT          
+; flags       rmb  1        ; flags (1: empty, 2: full, 4: overrun, 8: underrun)
+; len         rmb  1        ; num of bytes in buf
+; head        rmb  1        ; head (write index)
+; tail        rmb  1        ; tail (read idx)
+; buf         rmb  16       ; buffer
+;             ENDS
+;------------------------------------------------------------------------------
+
+; init circ buf at adrs x
+
+cbuf_init   pshs a
+            lda  #0
+            sta  circbuf.flags,x
+            sta  circbuf.len,x
+            sta  circbuf.head,x
+            sta  circbuf.tail,x
+            puls a
+            rts
+
+; return in B len of buf at X.
+; if full, carry set.
+
+cbuf_len    ldb  circbuf.len,x
+            ; todo: set carry if full
+            rts
+
+; push byte in A onto buf at adrs X
+; sets carry and overrun flag if fail.
+
+cbuf_push   
+            bsr  cbuf_len  ; check len
+            bcc  do_cbpush ; if room, goto push
+            ; set overrun flag
+            ; set carry
+            rts
+do_cbpush   ; push
+            rts
+
+; pop byte from buf X to reg A
+; sets carry and underrun flag if fail.
+
+cbuf_pop
+            bsr  cbuf_len  ; check len
+            cmpb #0        ; is empty.
+            bne  do_cbpop  ; not empty, goto pop
+            ; set underrun flag
+            ; set carry
+            rts
+do_cbpop    ; pop
+            rts
+
     ENDSECT
 ;------------------------------------------------------------------------------
 ; End of helpers.asm

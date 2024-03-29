@@ -1,6 +1,6 @@
 #!/bin/sh
-rm *.s19
-rm *.hex
-rm *.lst
-rm *.map
-rm *.o
+rm -f *.s19
+rm -f *.hex
+rm -f *.lst
+rm -f *.map
+rm -f *.o
