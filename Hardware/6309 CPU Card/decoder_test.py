@@ -52,14 +52,15 @@ for adrs in range(0x0000,65536, 4):
 
   nram0 = hn3 | e[20] | e[21] | e[19]
   nram1 = hn3 | e[20] | e[21] | (not e[19])
-  xmem  = (not hn3) & (e[20] | e[21])
+  nxmem  = hn3 | ((not e[20]) & (not e[21]))
   nrom  = (not hn3) | hn2 & (not hn1 )
-  io    = hn3 & hn2 & (not hn1)
-  nvia  = (not io) | (not a[7]) | a[6] | (not a[5]) | (not a[4])
-  nopl3 = (not io) | (not a[7]) | (not a[6]) | (not a[5]) | a[4] | a[3] | a[2]   
-  n9958 = (not io) | (not a[7]) | (not a[6]) | (not a[5]) | a[4] | a[3] | (not a[2])
-  nuart = (not io) | (not ssf) | hn1 | (not a[3]) | a[2]
-  nmap  = (not io) | (not ssf) | hn1 | (not a[3]) | (not a[2])
+  nio  = (not hn3) | (not hn2) | hn1
+
+  nvia  = (not hn3) | (not hn2) | hn1 | (not a[7]) | a[6] | (not a[5]) | (not a[4])
+  nopl3 = (not hn3) | (not hn2) | hn1 | (not a[7]) | (not a[6]) | (not a[5]) | a[4] | a[3] | a[2]   
+  n9958 = (not hn3) | (not hn2) | hn1 | (not a[7]) | (not a[6]) | (not a[5]) | a[4] | a[3] | (not a[2])
+  nuart = (not hn3) | (not hn2) | hn1 | (not ssf) | hn1 | (not a[3]) | a[2]
+  nmap  = (not hn3) | (not hn2) | hn1 | (not ssf) | hn1 | (not a[3]) | (not a[2])
 
   # make a text string indicating what's been selected,
   # and maybe do some sanity checks. 
@@ -74,10 +75,10 @@ for adrs in range(0x0000,65536, 4):
     sel+='/opl3'
   if not nmap:
     sel+='/mapw'
-  if sel != '' and not io:
+  if sel != '' and nio:
     print(f'SANITY: {sel=} {io=}')
     exit()
-  if xmem:
+  if not nxmem:
     sel+='xmem'
   if not nram0:
     sel+='/ram0'
@@ -87,7 +88,7 @@ for adrs in range(0x0000,65536, 4):
     sel+='/rom'
 
   # figure out 22-bit physical address, if appropriate.
-  if io:
+  if not nio:
     phyadrs = "     IO"
   elif not nrom:
     phyadrs = "    ROM"
@@ -96,4 +97,4 @@ for adrs in range(0x0000,65536, 4):
     # a13...a0  come from cpu address
     phyadrs = f"${(adrs & 0b11111111111111) | (bank << 14):06x}"
 
-  print(f"Bk: ${bank:02x}, CPUAdrs: ${adrs:04x}, PhyAdrs: {phyadrs}, Sel: {sel}")
+  print(f"Bk: ${bank:02x}, CPUAdrs: ${adrs:04x}, PhyAdrs: {phyadrs}, NIO: {nio}, Sel: {sel}")
