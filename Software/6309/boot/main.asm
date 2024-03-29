@@ -239,6 +239,10 @@ COLDST      LDX  #0         ; Zero all public and private vars
 
             ; Warm start
 
+            ; DEBUG - try to repeatedly reinit comms
+            ; and send a message.
+            ; (uart chip-select isn't acting right)
+
 WARMST      LDA  #SUARTCTL  ; Initialize UART baud, parity, etc. (defines.d)
             STA  UT_CTL
             LDA  #SUARTCMD
