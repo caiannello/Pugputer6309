@@ -56,6 +56,9 @@ This one uses the library from the ancient [Motorola MC6839 FLOATING POINT ROM!]
 CPU Card with 1MB RAM and UART
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Layout.png)
 
+All-In-One motherboard with 4MB RAM, SD Card, Arduino MCU, V9958 Video, OPL3 Sound
+![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/blob/main/Hardware/all-in-one/layout.png)
+
 Backplane
 ![backplane v2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/backplane_v2.jpg)
 
