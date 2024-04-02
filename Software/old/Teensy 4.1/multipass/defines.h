@@ -20,8 +20,8 @@
 
 // Handshake Lines
 
-#define   PIN_CWR                   2
-#define   PIN_CRD                   3
+#define   PIN_CWR                   3
+#define   PIN_CRD                   2
 #define   PIN_UWR                   4
 #define   PIN_URD                   5
 
@@ -39,7 +39,7 @@
 // Message types
 
 #define MSG_STATUS            0     // when sent: no payload, response: t_status
-#define MSG_GET_DIR           1     // payload when sent: null-terminated path, or nothing.
+#define MSG_GET_DIR           0x10     // payload when sent: null-terminated path, or nothing.
                                     // text-format dir is returned in one or more MSG_DUMP messages.
 #define MSG_DUMP              2     // payload is 4-byte address or byte idx,
                                     // followed by up to 512 bytes of data.

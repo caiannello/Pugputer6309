@@ -40,16 +40,16 @@ void setup()
 
   Serial.println("Initializing Services...");
   
-  Serial.print("    Parallel bus Interface...");  
-  par_init();   // parallel bus interface 
-  
-  Serial.print("    SD card filesystem...");  
+  Serial.print("  SD card filesystem...");  
   sd_init();    // sd card
   
-  Serial.print("    Audio IO...");  
+  Serial.print("  Parallel bus Interface...");  
+  par_init();   // parallel bus interface 
+  
+  Serial.print("  Audio IO...");  
   aud_init();   // audio
 
-  Serial.print("    USB Keyboard...");  
+  Serial.print("  USB Keyboard...");  
   ukb_init();   // usb keyboard
   
   Serial.println("\nInit complete. Have a very safe day.\n");
@@ -60,10 +60,13 @@ void setup()
 // ----------------------------------------------------------------------------
 void loop()
 {
-  aud_service();
-  par_service();  
+  //aud_service();
+  uint8_t ret_msgtype = par_service();  
   ukb_service();
-  
+  if(ret_msgtype == 0x10)
+  {
+    par_send_dir_blocking("/");
+  }
 
   // todo: dispatch requests made my CPU via parallel
 
@@ -88,9 +91,6 @@ void loop()
 // Wiz820+SD board: pin 4
 // Teensy audio board: pin 10
 // Teensy 3.5 & 3.6 & 4.1 on-board: BUILTIN_SDCARD
-
-const int chipSelect = BUILTIN_SDCARD;
-
 // ----------------------------------------------------------------------------
 void par_send_file_blocking(char * fname)
 {
@@ -173,12 +173,25 @@ void sd_init()
   //Uncomment these lines for Teensy 3.x Audio Shield (Rev C)
   //SPI.setMOSI(7);  // Audio shield has MOSI on pin 7
   //SPI.setSCK(14);  // Audio shield has SCK on pin 14  
-  if (!SD.begin(chipSelect)) 
+  bool success = false;
+  for(int i = 0 ; i < 13 ; i++)
   {
-    Serial.println(" FAIL!!");
-    return;
+    if (SD.begin(BUILTIN_SDCARD)) 
+    {
+      Serial.print(" OK. ");
+      Serial.println(SD.mediaPresent()?"(Media detected)":"(NO MEDIA)");
+      success = true;
+      break;
+    } else
+    {
+      delay(100);
+    }
   }
-  Serial.println(" OK.");
+
+  if(!success)
+  {
+      Serial.println(" FAIL!!");
+  }
 }
 // ----------------------------------------------------------------------------
 void printTime(const DateTimeFields tm, char * s) 

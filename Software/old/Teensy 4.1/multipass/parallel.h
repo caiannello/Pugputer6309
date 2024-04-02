@@ -113,7 +113,7 @@ extern volatile uint32_t g_errors;  // global error bit flags (defines.h)
 
 // ----------------------------------------------------------------------------
 void par_init(void);
-void par_service(void);
+uint8_t par_service(void);
 void par_send_message(uint8_t msg_type, uint8_t * payload, uint16_t p_sz);
 
 /*

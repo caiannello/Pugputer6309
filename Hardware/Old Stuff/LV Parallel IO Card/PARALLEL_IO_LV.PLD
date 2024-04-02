@@ -39,10 +39,10 @@ ble        = !write_n & !io_n & !a5 & !a6 & !a7 & !a8;
 /* cpu read */
 poe_n      = read_n  # io_n # a5 # a6 # a7 # a8;
 /* parallel port interrupt when mcu writes. mcu stops irq state when it sees cpu read */
-irq_n      = 'b'0;
-irq_n.oe   = ple;
-nmi_n      = 'b'1;
-nmi_n.oe   = 'b'0;
+irq_n      = 'b'1;
+irq_n.oe   = 'b'0;
+nmi_n      = 'b'0;
+nmi_n.oe   = ple;
 
 nc0        = 'b'0;
 nc1        = 'b'0;

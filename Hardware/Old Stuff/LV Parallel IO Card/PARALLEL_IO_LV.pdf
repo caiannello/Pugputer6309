@@ -1,0 +1,187 @@
+{COMPONENT C:\USERS\CRAIG\DOCUMENTS\GITHUB\PUGPUTER6309\HARDWARE\OLD STUFF\LV PARALLEL IO CARD\PARALLEL_IO_LV.SYM
+
+ {ENVIRONMENT
+  {PDIFvrev 3.00}
+  {Program "CUPL(WM) Version 5.0a"}
+  {DBtype "Schematic"}
+  {DBvrev 1.01}
+  {DBtime "Mon Apr 01 19:43:24 2024 "}
+  {DBunit "MIL"}
+  {DBgrid 10}
+  {Lyrstr "WIRES" 1 "BUS" 1 "GATE" 2 "IEEE" 2 "PINFUN" 3 "PINNUM" 1 
+          "PINNAM" 6 "PINCON" 4 "REFDES" 2 "ATTR" 6 "SDOT" 1 
+          "DEVICE" 5 "OUTLIN" 5 "ATTR2" 6 "NOTES" 6 "NETNAM" 4 
+          "CMPNAM" 5 "BORDER" 5}
+ }
+
+ {USER
+  {VIEW
+   {Mode SYMB}
+   {Nlst OPEN}
+   {Vw 0 0 2}
+   {Lv 12 2 2 2 0 0 2 2 2 2 0 0 2 1 2 0 0 0 0}
+   {Gs 10 10}
+  }
+ }
+
+ {DISPLAY
+  [Ly "PINNUM"]
+  [Ls "SOLID"][Wd 0]
+  [Ts 15][Tj "LC"][Tr 0][Tm "N"]
+ }
+
+ {SYMBOL
+  {PIN_DEF
+   [Ly "PINCON"]
+   {P E {Pt "INPUT"}{Lq 0}{Ploc 100 180}}
+   {P RW {Pt "INPUT"}{Lq 0}{Ploc 100 160}}
+   {P A5 {Pt "INPUT"}{Lq 0}{Ploc 100 140}}
+   {P A6 {Pt "INPUT"}{Lq 0}{Ploc 100 120}}
+   {P A7 {Pt "INPUT"}{Lq 0}{Ploc 100 100}}
+   {P A8 {Pt "INPUT"}{Lq 0}{Ploc 100 80}}
+   {P BOE_N {Pt "INPUT"}{Lq 0}{Ploc 100 60}}
+   {P PLE {Pt "INPUT"}{Lq 0}{Ploc 100 40}}
+   {P IO_N {Pt "INPUT"}{Lq 0}{Ploc 100 20}}
+   {P NC0 {Pt "I/O"}{Lq 0}{Ploc 300 20}}
+   {P NC1 {Pt "I/O"}{Lq 0}{Ploc 300 40}}
+   {P NC2 {Pt "I/O"}{Lq 0}{Ploc 300 60}}
+   {P NC3 {Pt "I/O"}{Lq 0}{Ploc 300 80}}
+   {P IRQ_N {Pt "I/O"}{Lq 0}{Ploc 300 100}}
+   {P NMI_N {Pt "I/O"}{Lq 0}{Ploc 300 120}}
+   {P POE_N {Pt "I/O"}{Lq 0}{Ploc 300 140}}
+   {P BLE {Pt "I/O"}{Lq 0}{Ploc 300 160}}
+  }
+
+  {PKG
+   [Ly "REFDES"]
+   [Ts 25][Tj "CB"][Tr 0][Tm "N"]
+   {Rdl 200 210}
+
+   [Ly "PINNUM"]
+   [Ts 15][Tj "RC"]
+   {Pnl 120 190}
+   {Pnl 120 170}
+   {Pnl 120 150}
+   {Pnl 120 130}
+   {Pnl 120 110}
+   {Pnl 120 90}
+   {Pnl 120 70}
+   {Pnl 120 50}
+   {Pnl 120 30}
+   [Ts 15][Tj "LC"]
+   {Pnl 280 30}
+   {Pnl 280 50}
+   {Pnl 280 70}
+   {Pnl 280 90}
+   {Pnl 280 110}
+   {Pnl 280 130}
+   {Pnl 280 150}
+   {Pnl 280 170}
+
+   {Sd A 2 3 4 5 6 7 8 9 11 12 13 14 15 16 17 18 19}
+  }
+
+  {PIC
+   [Ly "GATE"]
+   [Ts 15][Tj "LC"][Tr 0][Tm "N"]
+   {R 130 200 270 0}
+   {L 130 180 100 180}
+   {L 130 160 100 160}
+   {L 130 140 100 140}
+   {L 130 120 100 120}
+   {L 130 100 100 100}
+   {L 130 80 100 80}
+   {L 130 60 100 60}
+   {L 130 40 100 40}
+   {L 130 20 100 20}
+   {L 270 20 300 20}
+   {L 270 40 300 40}
+   {L 270 60 300 60}
+   {L 270 80 300 80}
+   {L 270 100 300 100}
+   {L 270 120 300 120}
+   {L 270 140 300 140}
+   {L 270 160 300 160}
+   [Ly "PINNAM"]
+   [Tj "LC"]
+   {T "E" 140 180}
+   {T "RW" 140 160}
+   {T "A5" 140 140}
+   {T "A6" 140 120}
+   {T "A7" 140 100}
+   {T "A8" 140 80}
+   {T "BOE_N" 140 60}
+   {T "PLE" 140 40}
+   {T "IO_N" 140 20}
+   [Tj "RC"]
+   {T "NC0" 260 20}
+   {T "NC1" 260 40}
+   {T "NC2" 260 60}
+   {T "NC3" 260 80}
+   {T "IRQ_N" 260 100}
+   {T "NMI_N" 260 120}
+   {T "POE_N" 260 140}
+   {T "BLE" 260 160}
+   [Ly "DEVICE"]
+   [Tj "CT"]
+   {T "G16V8MA" 200 -10}
+  }
+
+  {ATR
+   {IN
+    {Org 100 20}
+    {Ty 255}
+   }
+   {EX
+    [Ly "ATTR2"]
+    [Ts 12][Tj "CT"][Tr 0][Tm "N"]
+    {At PLD C:\USERS\CRAIG\DOCUMENTS\GITHUB\PUGPUTER6309\HARDWARE\OLD STUFF\LV PARALLEL IO CARD\PARALLEL_IO_LV 200 200}
+   }
+  }
+ }
+
+ {DETAIL
+  {ANNOTATE
+  }
+
+  {NET_DEF
+   {N E
+   }
+   {N RW
+   }
+   {N A5
+   }
+   {N A6
+   }
+   {N A7
+   }
+   {N A8
+   }
+   {N BOE_N
+   }
+   {N PLE
+   }
+   {N IO_N
+   }
+   {N NC0
+   }
+   {N NC1
+   }
+   {N NC2
+   }
+   {N NC3
+   }
+   {N IRQ_N
+   }
+   {N NMI_N
+   }
+   {N POE_N
+   }
+   {N BLE
+   }
+  }
+
+  {SUBCOMP
+  }
+ }
+}

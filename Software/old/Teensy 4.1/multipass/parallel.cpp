@@ -19,6 +19,7 @@ CRC16             crc;
 volatile uint8_t  g_tx = 0;
 volatile uint32_t g_errors = 0;  // biot defs inn defines.h
 volatile uint32_t g_test = 0;
+char funline[80];
 // ----------------------------------------------------------------------------
 // clear a fifo buffer
 // ----------------------------------------------------------------------------
@@ -59,18 +60,7 @@ uint8_t par_read_data(void)
   // set URD low (tx latch output enable)
   digitalWrite(PIN_URD, LOW);
   // pause a sec for data to stabilize
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  //asm("nop;nop;nop;nop;nop;nop;nop;nop;");
   // read data on gpios
   uint8_t c = digitalRead(PIN_DB7); c<<=1;
   c |= digitalRead(PIN_DB6); c<<=1;
@@ -82,6 +72,8 @@ uint8_t par_read_data(void)
   c |= digitalRead(PIN_DB0);
   // set URD high
   digitalWrite(PIN_URD, HIGH);
+  //sprintf(funline,"got: %02X ",c);
+  //Serial.println(funline);
   
   return c;
 }
@@ -101,18 +93,10 @@ void par_write_data(uint8_t b)
   digitalWrite(PIN_DB6, b&1); b>>=1;
   digitalWrite(PIN_DB7, b&1);
   // pause a sec for data to stabilize
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  //asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  //asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  //asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  //asm("nop;nop;nop;nop;nop;nop;nop;nop;");
   // set UWR high (rx latch data strobe) 
   // causes /IRQ on host cpu.  
   digitalWrite(PIN_UWR, HIGH);
@@ -160,16 +144,15 @@ void par_init(void)
 {
   // init 12 IO lines:
   
-  // URD and UWR are outputs
+  // URD and UWR are outputs to the pugputer 
   pinMode(PIN_URD, OUTPUT);
-  digitalWrite(PIN_URD, HIGH);
-  
+  digitalWrite(PIN_URD, HIGH); // active low
   pinMode(PIN_UWR, OUTPUT);
-  digitalWrite(PIN_UWR, LOW);
+  digitalWrite(PIN_UWR, LOW);  // active high
    
-  // CRD and CWR are inputs
-  pinMode(PIN_CRD, INPUT_PULLUP);
-  pinMode(PIN_CWR, INPUT_PULLUP);
+  // CWR and CRD are inputs from the pugputer
+  pinMode(PIN_CWR, INPUT_PULLDOWN); // active high
+  pinMode(PIN_CRD, INPUT_PULLUP); // active low
   
   // db0..7 are inputs initially.
   par_set_data_lines_inputs();
@@ -181,7 +164,9 @@ void par_init(void)
   par_buf_init(&par_tx);
   par_buf_init(&par_rx);
   crc.reset();
-  crc.setPolynome(CRC_POLY);   
+  crc.setPolynome(CRC_POLY);  
+  crc.setReverseIn(true);
+  crc.setReverseOut(true);
 
   Serial.println("    OK.");  
 }
@@ -301,12 +286,12 @@ void par_file_tx_update(uint8_t * payload, uint16_t p_sz, bool last_one)
     uint8_t c = *(payload++);
     if(!fbuf_sz)  // if starting a packet, put file byteidx at beginning
     {
-      fbuf[0]=(fbuf_bidx>>24)&0xff;
-      fbuf[1]=(fbuf_bidx>>16)&0xff;
-      fbuf[2]=(fbuf_bidx>>8)&0xff;
-      fbuf[3]=fbuf_bidx&0xff;   
+      fbuf[0] = (fbuf_bidx>>24) & 0xff;
+      fbuf[1] = (fbuf_bidx>>16) & 0xff;
+      fbuf[2] = (fbuf_bidx>>8) & 0xff;
+      fbuf[3] = fbuf_bidx & 0xff;
     }
-    fbuf[4+fbuf_sz]=c;
+    fbuf[ 4 + fbuf_sz ]=c;
     fbuf_sz++;
     fbuf_bidx++;
     if(fbuf_sz==512)
@@ -326,13 +311,15 @@ void par_file_tx_update(uint8_t * payload, uint16_t p_sz, bool last_one)
   }
 }
 // ----------------------------------------------------------------------------
-void par_rx_service()
+uint8_t par_rx_service()
 {
   uint8_t  j;
   uint8_t  b0,b1,c;
   char     sline[160];
   uint16_t x;
   uint8_t  msg_type;
+  uint8_t  ret_msg_type = 0;
+
   uint16_t byte_count;
   uint16_t sz_to_crc;
   uint8_t  *p;
@@ -369,6 +356,10 @@ void par_rx_service()
       for(x=0;x<sz_to_crc;x++,p++)
         crc.add(*p);
       calc_crc = crc.getCRC();
+      
+      uint8_t l = calc_crc&0xff;
+      calc_crc=(calc_crc>>8)|((uint16_t)l<<8);
+
       if(msg_crc == calc_crc)
       {
         sprintf(sline,"*** Got valid message. Type: %d, Payload_sz: %d, msg_crc: %04X.",msg_type,byte_count-2,msg_crc);
@@ -386,6 +377,7 @@ void par_rx_service()
         }
         if (j)
           Serial.println();
+        ret_msg_type = msg_type;
         switch(msg_type)  // todo: return the completed message for mainloop to deal with
         {
           case MSG_GET_DIR:
@@ -395,26 +387,33 @@ void par_rx_service()
             Serial.println("todo handle dump.");
             break;
         }
+      } else
+      {
+        sprintf(sline,"*** Got INvalid message. Type: %d, Payload_sz: %d, msg_crc: %04X  calc_crc: %04x.",msg_type,byte_count-2,msg_crc,calc_crc);
+        Serial.println(sline);
       }
       cli();
       par_buf_init(&par_rx);
       sei();        
     }
   }
+  return ret_msg_type;
 }
 // ----------------------------------------------------------------------------
 // called by mainloop to handle parallel interface housekeeping stuff
 // ----------------------------------------------------------------------------
-void par_service(void)
+uint8_t par_service(void)
 {
+  /*
   if(g_test)
   {
     Serial.print("g_test ");
     Serial.println(g_test);
     g_test = 0;
   }
+  */
   par_tx_service();
-  par_rx_service();  
+  return par_rx_service();  
 }
 // ----------------------------------------------------------------------------
 // EOF

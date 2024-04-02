@@ -1,0 +1,87 @@
+%SIGNAL
+PIN   2 =  E 
+PIN   3 =  RW 
+PIN   4 =  a5 
+PIN   5 =  a6 
+PIN   6 =  a7 
+PIN   7 =  a8 
+PIN  19 =  ble 
+PIN   8 =  boe_n 
+PIN  11 =  io_n 
+PIN  16 =  irq_n 
+PIN  12 =  nc0 
+PIN  13 =  nc1 
+PIN  14 =  nc2 
+PIN  15 =  nc3 
+PIN  17 =  nmi_n 
+PIN   9 =  ple 
+PIN  18 =  poe_n 
+%END
+
+%FIELD
+%END
+
+%EQUATION
+ble =>
+    E & !RW & !a5 & !a6 & !a7 & !a8 & !io_n
+
+irq_n =>
+    1 
+
+irq_n.oe  =>
+    0 
+
+nc0 =>
+    0 
+
+nc1 =>
+    0 
+
+nc2 =>
+    0 
+
+nc3 =>
+    0 
+
+nmi_n =>
+    0 
+
+nmi_n.oe  =>
+    ple
+
+poe_n =>
+    !E
+  # !RW
+  # io_n
+  # a5
+  # a6
+  # a7
+  # a8
+
+read_n =>
+    !E
+  # !RW
+
+write_n =>
+    !E
+  # RW
+
+ble.oe  =>
+    1 
+
+nc0.oe  =>
+    1 
+
+nc1.oe  =>
+    1 
+
+nc2.oe  =>
+    1 
+
+nc3.oe  =>
+    1 
+
+poe_n.oe  =>
+    1 
+
+%END
