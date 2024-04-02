@@ -15,7 +15,7 @@ Features
   Real-time clock oscillator
   Serial UART
   WDC VIA + Atmega328 - SD Card, parallel port, misc analog/digital I/O
-  Yamaha V9958 Video Dsiplay Processor - S-Video and XRGB output
+  Yamaha V9958 Video Display Processor - S-Video and XRGB output
   Yamaha YMF-262 - OPL3 music synthesizer
   60-pin bus connector
 
