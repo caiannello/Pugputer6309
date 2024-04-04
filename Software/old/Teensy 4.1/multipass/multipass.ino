@@ -112,10 +112,13 @@ void par_send_file_blocking(char * fname)
   uint32_t m = 0;
   if (dataFile) 
   {
+    uint32_t tstart = millis();
+    uint32_t tsize = 0;
     par_file_tx_start(MODE_BINARY);
     while (dataFile.available()) 
     {
       uint16_t sz = dataFile.readBytes(buf,256);
+      tsize += sz;
       res = par_file_tx_update(buf,sz,false);
       if(res<0)
       {
@@ -123,7 +126,15 @@ void par_send_file_blocking(char * fname)
       }
     }
     if(!res)
+    {
       res = par_file_tx_update(0,0,true);
+      uint32_t tdelt = millis()-tstart;
+      Serial.print("File sent. ");
+      sprintf(buf,"(%0.1f KB/sec)",((float)tsize/1024.0)/((float)tdelt/1000.0));
+      Serial.println((char *)buf);
+    }
+    
+
     dataFile.close();
   }  
   else 

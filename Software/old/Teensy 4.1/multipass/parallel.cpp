@@ -21,6 +21,7 @@ volatile uint32_t g_errors = 0;  // biot defs inn defines.h
 volatile uint32_t g_test = 0;
 char funline[80];
 
+//#define VERBOSE
 // ----------------------------------------------------------------------------
 // clear a fifo buffer
 // ----------------------------------------------------------------------------
@@ -241,6 +242,7 @@ uint8_t mj=0;
 void bufadd(uint8_t b)
 {
   par_buf_putc(&par_tx,b);  // add byte to par tx queue
+  #ifdef VERBOSE
   char s[8];  // debug log outgoing byte
   sprintf(s,"%02X ",b);
   Serial.print(s);
@@ -249,6 +251,7 @@ void bufadd(uint8_t b)
     mj=0;
     Serial.println();
   }
+  #endif
 }
 // ----------------------------------------------------------------------------
 void par_tx_service()
@@ -294,7 +297,9 @@ int par_send_message(uint8_t msg_type, uint8_t * payload, uint16_t p_sz)
     b=csum>>8;bufadd( b );
 
     par_tx_service();
+    #ifdef VERBOSE
     Serial.println("\n");
+    #endif
     uint8_t ticks=0;
     while(true)  // wait for ACK, NAK, or timeout
     {
@@ -303,7 +308,9 @@ int par_send_message(uint8_t msg_type, uint8_t * payload, uint16_t p_sz)
       uint8_t resp = par_rx_service(plbuf, &plsize);
       if(resp == MSG_ACK)
       {
+        #ifdef VERBOSE
         Serial.println("Did get ACK.");
+        #endif
         return 0;
       } else if (resp == MSG_NAK)
       {
@@ -311,8 +318,8 @@ int par_send_message(uint8_t msg_type, uint8_t * payload, uint16_t p_sz)
         retries++;
         break;
       }
-      delay(100);
-      if(++ticks>=25)
+      delay(5);
+      if(++ticks>=500)
       {
         Serial.println("Timeout waiting for ACK.");
         retries++;
@@ -467,6 +474,7 @@ uint8_t par_rx_service(char * plbuf, uint16_t *pl_size)
 
       if(msg_crc == calc_crc)
       {
+        #ifdef VERBOSE
         sprintf(sline,"*** Got valid message. Type: %d, Payload_sz: %d, msg_crc: %04X.",msg_type,byte_count-2,msg_crc);
         Serial.println(sline);
         for(x=0,j=0,p = par_rx.head;x<byte_count+5;x++,p++)
@@ -482,6 +490,7 @@ uint8_t par_rx_service(char * plbuf, uint16_t *pl_size)
         }
         if (j)
           Serial.println();
+        #endif
         *pl_size = byte_count-2;
         memcpy(plbuf,par_rx.head+5,*pl_size);
         ret_msg_type = msg_type;
