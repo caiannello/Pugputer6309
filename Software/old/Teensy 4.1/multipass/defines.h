@@ -36,21 +36,38 @@
 #define   PIN_DB6                   34
 #define   PIN_DB7                   35
 
-// Message types
+// basic messages
 
-#define MSG_STATUS            0     // when sent: no payload, response: t_status
-#define MSG_GET_DIR           0x10     // payload when sent: null-terminated path, or nothing.
-                                    // text-format dir is returned in one or more MSG_DUMP messages.
-#define MSG_DUMP              2     // payload is 4-byte address or byte idx,
+#define MSG_ACK               0x00  // acknowledge
+#define MSG_NAK               0x01  // crc failed on prev message from you
+#define MSG_NCOMP             0x02  // couldnt comply with request
+#define MSG_STATUS            0x03  // when sent: no payload, response: t_status
+
+// data transfer 
+#define MSG_DUMP              0x04  // payload is 4-byte address or byte idx,
                                     // followed by up to 512 bytes of data.
-#define MSG_DUMPEND           3     // same as above, but denotes final dump msg of xfer
-#define MSG_CHDIR             4     // payload: null-terminated path, or ".."
-                                    // returns an ack or NAK
-#define MSG_KBHIT             5     // payload is one or more kbdown & kbup codes 
+#define MSG_DUMPEND           0x05  // same as above, but denotes final dump msg of xfer
+#define MSG_DUMPTEXT          0x06  // payload is up to 516 bytes of text data.
+#define MSG_DUMPTEXTEND       0x07  // same as above, but denotes final dump msg of xfer
 
-#define MSG_NAK               253   // crc failed on prev message from you
-#define MSG_ACK               254   // acknowledge
-#define MSG_NCOMP             255   // couldnt comply with request
+// sd card messages
+
+#define MSG_GET_DIR           0x10  // payload when sent: null-terminated path, or nothing.
+                                    // text-format dir is returned in one or more MSG_DUMP messages.
+#define MSG_CHDIR             0x11  // payload: null-terminated path, or ".."
+                                    // returns an ack or NAK
+#define MSG_MAKE_DIR          0x12  // Create specified dir
+#define MSG_GET_FILE          0x13  // Transmit specified file from SD
+#define MSG_PUT_FILE          0x14  // Receive specified file to SD
+#define MSG_DEL               0x15  // Delete specified file or directory
+
+// keyboard messages
+
+#define MSG_KBHIT             0x20  // payload is one or more kbdown & kbup codes 
+
+// time/date messages
+
+
 
 // Error flag bits that may be set in g_errors -------------------------------
 #define   ERR_TX_BUF_FULL           1   // cpu not handling tx bytes fast enough

@@ -14,6 +14,7 @@
 UT_INIT     EXPORT
 UT_GETC     EXPORT
 UT_PUTC     EXPORT
+UT_PUTS     EXPORT
 ;------------------------------------------------------------------------------
 JT_IRQ      EXTERN          ; RAM interrupt jump table, IRQ vector
 V_CBRK      EXTERN
@@ -153,6 +154,22 @@ TX_ENAB     STX  STXTAIL    ; STORE UPDATED TX TAIL PTR
 PC_DONE     ANDCC #$EF      ; RESUME IRQ INTERRUPTS
             PULS A,B,X
             RTS
+;------------------------------------------------------------------------------
+; Print to console the null-terminated string pointed to by Y
+;
+; todo: be more careful of side effects, so I dont have to push and pop so many
+; registers as I am in this subroutine!!
+;------------------------------------------------------------------------------
+UT_PUTS
+    pshs x,y,a,b
+upsloop
+    LDA  ,Y+
+    BEQ  upsdone    ; done when reach null terminator
+    BSR  UT_PUTC
+    BRA  upsloop    ; loop around for next char of string
+upsdone
+    PULS x,y,a,b
+    RTS            
 ;------------------------------------------------------------------------------
     ENDSECT
 ;------------------------------------------------------------------------------

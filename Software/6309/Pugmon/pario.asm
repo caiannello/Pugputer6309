@@ -150,20 +150,26 @@ PFlags      rmb  1          ; for debugging
 ; -----------------------------------------------------------------------------
 ; Clear parallel receive buffer and flags
 ; -----------------------------------------------------------------------------
-pa_clear    clr  PFlags     ; clear debug flags
-            clr  PGotRxMsg
-            ldx  #PTxBuf    ; init tx buf pointers
-            stx  PTxHead
-            stx  PTxTail
+pa_rx_clear clr  PGotRxMsg
             ldx  #PRxBuf    ; init rx buf pointers
             stx  PRxHead
             stx  PRxTail
+            rts
+
+pa_tx_clear ldx  #PTxBuf    ; init tx buf pointers
+            stx  PTxHead
+            stx  PTxTail
+            rts
+
+pa_clear    clr  PFlags     ; clear debug flags
+            jsr  pa_rx_clear
+            jsr  pa_tx_clear
             rts
 ; -----------------------------------------------------------------------------
 ; Send an acknowledgement msg to MCU when we have handled good msg from them.
 ; -----------------------------------------------------------------------------
 pa_acknowledge
-            jsr  pa_clear
+            jsr  pa_rx_clear
             LDA  #PAR_MSG_ACK
             LDX  #0
             LDY  #0
@@ -174,7 +180,6 @@ pa_acknowledge
 ; no response is sent before timeout, MCU should retransmit prev msg.
 ; -----------------------------------------------------------------------------
 pa_non_acknowledge
-            jsr  pa_clear
             LDA  #PAR_MSG_NAK
             LDX  #0
             LDY  #0
@@ -187,7 +192,7 @@ pa_non_acknowledge
 ; TODO: allow an optional reason string to be specified by Y. 
 ; -----------------------------------------------------------------------------
 pa_non_comply
-            jsr  pa_clear
+            jsr  pa_tx_clear
             LDA  #PAR_MSG_NAK
             LDX  #0
             LDY  #0
@@ -216,8 +221,8 @@ pa_isr      lda  PFlags
             ldx  PRxHead    ; check for space in rx buffer
             cmpx #(PRxBuf+PBUFSZ)
             blo  haveroom
-            lda  PA_DAT     ; No space, clear NMI,
-            rti             ; do nothing.
+            lda  PA_DAT
+            rti
 haveroom    lda  PA_DAT     ; get the new rx byte from parallel card.            
             sta  ,X+        ; store in buf at head, and inc. head.
             stx  PRxHead
@@ -240,17 +245,17 @@ pa_service  pshs  X,Y,A,B
             cmpa  #$A5      ; trash whole buf if first byte isnt $A5
             bne   psvc_trash
 
-            cmpx  #(PRxBuf+5) ; have enough bytes to check bytecount?
-            blo   psvc_done    
-        
             lda   PRxBuf+1
             cmpa  #$5A
             bne   psvc_trash ; trash whole buf if second byte isnt $5A
 
+            cmpx  #(PRxBuf+5) ; have enough bytes to check bytecount?
+            blo   psvc_done    
+
             ldd   PRxBuf+3   ; get message bytecount
             addd  #5         ; bytecount+5 is total message size
             cmpd  #PBUFSZ
-            bgt   psvc_trash ; trash whole buf if bytecount isnt sane 
+            bge   psvc_trash ; trash whole buf if bytecount isnt sane 
             
             std   PMsgSize
             addd  #PRxBuf
@@ -264,19 +269,18 @@ pa_service  pshs  X,Y,A,B
 psvc_crclp  lda  ,X+
             jsr  crc16
             cmpr y,x
-            blo  psvc_crclp
-            
+            blo  psvc_crclp            
             jsr  crc_get    ; get final crc in D
             cmpd #0
             bne  psvc_nak   ; nonzero == bad. send NAK
-
             lda  #1         ; good crc
             sta  PGotRxMsg
             bra  psvc_done
-
-psvc_nak    jsr  pa_non_acknowledge
+psvc_nak    jsr  pa_rx_clear
+            jsr  pa_non_acknowledge
+            puls  X,Y,A,B
             rts
-psvc_trash  jsr  pa_clear
+psvc_trash  jsr  pa_rx_clear
 psvc_done   puls  X,Y,A,B
             rts
 ; -----------------------------------------------------------------------------
@@ -291,10 +295,10 @@ psvc_done   puls  X,Y,A,B
 PS_MSG      FCC  "PAR_TX: "
             FCB  0
 
-pa_send_msg pshs y 
-            LDY  #PS_MSG
-            jsr  con_puts
-            puls y
+pa_send_msg ;pshs y 
+            ;LDY  #PS_MSG
+            ;jsr  con_puts
+            ;puls y
             ldu  #PTxBuf
             stu  PTxHead
             stu  PTxTail
@@ -325,7 +329,7 @@ sc_calc     lda  ,X+        ; update CRC for each byte of message
             ldx  #PTxBuf
 sc_loop     lda  ,X+        ; Send all bytes out right in this loop. 
             sta  PA_DAT     ; (if this causes unacceptable pauses,
-            jsr  con_puthbyte
+            ;jsr  con_puthbyte
             nop             ; we can change it to be a reentrant service
             nop             ; called by the mainloop.)
             nop
@@ -344,7 +348,7 @@ sc_loop     lda  ,X+        ; Send all bytes out right in this loop.
             nop
             cmpx PTxTail
             blo  sc_loop
-            jsr  con_puteol
+            ;jsr  con_puteol
             rts
 ; -----------------------------------------------------------------------------
 ; CRC16 ROUTINES - CRC-16/ARC ( POLYNOMIAL $A001, STARTVAL $0000 )

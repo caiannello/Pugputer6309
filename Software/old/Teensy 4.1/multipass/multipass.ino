@@ -38,7 +38,7 @@ void setup()
   Serial.begin(SER_BAUD);
   while (!Serial);
 
-  Serial.println("Initializing Services...");
+  Serial.println("STARTUP: Initializing Services...");
   
   Serial.print("  SD card filesystem...");  
   sd_init();    // sd card
@@ -58,15 +58,23 @@ void setup()
 // ----------------------------------------------------------------------------
 // Main loop does housekeeping calls to some peripherals.
 // ----------------------------------------------------------------------------
+char plbuf[516];
+uint16_t pl_size;
+
 void loop()
 {
   //aud_service();
-  uint8_t ret_msgtype = par_service();  
+  uint8_t ret_msgtype = par_service(plbuf, &pl_size);  
   ukb_service();
-  if(ret_msgtype == 0x10)
+  if(ret_msgtype == MSG_GET_DIR)
   {
     par_send_dir_blocking("/");
+  } else if(ret_msgtype == MSG_GET_FILE)
+  {
+    plbuf[pl_size] = '\x0'; // null terminate payload (a filename)
+    par_send_file_blocking(plbuf);
   }
+
 
   // todo: dispatch requests made my CPU via parallel
 
@@ -95,7 +103,7 @@ void loop()
 void par_send_file_blocking(char * fname)
 {
   uint8_t buf[256];
-
+  int res=0;
   sprintf(buf,"*** Sending file \"%s\"...",fname);
   Serial.println((char *)buf);
   
@@ -104,13 +112,18 @@ void par_send_file_blocking(char * fname)
   uint32_t m = 0;
   if (dataFile) 
   {
-    par_file_tx_start();
+    par_file_tx_start(MODE_BINARY);
     while (dataFile.available()) 
     {
       uint16_t sz = dataFile.readBytes(buf,256);
-      par_file_tx_update(buf,sz,false);
+      res = par_file_tx_update(buf,sz,false);
+      if(res<0)
+      {
+        break;
+      }
     }
-    par_file_tx_update(0,0,true);
+    if(!res)
+      res = par_file_tx_update(0,0,true);
     dataFile.close();
   }  
   else 
@@ -124,12 +137,12 @@ void par_send_dir_blocking(char * dirname)
 {
    char lbuf[256];
    char b[32];
-
+   int res = 0;
    sprintf(lbuf,"*** Sending directory of \"%s\"...",dirname);
    Serial.println(lbuf);
    
    File dir = SD.open(dirname);
-   par_file_tx_start();
+   par_file_tx_start(MODE_TEXT);
    bool didone = false;
    while(true) 
    {
@@ -160,12 +173,16 @@ void par_send_dir_blocking(char * dirname)
      strcat(lbuf,entry.name());
      if (entry.isDirectory()) 
        strcat(lbuf,"/");
+     strcat(lbuf,"\r");
      strcat(lbuf,"\n");
      Serial.print(lbuf);
-     par_file_tx_update(lbuf,strlen(lbuf),false);
+     res = par_file_tx_update(lbuf,strlen(lbuf),false);
      entry.close();
+     if(res<0)
+      break;
    }
-   par_file_tx_update(0,0, true);
+   if(!res)
+    par_file_tx_update(0,0, true);
 }
 // ----------------------------------------------------------------------------
 void sd_init()
@@ -197,7 +214,7 @@ void sd_init()
 void printTime(const DateTimeFields tm, char * s) 
 {
   s[0]=0;
-  char b[20];  
+  char b[8];  
   sprintf(b,"%04d",tm.year + 1900);
   strcat(s,b);
   strcat(s,"-");
@@ -212,6 +229,9 @@ void printTime(const DateTimeFields tm, char * s)
   strcat(s,":");
   sprintf(b,"%02d",tm.min);
   strcat(s,b);  
+  strcat(s,":");
+  sprintf(b,"%02d",tm.sec);
+  strcat(s,b);    
 }
 // ----------------------------------------------------------------------------
 // EOF

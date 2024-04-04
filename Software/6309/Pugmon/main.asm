@@ -35,6 +35,7 @@
 ; uart extern fcns
 UT_INIT         EXTERN
 ; vdp Video Display Processor
+VDP_COLDINIT    EXTERN
 VDP_INIT        EXTERN
 VDP_MODE_TEXT2  EXTERN
 VDP_SHOW_PUG    EXTERN
@@ -64,6 +65,7 @@ con_putc        EXTERN
 con_puts        EXTERN
 con_puthbyte    EXTERN
 con_puthword    EXTERN
+UT_PUTS         EXTERN
 EndOfVars       EXTERN      ; provided by linker, this is the length of the bss              
                             ; section, which is also the start of USER RAM.
 ;------------------------------------------------------------------------------
@@ -106,11 +108,16 @@ EDUMP_ADRS  RMB  2          ; ENDING ADDRESS USED BY HEXDUMP ROUTINE
 NEW_CTX     RMB  1          ; TRUE WHEN HAVE A NEW REGISTER CONTEXT TO SHOW
 CTX_BUF     RMB  15         ; HOLDS MOST RECENT BREAK CONTEXT
 LINBUF      RMB  256        ; BUFFER USED BY LINE EDITOR AND OUTPUT
+STACK       RMB  512
+STACKEND
 ;------------------------------------------------------------------------------
     ENDSECT
 ;------------------------------------------------------------------------------
     SECT code               ; Section address  $D000
 ;------------------------------------------------------------------------------
+ANSI_CLS    FCB  ESCAPE
+            FCC  "[2J"
+            FCB  0
 MSG_HELLO   FCB  LF,CR
             FCC  "PUGMON v0.0.1"  ; MESSAGE SHOWN ON COLD START
             FCB  LF,CR,0
@@ -120,6 +127,9 @@ BS_DZINST   FCC  "<DZI>"    ; TAG FOR ILLEGAL INSTRUCTION OR DIVIDE BY ZERO
             FCB  0                        
 BS_CBRK     FCC  "<BRK>"    ; TAG FOR CONTROL-C BREAK
             FCB  0       
+
+GETFILE_NAME FCC  "Float09.bin"
+GETFILE_NAME_END
 
 ; this is a little example program that gets copied to RAM on startup
 ; in order to test the debugger:
@@ -177,7 +187,7 @@ V_CBRK      LDA  #BC_CBRK   ; Pseudo-ISR. Called by serio when a CONTROL-C is
 ; RESET VECTOR ENTRYPOINT
 ; -----------------------------------------------------------------------------
 V_RESET     LDMD #$01       ; PROGRAM ENTRY-POINT - ENABLE 6309 NATIVE MODE 
-            LDS  #$1000     ; SET STACK TO END OF FIRST 4K OF RAM
+            LDS  #$7fff     ; SET STACK TO END OF FIRST 32K OF RAM
             LDX  #EndOfVars ; start of user ram
             STX  USER_RAM   ; STORE THE STARTING ADRS OF USER RAM AT $0000
             LDA  DP_WARM    ; GET WARM START FLAG 
@@ -191,13 +201,14 @@ COLDST      LDA  #$55       ; COLD START --------------------------------------
             TFM  X+,Y+      ; USING 6309'S NICE BLOCK COPY INSTRUCTION.
             CLR  NEW_CTX    ; No break register context to show yet
             JSR  con_init   ; init the console driver 
-            JSR  pa_init    ; INIT PARALLEL PORT - MUST HAPPEN BEFORE UT_INIT
-                            ; (TO ENABLE UART ISR'S FALLTHROUGH TO PAR. ISR.)
+            JSR  pa_init    ; INIT PARALLEL PORT
             JSR  UT_INIT    ; INIT SERIAL PORT
-            JSR  VDP_INIT   ; Init video display, if present.            
+            JSR  VDP_COLDINIT   ; Init video display, if present.
             JSR  VDP_SHOW_PUG
 
-            ANDCC #$AF      ; ENABLE IRQ AND FIRQ INTERRUPTS
+            ANDCC #$AF      ; ENABLE IRQ AND FIRQ INTERRUPTS            
+            LDY  #ANSI_CLS  ; Clear serial terminal window
+            JSR  UT_PUTS            
             LDY  #MSG_HELLO ; SHOW PUGMON TITLE BANNER
             JSR  con_puts
 WARMST      LDX  #PRG_EXAMP ; WARM START --------------------------------------
@@ -243,13 +254,27 @@ ML_K_TIL    CMPA #TILDE     ; '~': RUN RAM EXAMPLE PROGRAM, THEN BREAK.
             JMP  $1000
             BRA  MAINLOOP
 ML_K_DIR    CMPA #'D        ; 'D': SEND DIR COMMAND VIA PARALLEL
-            BNE  ML_H_HEXDMP
+            BNE  ML_K_GETFIL
             JSR  con_puteol
             LDA  #PAR_MSG_GET_DIR
             LDX  #0
             LDY  #0
             JSR  pa_send_msg
             BRA  MAINLOOP 
+ML_K_GETFIL CMPA #'G        ; 'G': GET A BINARY FILE
+            BNE  ML_K_STACK
+            LDA  #PAR_MSG_GET_FILE  ; msg type
+            LDX  #(GETFILE_NAME_END-GETFILE_NAME)  ; payload size
+            LDY  #GETFILE_NAME      ; payload address
+            JSR  pa_send_msg
+            BRA  MAINLOOP             
+ML_K_STACK  CMPA #'S        ; 'S': SHOW STACK PTR AS HEX
+            BNE  ML_H_HEXDMP
+            JSR  con_puteol
+            TFR  S,D
+            JSR  con_puthword
+            JSR  con_puteol
+            BRA  MAINLOOP             
 ML_H_HEXDMP CMPA #'H        ; 'H': HEX DUMP 8K STARTING AT $8000
             BNE  ML_K_DUMP
             JSR  con_puteol
@@ -264,12 +289,23 @@ ML_K_DUMP   CMPA #'.        ; '.': Show parallel flags and buffer
             JSR  show_pa
             JMP  MAINLOOP
 ML_K_TILES  CMPA #'T        ; 'T': GFX DRAW TILEMAP
+            BNE  ML_K_FLOAT
+            LDB  #0         ; DISABLE TEXT SCREEN AUTO-REFRESH
+            JSR  VDP_MODE_TEXT2 
+            JSR  $C012      ; SHOW TILEMAP
+ML_TPAUSE   JSR  con_getc   ; WAIT FOR KEYPRESS
+            BEQ  ML_TPAUSE
+            JSR  VDP_INIT
+            LDB  #1         ; RESUME TEXT SCREEN REFRESH
+            JSR  VDP_MODE_TEXT2
+            JMP  MAINLOOP
+ML_K_FLOAT  CMPA #'M        ; 'M': GFX DRAW MANDEL
             BNE  ML_END
             LDB  #0         ; DISABLE TEXT SCREEN AUTO-REFRESH
             JSR  VDP_MODE_TEXT2 
-            JSR  $800E      ; SHOW TILEMAP
-ML_TPAUSE   JSR  con_getc   ; WAIT FOR KEYPRESS
-            BEQ  ML_TPAUSE
+            JSR  $C012      ; SHOW mandel
+ML_TPAUSE2  JSR  con_getc   ; WAIT FOR KEYPRESS
+            BEQ  ML_TPAUSE2
             JSR  VDP_INIT
             LDB  #1         ; RESUME TEXT SCREEN REFRESH
             JSR  VDP_MODE_TEXT2
@@ -282,7 +318,12 @@ ML_END      JMP  MAINLOOP
 PHDR        FCC  "GM FL  SZ  CRC"
             FCB  LF,CR,0
     
-show_pa:    LDY  #PHDR      ; print header
+show_pa:    LDA  (PRxBuf+2)  ; get message type
+            CMPA #PAR_MSG_DUMPTEXT
+            BEQ  mode_text
+            CMPA #PAR_MSG_DUMPTEXTEND
+            BEQ  mode_text
+mode_binary LDY  #PHDR      ; print header
             JSR  con_puts
             LDA  PGotRxMsg  ; 1: new valid message
             JSR  con_puthbyte
@@ -301,10 +342,22 @@ show_pa:    LDY  #PHDR      ; print header
             STX  EDUMP_ADRS
             JSR  HEXDUMP_BLOCK
             LDA  PGotRxMsg  ; If newly received message,
-            BEQ  spa_done   
-            JSR  pa_acknowledge ; Send ack to MCU.
-            
+            BEQ  spa_done
+            JSR  pa_acknowledge ; Send ack to MCU.            
 spa_done    RTS
+mode_text   LDX  #(PRxBuf+5)  ; text dump of message bytes
+            STX  DUMP_ADRS
+            TFR  X,W
+            ADDW PMsgSize
+            SUBW #7
+            TFR  W,X
+            STX  EDUMP_ADRS
+            JSR  TEXTDUMP_BLOCK
+            LDA  PGotRxMsg  ; If newly received message,
+            BEQ  spa_done
+            JSR  pa_acknowledge ; Send ack to MCU.            
+            RTS            
+
 ; -----------------------------------------------------------------------------
 ; Show latest saved register context from a monitor break 
 ; -----------------------------------------------------------------------------
@@ -439,10 +492,21 @@ LINEDONE    STY  DUMP_ADRS  ; LINE DONE. UPDATE DUMP POSITION TO NEXT ROW,
 HEXDUMP_BLOCK: ; HEX+ASCII DUMP MEM FROM DUMP_ADRS THROUGH EDUMP_ADRS 
             LDX  DUMP_ADRS
             CMPX EDUMP_ADRS
-            BGT  DONE_BLOCK
+            BGE  DONE_BLOCK
             BSR  HEXDUMP_LINE
             BRA  HEXDUMP_BLOCK
 DONE_BLOCK  RTS
+;------------------------------------------------------------------------------
+TEXTDUMP_BLOCK: ; ASCII DUMP MEM FROM DUMP_ADRS THROUGH EDUMP_ADRS 
+            LDX  DUMP_ADRS
+            CMPX EDUMP_ADRS
+            BGE  DONE_TEXTBLOCK
+            LDA  ,X+
+            STX  DUMP_ADRS
+            JSR  con_putc
+            BRA  TEXTDUMP_BLOCK
+DONE_TEXTBLOCK  
+            RTS
 ; -----------------------------------------------------------------------------
     ENDSECT
 ;------------------------------------------------------------------------------

@@ -9,17 +9,18 @@
 #include "CRC16.h"
 #include "CRC.h"
 // ----------------------------------------------------------------------------
-t_fifo            par_tx, par_rx; // in and out message buffers.  
+t_xfer_mode xfer_mode = MODE_TEXT;
 
+t_fifo            par_tx, par_rx; // in and out message buffers.  
 uint8_t           fbuf[516];      // temp buffer
 uint16_t          fbuf_sz;
 uint32_t          fbuf_bidx;
-
 CRC16             crc;
 volatile uint8_t  g_tx = 0;
 volatile uint32_t g_errors = 0;  // biot defs inn defines.h
 volatile uint32_t g_test = 0;
 char funline[80];
+
 // ----------------------------------------------------------------------------
 // clear a fifo buffer
 // ----------------------------------------------------------------------------
@@ -80,6 +81,7 @@ uint8_t par_read_data(void)
 // ----------------------------------------------------------------------------
 void par_write_data(uint8_t b)
 {
+  g_tx=1;
   // set gpios to outputs
   par_set_data_lines_outputs();
   
@@ -93,8 +95,8 @@ void par_write_data(uint8_t b)
   digitalWrite(PIN_DB6, b&1); b>>=1;
   digitalWrite(PIN_DB7, b&1);
   // pause a sec for data to stabilize
-  //asm("nop;nop;nop;nop;nop;nop;nop;nop;");
-  //asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  // before we alert CPU
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
   //asm("nop;nop;nop;nop;nop;nop;nop;nop;");
   //asm("nop;nop;nop;nop;nop;nop;nop;nop;");
   // set UWR high (rx latch data strobe) 
@@ -131,10 +133,27 @@ void CWRInterrupt() // CPU just wrote a byte to us.
 // ----------------------------------------------------------------------------
 void CRDInterrupt() // CPU just did a read of last byte we sent
 {
-  // todo: If CRD  timeout timer is running, end it.
-    
   g_test |= 1;
-  digitalWrite(PIN_UWR, LOW);  // end mcu data output strobe
+  digitalWrite(PIN_UWR, LOW);  // end mcu data output strobe (deassert /NMI interrupt on CPU)
+  // wait a sec for CPU to handle the byte.
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");  
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");  
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");  
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
   g_tx=0;
 }
 // ----------------------------------------------------------------------------
@@ -222,7 +241,6 @@ uint8_t mj=0;
 void bufadd(uint8_t b)
 {
   par_buf_putc(&par_tx,b);  // add byte to par tx queue
-  /*
   char s[8];  // debug log outgoing byte
   sprintf(s,"%02X ",b);
   Serial.print(s);
@@ -231,94 +249,181 @@ void bufadd(uint8_t b)
     mj=0;
     Serial.println();
   }
-  */
 }
 // ----------------------------------------------------------------------------
 void par_tx_service()
 {
   uint8_t c;
-  if(par_tx.cnt && !g_tx) // need to start a new transmission?
+  while(par_tx.cnt) // need to start a new transmission?
   {
+    while(g_tx);
     c = par_buf_getc(&par_tx);
-    // write par output byte
     par_write_data(c);
-    g_tx=1;
   } 
 }
 // ----------------------------------------------------------------------------
-void par_send_message(uint8_t msg_type, uint8_t * payload, uint16_t p_sz)
+int par_send_message(uint8_t msg_type, uint8_t * payload, uint16_t p_sz)
 {
   uint8_t b;
-  uint16_t i,byte_count = p_sz+2;
+  uint16_t i,byte_count;
   uint16_t csum;
-  while(g_tx);  // allow any previous transfers to complete
-  mj = 0;
-  crc.restart();
-  b='\xA5';crc.add(b); bufadd(b);
-  b='\x5A';crc.add(b); bufadd( b );
-  b=msg_type;crc.add(b); bufadd( b );
-  b=byte_count>>8; crc.add(b); bufadd( b );
-  b=byte_count&0xff; crc.add(b); bufadd( b );
-  for(i=0;i<p_sz;i++)
-  {
-    b = payload[i];
-    crc.add(b); bufadd( b );
-  }
-  csum = crc.getCRC();
-  b=csum>>8;bufadd( b );
-  b=csum&0xff;bufadd( b );
+  uint8_t retries = 0;
 
-  par_tx_service();
-  Serial.println("\n");
+  while(true) // up to 3 retries
+  {
+    if(retries >=3 )
+    {
+      Serial.println("Ran out of retries.");
+      return -1;
+    }    
+    byte_count = p_sz+2;
+    mj = 0;
+    crc.restart();
+    b='\xA5';crc.add(b); bufadd(b);
+    b='\x5A';crc.add(b); bufadd( b );
+    b=msg_type;crc.add(b); bufadd( b );
+    b=byte_count>>8; crc.add(b); bufadd( b );
+    b=byte_count&0xff; crc.add(b); bufadd( b );
+    for(i=0;i<p_sz;i++)
+    {
+      b = payload[i];
+      crc.add(b); bufadd( b );
+    }
+    csum = crc.getCRC();
+    b=csum&0xff;bufadd( b );
+    b=csum>>8;bufadd( b );
+
+    par_tx_service();
+    Serial.println("\n");
+    uint8_t ticks=0;
+    while(true)  // wait for ACK, NAK, or timeout
+    {
+      char plbuf[516];
+      uint16_t plsize;
+      uint8_t resp = par_rx_service(plbuf, &plsize);
+      if(resp == MSG_ACK)
+      {
+        Serial.println("Did get ACK.");
+        return 0;
+      } else if (resp == MSG_NAK)
+      {
+        Serial.println("Got a NAK.");
+        retries++;
+        break;
+      }
+      delay(100);
+      if(++ticks>=25)
+      {
+        Serial.println("Timeout waiting for ACK.");
+        retries++;
+        break;
+      }
+    }
+
+  } // loop for up to three retries
+  return -1;
 }
 // ----------------------------------------------------------------------------
-void par_file_tx_start()  // when data will be provided incrementally
+void par_file_tx_start(t_xfer_mode xmode)  // when data will be provided incrementally
 {
+  xfer_mode = xmode;
   fbuf_sz = 0;    // num bytes added to current packet
   fbuf_bidx = 0;  // num file bytes copied
 }
 // ----------------------------------------------------------------------------
-void par_file_tx_update(uint8_t * payload, uint16_t p_sz, bool last_one)
+int par_file_tx_update(uint8_t * payload, uint16_t p_sz, bool last_one)
 {
+  int res=0;
   uint8_t * p = payload;
-  for(uint16_t i = 0; i<p_sz;i++)
+  if(xfer_mode == MODE_BINARY)
   {
-    uint8_t c = *(payload++);
-    if(!fbuf_sz)  // if starting a packet, put file byteidx at beginning
+    for(uint16_t i = 0; i<p_sz;i++)
     {
-      fbuf[0] = (fbuf_bidx>>24) & 0xff;
-      fbuf[1] = (fbuf_bidx>>16) & 0xff;
-      fbuf[2] = (fbuf_bidx>>8) & 0xff;
-      fbuf[3] = fbuf_bidx & 0xff;
-    }
-    fbuf[ 4 + fbuf_sz ]=c;
-    fbuf_sz++;
-    fbuf_bidx++;
-    if(fbuf_sz==512)
+      uint8_t c = *(payload++);
+      if(!fbuf_sz)  // if starting a packet, put file byteidx at beginning
+      {
+        fbuf[0] = (fbuf_bidx>>24) & 0xff;
+        fbuf[1] = (fbuf_bidx>>16) & 0xff;
+        fbuf[2] = (fbuf_bidx>>8) & 0xff;
+        fbuf[3] = fbuf_bidx & 0xff;
+      }
+      fbuf[ 4 + fbuf_sz ]=c;
+      fbuf_sz++;
+      fbuf_bidx++;
+      if(fbuf_sz==512)
+      {
+        res = par_send_message(MSG_DUMP,fbuf,516);
+        if(res<0) // xfer failed
+        {
+          fbuf_sz=0;
+          fbuf_bidx=0;
+          return res;
+        }
+        fbuf_sz=0;
+      }
+    }  
+    if (last_one)
     {
-      par_send_message(MSG_DUMP,fbuf,516);
+      if(fbuf_sz)
+        res=par_send_message(MSG_DUMPEND,fbuf,fbuf_sz+4);    
+      else
+        res=par_send_message(MSG_DUMPEND,0,0);
+      if(res<0) // xfer failed
+      {
+        fbuf_sz=0;
+        fbuf_bidx=0;
+        return res;
+      }
       fbuf_sz=0;
+      fbuf_bidx=0;
     }
-  }  
-  if (last_one)
+  } else
   {
-    if(fbuf_sz)
-      par_send_message(last_one?MSG_DUMPEND:MSG_DUMP,fbuf,fbuf_sz+4);    
-    else
-      par_send_message(MSG_DUMPEND,0,0);
-    fbuf_sz=0;
-    fbuf_bidx=0;
+    for(uint16_t i = 0; i<p_sz;i++)
+    {
+      uint8_t c = *(payload++);
+      fbuf[ fbuf_sz ]=c;
+      fbuf_sz++;
+      fbuf_bidx++;
+      if(fbuf_sz==516)
+      {
+        res=par_send_message(MSG_DUMPTEXT,fbuf,516);
+        if(res<0) // xfer failed
+        {
+          fbuf_sz=0;
+          fbuf_bidx=0;
+          return res;
+        }
+        fbuf_sz=0;
+      }
+    }  
+    if (last_one)
+    {
+      if(fbuf_sz)
+        res=par_send_message(MSG_DUMPTEXTEND,fbuf,fbuf_sz);
+      else
+        res=par_send_message(MSG_DUMPTEXTEND,0,0);
+      if(res<0) // xfer failed
+      {
+        fbuf_sz=0;
+        fbuf_bidx=0;
+        return res;
+      }
+      fbuf_sz=0;
+      fbuf_bidx=0;
+    }
   }
+  return 0;
 }
 // ----------------------------------------------------------------------------
-uint8_t par_rx_service()
+uint8_t par_rx_service(char * plbuf, uint16_t *pl_size)
 {
   uint8_t  j;
   uint8_t  b0,b1,c;
   char     sline[160];
   uint16_t x;
   uint8_t  msg_type;
-  uint8_t  ret_msg_type = 0;
+  uint8_t  ret_msg_type = 255;
 
   uint16_t byte_count;
   uint16_t sz_to_crc;
@@ -377,19 +482,12 @@ uint8_t par_rx_service()
         }
         if (j)
           Serial.println();
+        *pl_size = byte_count-2;
+        memcpy(plbuf,par_rx.head+5,*pl_size);
         ret_msg_type = msg_type;
-        switch(msg_type)  // todo: return the completed message for mainloop to deal with
-        {
-          case MSG_GET_DIR:
-            Serial.println("todo handle dir.");
-            break;
-          case MSG_DUMP:
-            Serial.println("todo handle dump.");
-            break;
-        }
       } else
       {
-        sprintf(sline,"*** Got INvalid message. Type: %d, Payload_sz: %d, msg_crc: %04X  calc_crc: %04x.",msg_type,byte_count-2,msg_crc,calc_crc);
+        sprintf(sline,"*** Got Invalid message. Type: %d, Payload_sz: %d, msg_crc: %04X  calc_crc: %04x.",msg_type,byte_count-2,msg_crc,calc_crc);
         Serial.println(sline);
       }
       cli();
@@ -402,7 +500,7 @@ uint8_t par_rx_service()
 // ----------------------------------------------------------------------------
 // called by mainloop to handle parallel interface housekeeping stuff
 // ----------------------------------------------------------------------------
-uint8_t par_service(void)
+uint8_t par_service(char * plbuf, uint16_t * pl_size)
 {
   /*
   if(g_test)
@@ -413,7 +511,7 @@ uint8_t par_service(void)
   }
   */
   par_tx_service();
-  return par_rx_service();  
+  return par_rx_service(plbuf, pl_size);  
 }
 // ----------------------------------------------------------------------------
 // EOF

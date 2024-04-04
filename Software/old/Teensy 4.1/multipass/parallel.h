@@ -111,17 +111,23 @@ typedef struct   // buffer for incoming/outgoing data bytes
 
 extern volatile uint32_t g_errors;  // global error bit flags (defines.h)
 
+typedef enum {
+  MODE_TEXT = 0,
+  MODE_BINARY
+} t_xfer_mode;
+
 // ----------------------------------------------------------------------------
 void par_init(void);
-uint8_t par_service(void);
-void par_send_message(uint8_t msg_type, uint8_t * payload, uint16_t p_sz);
+uint8_t par_service(char * plbuf, uint16_t * pl_size);
+int par_send_message(uint8_t msg_type, uint8_t * payload, uint16_t p_sz);
+uint8_t par_rx_service(char * plbuf, uint16_t *pl_size);
 
 /*
 void par_file_tx_whole(uint8_t * payload, uint16_t p_sz); // when have all data already
 void par_file_rx_start(void * data_callback);  
 */
-void par_file_tx_start();  // when data will be provided incrementally
-void par_file_tx_update(uint8_t * payload, uint16_t p_sz, bool last_one);
+void par_file_tx_start(t_xfer_mode xmode = MODE_BINARY);  // when data will be provided incrementally
+int par_file_tx_update(uint8_t * payload, uint16_t p_sz, bool last_one);
 
 // ----------------------------------------------------------------------------
 #endif

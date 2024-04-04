@@ -21,10 +21,12 @@
 JT_FIRQ         EXTERN      ; ISR jump table entry for FIRQ
 ;------------------------------------------------------------------------------
 VDP_INIT        EXPORT
+VDP_COLDINIT    EXPORT
 VDP_PUTC        EXPORT
 VDP_MODE_TEXT2  EXPORT      ; (REG B) 0: NO VBLANK INTR, 1: YES VBLANK INTR
 VDP_SHOW_PUG    EXPORT
 VDP_CURS_STYLE  EXPORT
+VDP_LDFONT      EXPORT
 ;------------------------------------------------------------------------------
     SECT bss
 ;------------------------------------------------------------------------------
@@ -47,6 +49,7 @@ VDP_VBLANK_ENABLED  RMB 1   ; TRUE IF VDP IS SET TO DO VBLANK INTERRUPTS
                             ; USED FOR TEXT2 SCREEN AUTO-REFRESH
 VDP_INTERRUPT_REASON RMB 1  ; VDP INTR STATUS REGISTER FOLLOWING PREV INTERRUPT
 VSNEXTISR           RMB  2  ; ADDRESS OF NEXT FIRQ ISR SO UART ISR CAN DELEGATE
+DID_VDP_IRQ         RMB  1  ; Set to 1 when he have installed the VDP FIRQ ISR
 ;------------------------------------------------------------------------------
     ENDSECT
 ;------------------------------------------------------------------------------
@@ -141,6 +144,11 @@ VENCNT
     STB VDP_VBLANK_ENABLED
     RTS            
 ; -----------------------------------------------------------------------------
+VDP_COLDINIT
+            CLRA
+            STA  DID_VDP_IRQ
+            BSR  VDP_INIT
+; -----------------------------------------------------------------------------
 ; INIT VDP DEFAULTS, TEXT FONT, AND VARS
 ; -----------------------------------------------------------------------------
 VDP_INIT    CLRA                        ; INIT GLOBALS
@@ -156,11 +164,15 @@ VDP_INIT    CLRA                        ; INIT GLOBALS
             JSR  VDP_SETPAL
             JSR  VDP_SET_DEF            ; SET DISPLAY DEFAULTS
             BSR  VDP_LDFONT             ; LOAD FONT
+            LDA  DID_VDP_IRQ
+            BNE  DID_VDPINIT
             LDX  JT_FIRQ+1              ; PRESERVE DEFAULT FIRQ ISR ADDRESS,
             STX  VSNEXTISR              ; FOR USE WHEN A NON-VDP FIRQ HAPPENS.
             LDX  #VDP_FIRQ              ; GET ADDRESS OF OUR ISR,
             STX  JT_FIRQ+1              ; AND INSERT IT IN FIRQ JUMP TABLE.
-            RTS
+            LDA  #1
+            STA  DID_VDP_IRQ
+DID_VDPINIT RTS
 ; -----------------------------------------------------------------------------
 ; LOAD 6X8 FONT FROM ROM TO VDP (2048 BYTES)
 ; -----------------------------------------------------------------------------

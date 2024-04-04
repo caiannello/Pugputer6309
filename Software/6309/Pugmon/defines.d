@@ -80,6 +80,13 @@ PAR_MSG_NCOMP         EQU $02  ; Can't comply (Optional reason text in
                                ; payload.)
 PAR_MSG_STATUS        EQU $03  ; Returns current t_status struct
 
+PAR_MSG_DUMP          EQU $04  : payload is 4-byte address or byte idx,
+                               ; followed by up to 512 bytes of data.
+PAR_MSG_DUMPEND       EQU $05  : same as above, but this is the last msg
+
+PAR_MSG_DUMPTEXT      EQU $06  : payload is up to 516 bytes of text data.
+PAR_MSG_DUMPTEXTEND   EQU $07  : same as above, but this is the last msg
+
                                ; $10 - $1f : SD Card messages -----------------
 
 PAR_MSG_GET_DIR       EQU $10  ; Send current or specified dir
@@ -88,10 +95,6 @@ PAR_MSG_MAKE_DIR      EQU $12  ; Create specified dir
 PAR_MSG_GET_FILE      EQU $13  ; Transmit specified file from SD
 PAR_MSG_PUT_FILE      EQU $14  ; Receive specified file to SD
 PAR_MSG_DEL           EQU $15  ; Delete specified file or directory
-PAR_MSG_DUMP          EQU $16  ; Used during file / dir transfer.
-                               ; Each data payload starts with a
-                               ; uint32_t file byte-index.
-PAR_MSG_DUMP_END      EQU $17  ; Same as DUMP, but last part of file.
 
                                ; $20 - $2f : Keyboard messages ----------------
 
