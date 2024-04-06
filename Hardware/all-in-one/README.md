@@ -25,3 +25,8 @@ See the V9958 Video Card folder for the design files of the music synth module.
 ```
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/all-in-one/layout.png)
 ![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/all-in-one/schematic.png)
+
+## Populated the (Slightly larger) prototype. Let the laborious cleaning and bring-up processes commence!
+
+![top](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/all-in-one/AIO_Top.png)
+![bottom](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/all-in-one/AIO_Bottom.png)
