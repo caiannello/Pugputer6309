@@ -155,6 +155,7 @@ void CRDInterrupt() // CPU just did a read of last byte we sent
   asm("nop;nop;nop;nop;nop;nop;nop;nop;");  
   asm("nop;nop;nop;nop;nop;nop;nop;nop;");
   asm("nop;nop;nop;nop;nop;nop;nop;nop;");
+  asm("nop;nop;nop;nop;nop;nop;nop;nop;");
   g_tx=0;
 }
 // ----------------------------------------------------------------------------
