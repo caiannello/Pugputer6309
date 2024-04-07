@@ -14,7 +14,7 @@ V9958 Video Card      Same graphics chip as the MSX 2+ home computer + OPL3
 VIA_SD_PSUP           Power supply, W65C22 VIA, MCU, SD Card, SPI, I2C, etc.
 Backplane             Five card slots, tombstone-style
 RAM Expansion         Gives the Pugputer more memory than actual pugs. (3 MB)
-all-in-one            Combines all of the above into one 11" x 3.5" board
+all-in-one            Combines all of the above into one 10.6" x 3.5" board
 -------------------------------------------------------------------------------
 ```
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Layout.png)
