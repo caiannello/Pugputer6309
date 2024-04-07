@@ -7,7 +7,7 @@ WARNING: Since some of these cards haven't yet been tested, I put the chances
 of this big board needing 1+ bodges at around 75%  :D
 
 Features
-  11.0" x 3.5" size
+  10.6" x 3.5" size
   Voltage regulators - +12VDC in, +5VDC & +3.3VDC out
   HD63C09 CPU + 14.31818 MHz crystal (3.57 MHz bus clock)
   4 MB SRAM
