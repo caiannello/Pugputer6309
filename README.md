@@ -63,6 +63,8 @@ Backplane
 
 6309 CPU @ 3.57MHz, Serial Port, Real-time clock, 4MB RAM, SD Card, Arduino MCU, V9958 Video, OPL3 Sound  (Board size 11" x 3.5")
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/all-in-one/layout.png)
+![top](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/all-in-one/AIO_Top.jpg)
+![top](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/all-in-one/AIO_Bottom.jpg)
 
 ### v0 System (All-in one keyboard design)
 
