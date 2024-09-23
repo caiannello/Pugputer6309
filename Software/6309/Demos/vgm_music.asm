@@ -151,7 +151,6 @@ BANK0       STA  OPL3_BASE+0
             RTS
 ; -----------------------------------------------------------------------------
 ; Wait the number of sample periods given in Y. The sample rate is 44100 Hz
-; Inner loop is 81 counts, outer loop is Y
 ; -----------------------------------------------------------------------------
 DELAY       LDB  #17
 DLOOP       DECB
