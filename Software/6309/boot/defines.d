@@ -15,6 +15,8 @@ UT_STA      equ  ACIA_BASE+1  ; READ: UART STATUS REG, WRITE: UART RESET
 UT_CMD      equ  ACIA_BASE+2  ; COMMAND REG (IRQ ENABLE FOR TX/RX)
 UT_CTL      equ  ACIA_BASE+3  ; CONTROL REG (COMMS SETTINGS)
 
+; UART constants
+
 SBUFSZ      equ  $7E        ; SIZE OF THE SERIAL INPUT / OUTPUT BUFFERS
 SUARTCTL    equ  $1F        ; %0001 1111 = 19200 BAUD,
                             ;              EXTERNAL RECEIVER CLOCK,
@@ -26,7 +28,28 @@ SUARTCMD    equ  $09        ; %0000 1001 = ODD PARITY CHECK, BUT
                             ;              RTSB LOW, TX INTERRUPT DISABLED.
                             ;              IRQB RX INTERRUPT ENABLED.
                             ;              DATA TERMINAL READY, DTRB LOW.
+; V9958 VDP registers
 
+VDAT        EQU  VDP_BASE+0 ; Port 0: VRAM Data (R/W)
+VREG        EQU  VDP_BASE+1 ; Port 1: Status Reg (R), Register/setup (W), VRAM Addr (W)
+VPAL        EQU  VDP_BASE+2 ; Port 2: Palette Registers (W)
+VIND        EQU  VDP_BASE+3 ; Port 3: Register-indirect addressing (W)
+
+; V9958 VDP constants
+
+DM_NTSC     EQU  128                    ; 0 for 24 line mode
+DM_PAL      EQU  130                    ; 2 for 24 line mode
+VDP_REG2_PAGE0    equ   $3              ; Page 0 at 0x0
+VDP_REG2_PAGE1    equ   $B              ; Page 1 at 0x2000
+VRAM_HIGH         equ   $0              ; VRAM A14-16 for any page
+                                        ; 0   0   0   0   0   A16 A14 A14
+VRAM_LOW          equ   $0              ; VRAM A0-A7 for any page (base)
+                                        ; A7  A6  A5  A4  A3  A2  A1  A0  
+VRAM_MID_PAGE0_R  equ   $0              ; VRAM A8-A13 for page 0 (Read)
+VRAM_MID_PAGE0_W  equ   $40             ; VRAM A8-A13 for page 0 (Write)
+VRAM_MID_PAGE1_R  equ   $20             ; VRAM A8-A13 for page 1 (Read)
+VRAM_MID_PAGE1_W  equ   $60             ; VRAM A8-A13 for page 1 (Write)
+                                        ; 0   1   A13 A12 A11 A10 A9  A8  
 ; -----------------------------------------------------------------------------
 ; Built-in file reference numbers
 ; -----------------------------------------------------------------------------
@@ -37,9 +60,9 @@ F_STDERR    equ  $03        ; Standard error text output
 
 ; filerefs reserved for devices usable with console
 
-F_UART      equ  $04        ; Optionally directed to stdout and/or stdin
-F_VDP       equ  $05        ; Qptionally directed to stdout
-F_VIA_KB    equ  $06        ; Optionally directed to stdin
+F_UART      equ  $08        ; Can be hooked to stdout and/or stdin
+F_VDP       equ  $09        ; Can be hooked to stdout
+F_VIA_KB    equ  $0A        ; Can be hooked to stdin
 ; -----------------------------------------------------------------------------
 ; BIOS Functions - function type codes passed in reg A when doing a BIOS call.
 ; -----------------------------------------------------------------------------
@@ -61,22 +84,19 @@ B_GET       equ  $0E        ; B: Input fileref, X: buffer adrs, Y: req. len. Ret
 ; -----------------------------------------------------------------------------
 ; MISC CONSTANTS
 ; -----------------------------------------------------------------------------
-
 ESCAPE      equ  $1B        ; ASCII CODE FOR ESCAPE
 LF          equ  $0A        ; LINE FEED
 CR          equ  $0D        ; CARRIAGE RETURN
 SPACE       equ  $20        
 TILDE       equ  $7E
-
 ESC_CTDN    equ   $40       ; countdown to await an ansi sequence
 ESC_N       equ   $50       ; waitloop iterations per timeout tick
 ; -----------------------------------------------------------------------------
-; Structure definitions
+; Generic data structures (methods in helpers.asm)
 ; -----------------------------------------------------------------------------
 
-; -----------------------------------------------------------------------------
 ; 16-byte circular buffer
-; -----------------------------------------------------------------------------
+
 circbuf     STRUCT          
 flags       rmb  1          ; flags (1: empty, 2: full, 4: overrun, 8: underrun)
 len         rmb  1          ; num of bytes in buf
@@ -84,15 +104,27 @@ head        rmb  1          ; head (write index)
 tail        rmb  1          ; tail (read idx)
 buf         rmb  16         ; buffer
             ENDS
-; -----------------------------------------------------------------------------
-; Doubly linked lists may someday be used to keep track of IO devices so they
-; can more easilly be removed from the system.
-; -----------------------------------------------------------------------------
+
+; Doubly-linked list
+
 dl_node     STRUCT          ; doubly-linked list node
 prev        rmw  1          ; pointer to prev node, or NULL if none
 next        rmw  1          ; pointer to next node, or NULL if none
 member      rmw  1          ; pointer to member, or NULL if none
-    ENDS
+            ENDS
+
+; -----------------------------------------------------------------------------
+; System-specific data structures (methods in bios.asm)
+; -----------------------------------------------------------------------------
+
+; file (or device) object
+
+file_obj    STRUCT
+index       rmb  1          ; file descriptor (valid if opened for I/O)
+ctrl_reg    rmb  1          ; b0: is_device (else logical), b1: open, b2: readble, b3: writable,  ...
+status_reg  rmb  1          ; b0: err?, ...
+buf         rmw  1          ; circular i/o buf
+            ENDS
 ; -----------------------------------------------------------------------------
 ; ConDriver structure
 ;

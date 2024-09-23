@@ -23,6 +23,14 @@ S_LEN           EXTERN
 S_EOL           EXTERN
 UT_PUTC         EXTERN
 UT_PUTS         EXTERN
+UT_GETC         EXTERN
+LINBUF          EXTERN
+V_RESET         EXTERN
+RTC_SHOW        EXTERN
+TMP8_0          EXTERN
+TMP16_0         EXTERN
+TMP8_1          EXTERN
+TMP16_1         EXTERN
 ;------------------------------------------------------------------------------
 ; Stuff exported for use by other modules
 ;------------------------------------------------------------------------------
@@ -35,9 +43,12 @@ NEW_CTX         EXPORT
     SECT bss                ; Private variables - section address $0030
 NEW_CTX         RMB  1      ; Set when theres a new break context to show
 CTX_BUF         RMB  15     ; Most recent break context (register dump)
-LINBUF          RMB  256    ; Misc text line buffer
 DUMP_ADRS       RMB  2      ; Start address used by hexdump display routine
 EDUMP_ADRS      RMB  2      ; End address for hexdump display
+TMP_KEY         RMB  1      ; holds monitor cli keystroke
+SRECCHK         RMB  1      ; Running checksum of current SREC line
+SRECBC          RMB  1      ; Bytecount of current SREC line
+SRECBUF         RMB  32
     ENDSECT
 ;------------------------------------------------------------------------------
     SECT code               ; Section address  $F000 - $FF00
@@ -53,7 +64,6 @@ BS_DZINST   FCC  "<DZI>"    ; illegal instruction or divide by zero
             FCB  0                        
 BS_CBRK     FCC  "<BRK>"    ; control-c break
             FCB  0       
-
 ; -----------------------------------------------------------------------------
 ; Interrupt Service Routines - Some are hard-coded in the interrupt vector 
 ; table at $fff0 and are not changable, but others are referenced by the RAM 
@@ -96,15 +106,176 @@ MON_ENTRY   LDA  NEW_CTX    ; Check if got a break context to show
             JSR  SHOW_CTX   ; Show context.
 
 ; ML Monitor Mainloop
-
+; todo: implement editor functions in bios, and use to implement
+; a monitor CLI below.
 MAINLOOP    ;JSR  con_svc    ; Console housekeeping service
             ;BEQ  ML_PAR     ; returns nonzero if we got something to do.
 
-ML_PAR      ;JSR  pa_svc     ; parallel port housekeeping service
-            ;LDA  PGotRxMsg
-            ;BEQ  MAINLOOP
-            ;JSR  show_pa    ; Show messages received via parallel
-            BRA  MAINLOOP
+ML_GETKEY   JSR  UT_GETC    ; READ RX CHARACTER, IF ANY.
+            BEQ  ML_GETKEY  ; LOOP UNTIL A CHARACTER IS RECEIVED.
+            CMPA #CR        ; IF WE GET A CR, ECHO IT, FOLLOWED BY A LF.
+            BNE  ML_ECHO
+            JSR  UT_PUTC 
+            LDA  #LF
+ML_ECHO     STA  TMP_KEY    ; STASH PRESSED KEY FOR FURTHER CHECKING, THEN
+            JSR  UT_PUTC    ; ECHO THE RECEIVED CHARACTER TO USER.
+            LDA  TMP_KEY    ; DEPENDING ON KEY, MAYBE DO STUFF:
+ML_K_TIL    CMPA #TILDE     ; '~': RUN RAM EXAMPLE PROGRAM, THEN BREAK.
+            BNE  ML_K_DUMP
+            JMP  V_RESET
+ML_K_DUMP   CMPA #'.        ; '.': DUMP RAM $4000...$8000
+            BNE  ML_K_TIM
+            LDX  #$2000
+            STX  DUMP_ADRS
+            LDX  #$3000
+            STX  EDUMP_ADRS
+            JSR  HEXDUMP_BLOCK
+ML_K_TIM    CMPA #'T        ; 'T': SHOW CURRENT TICKCOUNT
+            BNE  ML_K_XFER
+            JSR  RTC_SHOW
+ML_K_XFER   CMPA #'X        ; 'X': Xfer S-Record file
+            BNE  ML_END
+            JSR  XFER
+ML_END      BRA  MAINLOOP
+; -----------------------------------------------------------------------------
+; Receives a Motorola S-Record file to RAM. ESC to quit.
+; -----------------------------------------------------------------------------
+MSG_XFER    FCC  "Send S-Record now. Press . to run, ESC to quit."
+            FCB  LF,CR,0
+MSG_DOT     FCC  "Calling subroutine."
+            FCB  LF,CR,0
+MSG_EDOT    FCC  "Subroutine returned."
+            FCB  LF,CR,0
+MSG_BADREC  FCC  "<- Bad Rec"
+            FCB  LF,CR,0
+MSG_CR      FCB  LF,CR,0
+MSG_XEND    FCC  "Ending Xfer mode."
+            FCB  LF,CR,0
+MSG_COMP    FCC  "Xfer complete."
+            FCB  LF,CR,0
+
+XFER        LDY  #MSG_XFER
+            JSR  UT_PUTS
+            LDX  #LINBUF
+KLOOP       JSR  UT_GETC    ; READ RX CHARACTER, IF ANY.
+            BEQ  KLOOP      ; LOOP UNTIL A CHARACTER IS RECEIVED.
+            CMPA #ESCAPE
+            BEQ  X_END
+            CMPA #CR
+            BEQ  GOTCR
+            CMPA #'.
+            BEQ  GOTDOT
+            STA  ,X+        ; Add char to linbuf (non-esc, non-dot, non-cr)
+            JMP  KLOOP      
+X_END       LDY  #MSG_XEND
+            JSR  UT_PUTS
+            RTS             ; END XFER MODE, RETURN TO MONITOR
+GOTDOT      LDY  #MSG_DOT   ; Say we're starting the subroutine.
+            JSR  UT_PUTS
+            JSR  $2000      ; Call sub
+            LDY  #MSG_EDOT  ; Say the sub ended
+            JSR  UT_PUTS
+            RTS
+GOTCR       LDA  #0         ; Null-terminate the input line
+            STA  ,X+
+            LDX  #LINBUF
+            JSR  S_LEN      ; get line length in D
+            CMPD #4
+            BLT  ENDPARSE   ; trash line if length is less than 4.            
+            STD  TMP16_0    ; store length in tmp val
+            LDX  #LINBUF    ; trash lines not starting with "S1"
+            LDA  ,X+
+            CMPA #'S
+            BNE  ENDPARSE
+            LDA  ,X+
+            CMPA #'9
+            BEQ  GOT_SEOF
+            CMPA #'1
+            BNE  ENDPARSE
+            LDX  #(LINBUF+2) ; point to byte-count octet
+            CLRA
+            STA  SRECCHK
+            JSR  SRECREAD  ; get bytecount
+            STA  SRECBC    ; stash it for later
+            LDY  #SRECBUF
+            LDB  SRECBC
+OCTLOOP     JSR  SRECREAD  ; read in all srec octets and convert into bytes 
+            STA  ,Y+
+            DECB
+            BNE  OCTLOOP
+            LDA  SRECCHK
+            CMPA #$FF
+            BEQ  GOODLINE
+BADLINE     LDX  #LINBUF   ; show address from bad record and err msg
+            LDA  SRECBUF+0
+            JSR  S_HEXA
+            LDA  SRECBUF+1
+            JSR  S_HEXA
+            LDA  #0
+            STA  ,X+
+            LDY  #LINBUF
+            JSR  UT_PUTS
+            LDY  #MSG_BADREC
+            JSR  UT_PUTS
+            LDX  #LINBUF
+            JMP  KLOOP
+GOODLINE    LDY  SRECBUF   ; get dest address in y
+            LDX  #(SRECBUF+2) ; get src address in x
+            LDB  SRECBC    ; get len of bytes to write 
+            DECB           ; (minus adrs and csum)
+            DECB
+            DECB
+XWRLOOP     LDA  ,X+
+            STA  ,Y+
+            DECB
+            BNE  XWRLOOP                       
+ENDPARSE    LDX  #LINBUF
+            JMP  KLOOP
+GOT_SEOF    LDY  #MSG_COMP  ; say we got final record of srec file
+            JSR  UT_PUTS
+            LDX  #LINBUF
+            JMP  KLOOP
+; -----------------------------------------------------------------------------
+; read next octet of srec line into A and update checksum
+; -----------------------------------------------------------------------------
+SRECREAD:
+    PSHS B
+    CLRA
+    JSR  READHEXDIGIT
+    LSLA
+    LSLA
+    LSLA
+    LSLA
+    JSR  READHEXDIGIT
+    ; update checksum
+    TFR  A,B
+    ADDB SRECCHK
+    STB  SRECCHK
+    PULS B
+    RTS            
+
+; OR next nybble of srec line into reg A
+READHEXDIGIT:
+    PSHS B
+    PSHS A          ; save A for later    
+    LDA  ,X+
+    SUBA #'0'       ; move ascii 0 down to binary 0
+    BMI READHEX_ERR
+    CMPA #9
+    BLE READHEX_OK  ; 0-9 found
+    SUBA #7         ; drop 'A' down to 10
+    CMPA #$F
+    BLE READHEX_OK
+READHEX_ERR:
+    PULS A
+    PULS B
+    RTS
+READHEX_OK:
+    STA TMP8_0      ; store 4-bit value in temp
+    PULS A          ; restore old value
+    ORA TMP8_0      ; or the hex value
+    PULS B
+    RTS               
 ; -----------------------------------------------------------------------------
 ; Show latest saved register context from a monitor break, e.g.:
 ; "...<BRK_TAG>                            "
@@ -202,10 +373,8 @@ LINEDONE    STY  DUMP_ADRS  ; LINE DONE. UPDATE DUMP POSITION TO NEXT ROW,
             STA  ,U+              
             TFR  U,X
             JSR  S_EOL      ; ADD CR+LF+NULL TO OUTPUT STRING
-            LDA  #B_PUTS    ; BIOS PUTS functon
-            LDB  #F_STDOUT  ; to consule
-            LDX  #LINBUF    ; Bootloader title banner
-            SWI2            ; Go!
+            LDY  #LINBUF    
+            JSR  UT_PUTS    
             RTS
 ;------------------------------------------------------------------------------
 ; HEX+ASCII DUMP MEM FROM DUMP_ADRS THROUGH EDUMP_ADRS 
@@ -217,7 +386,7 @@ HEXDUMP_BLOCK
             BSR  HEXDUMP_LINE
             BRA  HEXDUMP_BLOCK
 DONE_BLOCK  RTS
-
+;------------------------------------------------------------------------------
     ENDSECT
 ;------------------------------------------------------------------------------
 ; End of mon.asm

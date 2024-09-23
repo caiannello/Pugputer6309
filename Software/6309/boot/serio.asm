@@ -14,6 +14,7 @@ UT_INIT     EXPORT
 UT_GETC     EXPORT
 UT_PUTC     EXPORT
 UT_PUTS     EXPORT
+UT_WAITTX   EXPORT
 UT_CLRSCR   EXPORT
 UT_CUR_HOME EXPORT
 UT_CUR_XY   EXPORT
@@ -39,6 +40,7 @@ STXHEAD     RMB  2          ; RING BUFFER HEAD - PTR TO OLDEST CHAR
 STXTAIL     RMB  2          ; PTR TO NEWEST CHAR
 STXCNT      RMB  1          ; NUM CHARS IN TX BUF
 STXIE       RMB  1          ; 0 = TRANSMITTER IDLE, 1 = TRANSMITTING
+HANDL_BRK   RMB  1          ; 0 = CTRL-C IGNORED, 1 = CTRL-C JUMPS TO JT_CBRK
 SNEXTISR    RMB  2          ; ADDRESS OF NEXT IRQ ISR SO UART ISR CAN DELEGATE
 TSTA        RMB  1          ; TEMP STORAGE OF UART STATUS
 TMP_STR     RMB  16         ; USED WHEN MAKING/PARSING ANSI CODES
@@ -50,6 +52,8 @@ TMP_STR     RMB  16         ; USED WHEN MAKING/PARSING ANSI CODES
 UT_INIT     CLR  STXCNT     ; INITIALIZE SERIAL VARS AND UART -----------------        
             CLR  SRXCNT     ; ZERO THE TX AND RX BYTE COUNTS
             CLR  STXIE      ; NOTE THAT TX IRQ IS INITIALLY DISABLED
+            LDB  #1
+            STB  HANDL_BRK  ; DO JMP TO HANDLER WHEN WE GET A CTRL-C.
             LDX  #STXBUF    ; INIT TX BUF HEAD AND TAIL
             STX  STXHEAD
             STX  STXTAIL
@@ -73,9 +77,11 @@ UT_ISR      LDA  UT_STA     ; UART INTERRUPT HANDLER --------------------------
 CHK_RX      TIM  #8,TSTA    ; IF BIT 3 = 0: WE HAVENT RECEIVED A BYTE,
             BEQ  CHK_TX     ; SO SKIP RX STUFF. ELSE,
 HANDL_RX    LDA  UT_DAT     ; GET RX BYTE FROM UART
-            CMPA #03        ; IF CONTROL-C, JUMP TO THE CBREAK HANDLER.
+            CMPA #03        ; IF CONTROL-C, 
             BNE  NOTBREAK
-            JMP  JT_CBRK
+            LDB  HANDL_BRK  ; AND CBRK-HANDLING IS ENABLED,
+            BEQ  NOTBREAK
+            JMP  JT_CBRK    ; JUMP TO THE CBREAK HANDLER.
 NOTBREAK    LDB  SRXCNT     ; CHECK IF RX BUFFER HAS ROOM.
             CMPB #(SBUFSZ-1)
             BGE  CHK_TX     ; BUF FULL, TRASH THE BYTE. TODO: SET ERR BIT
@@ -110,7 +116,8 @@ TX_END:     LDA  #$09       ; DISABLE UART TX INTERRUPT REQUESTS.
 IQ_DONE     RTI             ; DONE HANDLING UART INTERRUPT.
 NOT_UART    JMP  [SNEXTISR] ; IRQ WASNT CAUSED BY UART, CALL NEXT IRQ ISR.
 ;------------------------------------------------------------------------------
-UT_GETC     LDA  SRXCNT     ; GET AN RX CHAR, IF ANY, ELSE NULL ---------------
+UT_GETC     PSHS X
+            LDA  SRXCNT     ; GET AN RX CHAR, IF ANY, ELSE NULL ---------------
             BEQ  NOCHAR
             ORCC #$10       ; DISABLE IRQ INTERRUPTS
             LDX  SRXTAIL
@@ -122,8 +129,10 @@ GETC_DONE   STX  SRXTAIL    ; STORE NEW TAIL.
             DEC  SRXCNT     ; DECREMENT RX BYTE COUNT
             ANDCC #$EF      ; ENABLE IRQ INTERRUPTS
             TSTA
+            PULS X
             RTS
 NOCHAR      CLRA            ; NULL IF NONE          
+            PULS X
             RTS     
 ;------------------------------------------------------------------------------
 ;UT_WAITC    BSR  UT_GETC    ; WAIT FOR A RX CHAR FROM UART AND RETURN IT ------
@@ -201,7 +210,15 @@ UPSLOOP     LDA  ,Y+
             BSR  UT_PUTC
             BRA  UPSLOOP    ; loop around for next char of string
 UPSDONE     PULS x,y,a,b
-            RTS                 
+            RTS
+;------------------------------------------------------------------------------
+; Wait for a transmission to complete
+;------------------------------------------------------------------------------
+UT_WAITTX   PSHS A
+WATXLOOP    LDA  STXIE      
+            BNE  WATXLOOP
+            PULS A
+            RTS
 ;------------------------------------------------------------------------------
 ; Send cursor to row E and column F
 ;

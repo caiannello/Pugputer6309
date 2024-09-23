@@ -50,19 +50,22 @@
 ;------------------------------------------------------------------------------
 ; Functions imported from other modules
 ;------------------------------------------------------------------------------
-V_DZINST        EXTERN      ; mon.asm
+V_DZINST        EXTERN      ; mon.asm - machine code monitor
 V_CBRK          EXTERN
 V_SWI           EXTERN
-V_NMI           EXTERN      ; time.asm
 MON_INIT        EXTERN
 MON_ENTRY       EXTERN
 NEW_CTX         EXTERN
-V_SW2           EXTERN      ; bios.asm
-BIOS_INIT       EXTERN
-UT_INIT         EXTERN      ; serio.asm
+V_NMI           EXTERN      ; time.asm - real-time interrupt
+RTC_GETTIX      EXTERN
+UT_INIT         EXTERN      ; serio.asm - serial port UART
 UT_PUTC         EXTERN
 UT_PUTS         EXTERN
+UT_WAITTX       EXTERN
+UT_CLRSCR       EXTERN
 STXIE           EXTERN
+S_HEXA          EXTERN      ; helpers.h
+VDP_INIT        EXTERN      ; vdp.h - optional graphics card
 EndOfVars       EXTERN      ; provided by linker, start of unused RAM
 ;------------------------------------------------------------------------------
 ; Stuff exported for use by other modules
@@ -71,15 +74,23 @@ RTC_TICKS       EXPORT      ; Number of 1/16 sec ticks since poweron or epoch
 RTC_TICKS_PRIV  EXPORT
 RTC_MTX         EXPORT      ; Mutex for the above
 RTC_SET         EXPORT      ; Semaphore to update private val from public val
+RTC_SHOW        EXPORT      ; Sub to show current tick count
 JT_FIRQ         EXPORT      ; RAM jump to ISR for FIRQ - video HBLANK, VBLANK
 JT_IRQ          EXPORT      ; RAM jump to ISR for IRQ - Serial, VIA, OPL3
 JT_CBRK         EXPORT      ; RAM jump to ISR for user break (Ctrl-C)
+LINBUF          EXPORT
+V_RESET         EXPORT
+TMP8_0          EXPORT
+TMP16_0         EXPORT
+TMP8_1          EXPORT
+TMP16_1         EXPORT
 ;------------------------------------------------------------------------------
 ; Public variables - Section address $0000
 ;------------------------------------------------------------------------------
     SECT ram_start           
 WARM_ST         RMB  1      ; If not $55 on reset, we do a cold start
 USER_RAM        RMB  2      ; Start adrs of free RAM not used by bootloader
+JTAB_ADRS       RMB  2      ; Start adrs of ISR jump table
 RTC_TICKS       RMB  8      ; Number of 1/16 sec ticks since poweron or epoch
 RTC_TICKS_PRIV  RMB  8
 RTC_MTX         RMB  1      ; Mutex for the above
@@ -100,7 +111,13 @@ JT_CBRK         RMB  3      ; CTRL-C BREAK - END RAM JUMP TABLE ---------------
 ; Private variables - section address $0100
 ;------------------------------------------------------------------------------
     SECT bss
-STACK           RMB  1024   ; System stack
+LINBUF          RMB  256    ; Misc text line buffer    
+TMP8_0          RMB  1      ; Misc 8-bit value (used in ram test)
+TMP16_0         RMB  2      ; Misc 16-bit value (used in ram test)
+TMP8_1          RMB  1      ; Misc 8-bit value (used in ram test)
+TMP16_1         RMB  2      ; Misc 16-bit value (used in ram test)
+TMP64_0         RMB  8      ; Misc 64-bit value (used for tick counts)
+STACK           RMB  512    ; System stack
 STACK_END
     ENDSECT
 ;------------------------------------------------------------------------------
@@ -123,14 +140,14 @@ MSG_HELLO   FCC  "Pugputer 6309 - Bootloader v0.0.2"  ; Startup banner
 ; This little example program gets copied to RAM on cold start 
 ; in order to test the debugger
 
-E_MSG       FCC  "Hello, World!"
-            FCB  0            
-PRG_EXAMP   LDY  #E_MSG
+;E_MSG       FCC  "Hello, World!"
+;            FCB  0            
+;PRG_EXAMP   LDY  #E_MSG
             ;JSR  CON_PUTS   ; Show hello message
-            FCB  $15        ; Cause an illegal instruction interrupt
-            SWI             ; Cause a software break
-EXAMP_ADRS  EQU  $4000      ; examp prg loads to this RAM address
-END_EXAMP
+;            FCB  $15        ; Cause an illegal instruction interrupt
+;            SWI             ; Cause a software break
+;EXAMP_ADRS  EQU  $4000      ; examp prg loads to this RAM address
+;END_EXAMP
 
 ; -----------------------------------------------------------------------------
 ; Interrupt Service Routines - Two of these, RESET and NMI are hard-coded in 
@@ -145,6 +162,7 @@ END_EXAMP
 ;   serio.asm, and bios.asm)
 ; -----------------------------------------------------------------------------
 
+V_SW2       RTI             ; SOFTWARE INTERRUPT 2 - Unused
 V_SW3       RTI             ; SOFTWARE INTERRUPT 3 - Unused
 V_FIRQ      RTI             ; FIRQ - V9958 VBLANK/HBLANK interrupts
 V_IRQ       RTI             ; IRQ - UART TX/RX, VIA I/O, OPL3 music
@@ -164,7 +182,7 @@ V_IRQ       RTI             ; IRQ - UART TX/RX, VIA I/O, OPL3 music
 ; caused the interrupt, as long as it's the last handler in the chain.
 ;
 ; If we get to the point where we ever want to remove handlers in a robust
-; way, this should probably be reimplemented as a doubly-linked list.
+; way, this should probably be reimplemented as a linked-list.
 ; -----------------------------------------------------------------------------
 ROM_JTAB    JMP  V_DZINST   ; Divide by zero, illegal instruction
             JMP  V_SW3      ; Unused
@@ -178,12 +196,18 @@ ROM_JTAB    JMP  V_DZINST   ; Divide by zero, illegal instruction
 ; -----------------------------------------------------------------------------
 V_RESET     LDMD #$01       ; Enable 6309 native mode
             TFR  0,DP       ; Set direct page to Public vars
-
-            ; Setup bank registers to first 4 pages of RAM
-
             LDA  #$00       ; Map RAM physical adrs $000000
             STA  MBANK_0    ; ..to CPU adrs $0000 
                             ; (and keep it that way, else things will break.)
+            ;LDA  <WARM_ST   ; Get warm start flag
+            ;CMPA #$55       ; and if its $55, 
+            ;BEQ  WARMST     ; skip the cold-start initialization.
+COLDST      LDX  #0         ; Zero all RAM used by ROM code
+            CLR  ,X
+            LDY  #0    
+            LDW  #2000
+            TFM  x,y+
+            ; Setup bank registers to first 4 pages of RAM
             LDA  #$01       ; Map RAM $004000
             STA  MBANK_1    ; ..to CPU adrs $4000
             STA  <SBANK_1   ; make a readable copy of this register setting
@@ -193,71 +217,201 @@ V_RESET     LDMD #$01       ; Enable 6309 native mode
             LDA  #$03       ; Map RAM $00C000
             STA  MBANK_3    ; ..at CPU adrs $C000            
             STA  <SBANK_3   ; make readable copy of this reg
-
-            LDA  <WARM_ST   ; Get warm start flag
-            CMPA #$55       ; and if its $55, 
-            BEQ  WARMST     ; skip the cold-start initialization.
-
-COLDST      LDX  #0         ; Zero all public and private vars
-            LDY  #0    
-            LDW  #(EndOfVars)
-            TFM  x,y+
-
             ; init some helpful public vars
-
-            LDX  #EndOfVars ; Get start address of free RAM,
-            STX  <USER_RAM  ; and note it in public variable
             LDA  #$55       
-            STA  <WARM_ST   ; We'll do a warm start next time
+            STA  <WARM_ST   ; $0000 We'll do a warm start next time
+            LDX  #EndOfVars ; Get start address of free RAM,
+            STX  <USER_RAM  ; $0001 and note it in public variable
+            LDX  #RAM_JTAB  ; Get start address of RAM ISR jump table
+            STX  <JTAB_ADRS ; $0003 - and note it in public variable
             CLR  NEW_CTX    ; No break register context to show yet
-
             ; Copy interrupt jump table to RAM
-
             LDX  #ROM_JTAB  
             LDY  #RAM_JTAB  ; 
             LDW  #(3*7)     ; 7 JMPs is 21 bytes
             TFM  X+,Y+      ; Use 6309'S nice block-copy instruction.
-
-            ; Copy example program to RAM
-
-            LDX  #PRG_EXAMP 
-            LDY  #EXAMP_ADRS     
-            LDW  #(END_EXAMP-PRG_EXAMP)
-            TFM  X+,Y+    
-
-            LDS  #(STACK_END-1)     ; Init stack pointer (enables NMI)
-            
+            ; Init stack pointer (enables NMI)
+            LDS  #(STACK_END-2)
             ; Init BIOS
-            JSR  BIOS_INIT
-            ; Init hardware peripherals
-            
+            ; JSR  BIOS_INIT
+            ; Init hardware peripherals            
             ; JSR  pa_init  ; Init VIA/SD card
             JSR  UT_INIT    ; Init serial UART
-            ; JSR  VD_INIT  ; Init video card
-            
+            ; JSR  VDP_INIT  ; Init graphics card, if any, do bootscreen             
             ANDCC #$AF      ; Enable IRQ and FIRQ interrupts
-
+            ;ORCC  #$50      ; Disable IRQ and FIRQ interrupts
             ; Warm start
+            JMP  RAMTEST    ; TEST 1MB ONBOARD RAM
 
-            ; DEBUG - try to repeatedly reinit comms
-            ; and send a message.
-            ; (uart chip-select isn't acting right)
-
-WARMST      LDA  #SUARTCTL  ; Initialize UART baud, parity, etc. (defines.d)
-            STA  UT_CTL
-            LDA  #SUARTCMD
-            STA  UT_CMD
+WARMST      LDS  #(STACK_END-2)     ; Init stack pointer (enables NMI)                    
             LDY  #MSG_HELLO ; Bootloader title banner
-            JSR  UT_PUTS
-WAITTX      LDA  STXIE
-            BNE  WAITTX            
-            JMP  WARMST
-            ; TODO: Bootloader shouldnt need to go through the bios fcns
-            ; table since we are compiled along with the bios code.
+            JSR  UT_PUTS    ; Start transmitting it via serial.
+
+            ;JSR  RTC_SHOW   ; show current tickcount
+            ;JMP  WARMST     ; RINSE AND REPEAT
 
             ; TODO: Try to boot from SD.. if couldnt boot, 
             JMP  MON_ENTRY  ; Start ML monitor.
+;------------------------------------------------------------------------------
+; Show current RTC tick count - uses y, x, a, tmp64_0
+;------------------------------------------------------------------------------
+MSG_TIME    FCC  "Tick count: "  ; Startup banner
+            FCB  0
+RTC_SHOW    PSHS A,X,Y
+            LDY  #MSG_TIME
+            JSR  UT_PUTS
+            ;JSR  UT_WAITTX  ; await transmission
+            ; get current rtc tickcount and show it as hex
+            LDX  #TMP64_0   ; get rtc tickcount
+            JSR  RTC_GETTIX            
+            LDX  #LINBUF            
+            LDA  TMP64_0+0
+            JSR  S_HEXA     ; hex$(A) -> linbuf
+            LDA  TMP64_0+1
+            JSR  S_HEXA     ; hex$(A) -> linbuf
+            LDA  TMP64_0+2
+            JSR  S_HEXA     ; hex$(A) -> linbuf
+            LDA  TMP64_0+3
+            JSR  S_HEXA     ; hex$(A) -> linbuf
+            LDA  TMP64_0+4
+            JSR  S_HEXA     ; hex$(A) -> linbuf
+            LDA  TMP64_0+5
+            JSR  S_HEXA     ; hex$(A) -> linbuf
+            LDA  TMP64_0+6
+            JSR  S_HEXA     ; hex$(A) -> linbuf
+            LDA  TMP64_0+7
+            STA  VDAT  
+            JSR  S_HEXA     ; hex$(A) -> linbuf
+            LDA  #LF
+            STA  ,X+
+            LDA  #CR
+            STA  ,X+
+            LDA  #0
+            STA  ,X+
+            LDY  #LINBUF
+            JSR  UT_PUTS
+            ;JSR  UT_WAITTX  ; await transmission
+            PULS A,X,Y
+            RTS
+;------------------------------------------------------------------------------
+; Test CPU card's 1MB onboard SRAM using Bank #1 (CPU Address' $4000-$7FFF)
+; Write an ascending 32-bit count to physical RAM from $002000 to $0FFFFF and 
+; then read it back.
+;------------------------------------------------------------------------------
+MSG_RAMTEST FCC  "RAM TEST... "
+            FCB  0
 
+MSG_RAMGOOD FCC  "GOOD"
+            FCB  LF,CR,0
+
+MSG_RAMBAD  FCC  "FAIL"
+            FCB  LF,CR,0
+
+RAMTEST     ;PSHS A,B,X,Y,U,DP
+            ;PSHSW 
+            JSR  UT_CLRSCR
+            LDY  #MSG_RAMTEST
+            JSR  UT_PUTS
+            ;JSR  UT_WAITTX
+
+; write 4-byte repeating pattern to all 
+; addresses within all ram banks
+
+            LDA  #0         ; initial bank setting of test
+WBANKLOOP   STA  MBANK_1    ; Set bank register.
+            CMPA #$00       ; Bank 0 is handled slightly differently:
+            BEQ  WPARTIAL
+            LDX  #$4000     ; If subsequent bank, test whole range 4000...7fff
+            BSR  WADRSLOOP
+WPARTIAL    LDX  #$6000     ; If first bank, test partial range 6000...7fff to spare our vars
+WADRSLOOP   
+            STA  0,X        ; write A (bank idx) to ADRS X+0
+            STA  1,X        ; write A to ADRS X+1
+            STX  2,X        ; write X (CPU adrs) to ADRS X+2, X+3
+            LEAX 4,X        ; let X = X + 4
+            CMPX #$8000     ; end of bank?
+            BNE  WADRSLOOP  ; continue within bank.
+            INCA            ; Increment bank index
+            CMPA #$40       ; not done with banks?
+            BNE  WBANKLOOP  ; keep writing patterns.
+
+; verify repeating pattern across all banks
+
+            LDA  #0         ; initial bank setting of test
+RBANKLOOP   STA  MBANK_1    ; Set bank register
+            CMPA #$00       ; Bank 0 handled slightly differently.
+            BEQ  RPARTIAL
+            LDX  #$4000     ; test full bank for banks 1+
+            BSR  RADRSLOOP
+RPARTIAL    LDX  #$6000     ; test partial bank fpr bank 0
+RADRSLOOP   LDB  0,X        ; check bank idx val at ADRS X+0
+            LDB  1,X        
+            LDY  2,X        ; check X (CPU adrs) at ADRS X+2, X+3    
+            STB  TMP8_0     ; store retrieved value
+            STA  TMP8_1     ; store expected value
+            STY  TMP16_0    ; store retrieved 16-bit value
+            STX  TMP16_1    ; store expected 16-bit value
+            LDE  #0         ; innocent until proven guilty
+            CMPA TMP8_0     ; compare retrieved byte to expected byte
+            BEQ  RDIDBTEST
+            ADDE #1         ; byte test fail.
+RDIDBTEST   CMPX TMP16_0    ; compare retrieved word to expected word.
+            BEQ  VERDICT
+            ADDE #1         ; word test fail
+VERDICT     CMPE #0
+            BEQ  RDIDTEST
+            LDY  #MSG_RAMBAD  ; output test fail
+            JSR  UT_PUTS
+            ;JSR  UT_WAITTX
+            JMP  RT_SHOW_FAILURE 
+
+RDIDTEST    LEAX 4,X        ; One pattern was right, prepare for next one.
+            CMPX #$8000     ; end of bank?
+            BNE  RADRSLOOP  ; continue testing bank
+            INCA            ; Increment bank
+            CMPA #$40       ; Up to 1 MB,
+            BNE  RBANKLOOP  ; test next bank.
+
+            LDY  #MSG_RAMGOOD ; report test pass
+            JSR  UT_PUTS
+            ;JSR  UT_WAITTX
+            JMP  RT_END
+
+RT_SHOW_FAILURE
+            ; print tmp8_0, tmp16_0 and tmp8_1, tmp16_1 as hex
+            LDX  #LINBUF
+            LDA  TMP8_0
+            JSR  S_HEXA
+            LDA  TMP16_0
+            JSR  S_HEXA
+            LDA  TMP16_0+1
+            JSR  S_HEXA
+
+            LDA  TMP8_1
+            JSR  S_HEXA
+            LDA  TMP16_1
+            JSR  S_HEXA
+            LDA  TMP16_1+1
+            JSR  S_HEXA
+            
+            LDA  #LF
+            STA  ,X+
+            LDA  #CR
+            STA  ,X+
+            LDA  #0
+            STA  ,X+
+            
+            LDY  #LINBUF
+            JSR  UT_PUTS
+            ;JSR  UT_WAITTX
+
+RT_END      ; done doing ram test  
+            LDA  SBANK_1   ; Restore memory bank #1 setting to prev val
+            STA  MBANK_1
+            ;PULSW
+            ;PULS DP,U,Y,X,B,A
+            JMP WARMST
+;------------------------------------------------------------------------------
     ENDSECT
 ;------------------------------------------------------------------------------
 ; Interrupt vectors
