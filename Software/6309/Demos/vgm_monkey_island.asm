@@ -9,7 +9,7 @@
 ;   Plays song on the OPL3 module from a classic MS-DOS Game! 
 ;
 ;       Game Title: The Secret of Monkey Island
-;       Song Title: Title Track? (By the amazing Michael Land!)
+;       Song Title: Lechuck's Theme (By the amazing Michael Z. Land!)
 ;
 ;------------------------------------------------------------------------------
 OPL3_BASE   equ  $FFE0      ; ffe0 - ffe3: Music Chip YMF262 (OPL3)
