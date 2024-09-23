@@ -77,9 +77,9 @@ DLY_F0      LDY  #735
             JSR  DELAY
             JMP  LOOPEND                        
 DLY_VAR0    LDY  ,X++
-            TFR  Y,D    ; Transfer Y to D (D is composed of A (high byte) and B (low byte))
-            EXG  A,B    ; Exchange A (high byte) with B (low byte)
-            TFR  D,Y    ; Transfer D (with swapped bytes) back to Y
+            TFR  Y,D    ; Swap dumb little-endian word to big-endian
+            EXG  A,B    ; (As nature intended.)
+            TFR  D,Y
             JSR  DELAY
             JMP  LOOPEND
 WR_BANK1    LDA  ,X+
