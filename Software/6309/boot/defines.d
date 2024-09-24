@@ -8,6 +8,15 @@ VDP_BASE    equ  $FFE4      ; ffe4 - ffe7: Video Chip V9958
 OPL3_BASE   equ  $FFE0      ; ffe0 - ffe3: Music Chip YMF262 (OPL3)
 VIA_BASE    equ  $FFB0      ; ffb0 - ffbf: W65C22 VIA (SD Card, SPI, KB, GPIO)
 
+; Memory bank registers 0..3 (Base address in defines.d)
+; These are write-only, so we keep copies of 1 through 3 in 
+; vars in main.asm: SBANK_1...SBANK_3
+
+MBANK_0     equ  BANK_BASE+0
+MBANK_1     equ  BANK_BASE+1
+MBANK_2     equ  BANK_BASE+2
+MBANK_3     equ  BANK_BASE+3
+
 ; UART registers (Base IO address is in defines.d)
 
 UT_DAT      equ  ACIA_BASE+0  ; R65C51P2 UART DATA REGISTER (RD: RX, WR: TX)
