@@ -24,10 +24,10 @@ ENTRYPOINT
     JSR  BF_RTC_SETTIX
     JMP  MAINLOOP
 ;------------------------------------------------------------------------------
-; STARTING TIMESTAMP (SET ABOVE)
+; STARTING TIMESTAMP (SET ABOVE) IT'S AN INT64 UNIX_TIMESTAMP_SECS*16
 ;------------------------------------------------------------------------------
 
-TIMESET     FQB $6,$6F9DE330
+TIMESET     FQB $6,$6F9F1430
 
 ;------------------------------------------------------------------------------
 ; VARS
@@ -38,20 +38,13 @@ TIMESET     FQB $6,$6F9DE330
 MYBUF       RMB  64     ; STRING BUF
 THISTICKS   RMB  8      ; STASH OF FULL RTC TICK COUNTER (1/16THS OF SECS)
 
-; USED IN S_ITOA32
-
-LEADING     RMB  1      ; USED TO SKIP LEADING ZEROS
-POSPOW      RMB  4      ; CURRENT POWER OF TEN
-NEGPOW      RMB  4      ; NEGATIVE VERSION OF THE ABOVE
-DIGIT       RMB  1      ; WORKING DIGIT
-TMPQ        RMB  4      ; 32-BIT WORKING NUMBER
-TMPU        RMB  2      ; 16-BIT STASH OF REGISTER U
-
 ; USED IN TS_TO_DATE
 
 TMP64       RMB  8
 TMP16_0     RMB  2
 TMP16_1     RMB  2
+TMP8_0      RMB  1
+TMP8_1      RMB  1
 TMPYEAR     RMB  2
 TMPDAYYR    RMB  2
 TMPHOUR     RMB  1
@@ -60,8 +53,9 @@ TMPSEC      RMB  1
 TMPTICKS    RMB  1
 TMPMON      RMB  1
 TMPDAYMON   RMB  1
-TMPDAYWK    RMB  1      ; TODO: 0:Sun...
 
+YRHIBCD     RMB  1
+YRLOWBCD    RMB  1
 MONBCD      RMB  1
 DAYMONBCD   RMB  1
 HOURBCD     RMB  1
@@ -82,7 +76,17 @@ MAINLOOP
     LDX  #THISTICKS
     JSR  TS_TO_DATE ; CONVERT TICKCOUNT TO DATE/TIME
 
-    LDA  TMPMON     ; MAKE BCD VERSIONS FOR PRINTOUT
+    LDD  TMPYEAR    ; MAKE BCD VERSIONS FOR PRINTOUT
+    DIVD #100
+    STA  TMP8_0
+    STB  TMP8_1
+    LDA  TMP8_1
+    JSR  BN2BCD
+    STB  YRHIBCD
+    LDA  TMP8_0
+    JSR  BN2BCD
+    STB  YRLOWBCD
+    LDA  TMPMON
     JSR  BN2BCD
     STB  MONBCD
     LDA  TMPDAYMON
@@ -102,9 +106,10 @@ MAINLOOP
     STB  TICKBCD
 
     LDY  #MYBUF      ; OUTPUT AS STRING VIA SERIAL.
-    LDQ  #0
-    LDW  TMPYEAR
-    JSR  S_ITOA32
+    LDA  YRHIBCD
+    JSR  S_HEXA
+    LDA  YRLOWBCD
+    JSR  S_HEXA
     LDA  #'-'
     STA  ,Y+
     LDA  MONBCD
@@ -166,16 +171,16 @@ AD3OLD:
     STB ,Y+         ; AND NCREMENT X
     RTS     
 ;------------------------------------------------------------------------------
-; CONVERT BINARY IN A TO BCD IN D
+; CONVERT A U8 IN A TO BCD IN D
 ;------------------------------------------------------------------------------
 BN2BCD: 
-    LDB  #$FF       ; START QUOTIENT AT -1
-D100LP: 
-    INCB            ; ADD 1 TO QUOTIENT
-    SUBA #100       ; SUBTRACT 100 FROM DIVIDEND
-    BCC  D100LP     ; JUMP IF DIFFERENCE STILL POSITIVE
-    ADDA #100       ; IF NOT, ADD THE LAST 100 BACK
-    STB  ,-S        ; SAVE 100'S DIGIT ON STACK
+;    LDB  #$FF       ; START QUOTIENT AT -1
+;D100LP: 
+;    INCB            ; ADD 1 TO QUOTIENT
+;    SUBA #100       ; SUBTRACT 100 FROM DIVIDEND
+;    BCC  D100LP     ; JUMP IF DIFFERENCE STILL POSITIVE
+;    ADDA #100       ; IF NOT, ADD THE LAST 100 BACK
+;    STB  ,-S        ; SAVE 100'S DIGIT ON STACK
     LDB  #$FF       ; START QUOTIENT AT -1
 D10LP:  
     INCB            ; ADD 1 TO QUOTIENT
@@ -188,116 +193,7 @@ D10LP:
     LSLB
     STA  ,-S        ; SAVE 1'S DIGIT ON STACK
     ADDB ,S+        ; COMBINE 1'S AND 10'S DIGITS IN B
-    LDA  ,S+        ; RETURN 100'S DIGIT IN A
-    RTS
-;------------------------------------------------------------------------------
-; CONVERTS SIGNED INT32 IN Q TO AN ASCII STRING AT Y
-;------------------------------------------------------------------------------
-TENPOWERS FQB 1000000000,100000000,10000000,1000000,100000,10000,1000,100,10,1
-;------------------------------------------------------------------------------
-S_ITOA32
-    STQ  TMPQ       ; STORE Q IN WORKING VAR.
-    LDA  #1
-    STA  LEADING    ; FOR SKIPPING LEADING ZEROES
-    BPL  NOTNEG     ; IF Q IS POSITIVE, SKIP AHEAD.     
-ISNEG
-    LDA  #'-        ; APPEND NEG SIGN TO STRING
-    STA  ,Y+
-    LDQ  TMPQ       ; REPLACE QVAL WITH ABS(QVAL) 
-    JSR  NEGATE_Q
-    STQ  TMPQ
-NOTNEG
-    LDU  #TENPOWERS ; POINT U TO HIGHEST POWER OF TEN
-    STU  TMPU
-    LDQ  ,U         ; MAKE NEGATIVE VERSION OF POWER TEN
-    STQ  POSPOW
-    JSR  NEGATE_Q
-    STQ  NEGPOW
-DIGITLOOP
-    LDA  #'0        ; Digit starts as '0'
-    STA  DIGIT
-NEXTDIG
-    LDQ  TMPQ       ; COMPARE QVAL TO POWER OF TEN 
-    LDU  TMPU
-    JSR  CMP32_QU
-    BLO  DONEDIG    
-    INC  DIGIT      ; INCREMENT DIGIT
-    LDU  #NEGPOW
-    JSR  ADD_U_TO_Q ; SUBTRACT POWER OF TEN FROM QVAL
-    STQ  TMPQ
-    JMP  NEXTDIG    ; CONTINUE DIGIT INCREMENTING LOOP
-DONEDIG
-    LDA  DIGIT      ; APPEND NEXT DIGIT (UNLESS ITS A LEADING ZERO)
-    LDB  LEADING
-    BEQ  ADDDIG
-    CMPA #'0
-    BEQ  ISZERO
-    CLR  LEADING
-    BRA  ADDDIG
-ISZERO
-    CMPU #TENPOWERS+28  ; if whole num is zeros,
-    BHI  ADDDIG         ; the last two digits are not a leading zero
-ISLEADINGZERO
-    BRA  DONEADD
-ADDDIG
-    STA  ,Y+        ; TO STRING,
-DONEADD
-    LDU  TMPU
-    LEAU 4,U        ; MOVE TO NEXT (LOWER) POWER OF TEN,
-    STU  TMPU
-    LDQ  ,U
-    STQ  POSPOW     ; STORE POSITIVE AND
-    JSR  NEGATE_Q   ; NEGATAVE POWERS
-    STQ  NEGPOW     ; OF TEN.
-    CMPU #S_ITOA32  ; IF HAVENT DONE ONES PLACE YET,
-    BNE  DIGITLOOP  ; CONTINUE DOING DIGITS, ELSE
-    LDA  #0         ; NULL-TERMNATE STRING,
-    STA  ,Y         ; BUT DON'T ADVANCE CHAR POINTER.
-    RTS             ; AND WE'RE DONE.    
-;------------------------------------------------------------------------------
-ADD_U_TO_Q  
-    EXG  D,W        ; ADD SIGNED INT32 AT U INTO VAL IN Q
-    ADDD 2,U
-    EXG  D,W
-    ADCD 0,U
-    RTS
-;------------------------------------------------------------------------------
-CMP32_QU    
-    CMPD 0,U        ; UNSIGNED COMPARE Q WITH UINT32 AT U
-    BNE  ECMP32
-    CMPW 2,U
-ECMP32
-    RTS
-;------------------------------------------------------------------------------
-NEGATE_Q    
-    COMW            ; NEGATE SIGNED VALUE IN Q
-    COMD 
-INCQ
-    INCW 
-    BNE ENDINCQ
-    INCD
-ENDINCQ
-    RTS       
-;------------------------------------------------------------------------------
-; UNSIGNED COMPARE 64-BIT VALS Y AND X.
-;------------------------------------------------------------------------------
-I64_CMPYX
-    LDD  0,Y
-    LDW  0,X
-    CMPR W,D
-    BNE  I64_CMPYX_DONE
-    LDD  2,Y
-    LDW  2,X
-    CMPR W,D
-    BNE  I64_CMPYX_DONE
-    LDD  4,Y
-    LDW  4,X
-    CMPR W,D
-    BNE  I64_CMPYX_DONE
-    LDD  6,Y
-    LDW  6,X
-    CMPR W,D
-I64_CMPYX_DONE
+ ;   LDA  ,S+        ; RETURN 100'S DIGIT IN A
     RTS
 ;------------------------------------------------------------------------------
 ; Compare U64 at Y to U32 at X
@@ -319,23 +215,6 @@ Y64_CMPX32
     CMPR W,D
 Y64_CMPX32_DONE    
     RTS        
-;------------------------------------------------------------------------------
-; Subtract i64 X from i64 Y, and store result at Y.
-;------------------------------------------------------------------------------
-I64_SUBXY
-    ANDCC #$FE  ; CLEAR CARRY
-    LDE  #4     ; WORD COUNT
-    LEAX 6,X
-    LEAY 6,Y
-SUBWRD:
-    LDD  ,Y      ; GET BYTE OF MINUEND
-    SBCD ,X      ; SUBTRACT BYTE OF SUBTRAHEND WITH BORROW
-    STD  ,Y      ; SAVE DIFFERENCE IN MINUEND
-    LEAX -2,X
-    LEAY -2,Y
-    DECE
-    BNE  SUBWRD  ; CONTINUE UNTIL ALL WORDS SUBTRACTED
-    RTS
 ;------------------------------------------------------------------------------
 ; Subtract i32 X from i64 Y, leaving result in Y.
 ;------------------------------------------------------------------------------
