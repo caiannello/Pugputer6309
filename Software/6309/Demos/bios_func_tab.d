@@ -14,8 +14,8 @@ BF_S_HEXA       equ  FUNC_BASE+21	; Convert Reg A to hex octet at X, X+=2
 BF_S_EOL        equ  FUNC_BASE+24   ; Put CR, LF, $00 at X, X+=3
 BF_S_LEN        equ  FUNC_BASE+27   ; Put len of string at X into Reg B
 BF_S_CPY        equ  FUNC_BASE+30   ; Copy string at Y to mem at X. X+=?
-BF_RTC_GETTIX   equ  FUNC_BASE+33   ; Put tickcount to hex string at X, X+=17
+BF_RTC_GETTIX   equ  FUNC_BASE+33   ; Get current system ticks to I64 at X.
 BF_S_TOUPPER    equ  FUNC_BASE+36   ; Make A uppercase if it is lowercase
 BF_S_INTD       equ  FUNC_BASE+39   ; Convert reg D to string at X, X+=?
-BF_RTC_SETTIX   equ  FUNC_BASE+42   ; SET CURRENT SYSTEM TICKS FROM I64 AT X
+BF_RTC_SETTIX   equ  FUNC_BASE+42   ; Set current system ticks from I64 at X.
 ;------------------------------------------------------------------------------
