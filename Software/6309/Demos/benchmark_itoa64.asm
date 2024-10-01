@@ -44,16 +44,14 @@ START:
 ;------------------------------------------------------------------------------
 ; CONSTS
 ;------------------------------------------------------------------------------
-MSG_START_8 FCB  LF,CR
-            FCC  "RUNNING ITOA64 BENCHMARK (6809 VER)... "  ; Startup banner
+MSG_START_8 FCC  "RUNNING ITOA64 BENCHMARK (6809 VER)... "  ; Startup banner
             FCB  0
-MSG_START_3 FCB  LF,CR
-            FCC  "RUNNING ITOA64 BENCHMARK (6309 VER)... "  ; Startup banner
+MSG_START_3 FCC  "RUNNING ITOA64 BENCHMARK (6309 VER)... "  ; Startup banner
             FCB  0
-MSG_TOOK    FCC  " DONE. ("  ; Startup banner
+MSG_TOOK    FCC  "DONE. ("  ; Startup banner
             FCB  0
 MSG_END     FCC  " TICKS)"  ; Startup banner
-            FCB  LF,CR,LF,CR,0
+MSG_CR      FCB  LF,CR,0
 ;------------------------------------------------------------------------------
 ; VARS
 ;------------------------------------------------------------------------------
@@ -2174,6 +2172,9 @@ ENDLOOP_3:
     JSR  BF_UT_WAITTX
 
     LDY  #MSG_END
+    JSR  BF_UT_PUTS
+    JSR  BF_UT_WAITTX
+    LDY  #MSG_CR
     JSR  BF_UT_PUTS
     JSR  BF_UT_WAITTX
 
