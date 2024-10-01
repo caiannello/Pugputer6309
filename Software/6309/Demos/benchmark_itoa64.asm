@@ -44,13 +44,9 @@ START:
 ;------------------------------------------------------------------------------
 ; CONSTS
 ;------------------------------------------------------------------------------
-MSG_START   FCC  "RUNNING ITOA64 BENCHMARK (6"
+MSG_START_8 FCC  "RUNNING ITOA64 BENCHMARK (6809 VER)... "
             FCB  0
-MSG_8       FCC  "8"
-            FCB  0
-MSG_3       FCC  "3"
-            FCB  0
-MSG_VER     FCC  "09 VER)... "
+MSG_START_3 FCC  "RUNNING ITOA64 BENCHMARK (6309 VER)... "
             FCB  0
 MSG_TOOK    FCC  "DONE. ("
             FCB  0
@@ -2097,11 +2093,7 @@ TEST_VECTORS:
 MAIN_8:
     LDY  #MSG_CR
     JSR  BF_UT_PUTS
-    LDY  #MSG_START
-    JSR  BF_UT_PUTS
-    LDY  #MSG_8
-    JSR  BF_UT_PUTS
-    LDY  #MSG_VER
+    LDY  #MSG_START_8
     JSR  BF_UT_PUTS    
     JSR  BF_UT_WAITTX
     LDX  #STARTTICKS    ; GET STARTING SYS TICK COUNT (U64 16THS OF SECONDS)
@@ -2117,11 +2109,7 @@ MAINLOOP_8:
 ; MAINLOOP - 6309 VERSION
 ;------------------------------------------------------------------------------
 MAIN_3:
-    LDY  #MSG_START
-    JSR  BF_UT_PUTS
-    LDY  #MSG_3
-    JSR  BF_UT_PUTS
-    LDY  #MSG_VER
+    LDY  #MSG_START_3
     JSR  BF_UT_PUTS
     JSR  BF_UT_WAITTX
     LDX  #STARTTICKS    ; GET STARTING SYS TICK COUNT (U64 16THS OF SECONDS)
