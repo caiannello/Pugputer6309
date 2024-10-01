@@ -2104,6 +2104,8 @@ TEST_VECTORS:
 ; MAINLOOP - 6809 VERSION
 ;------------------------------------------------------------------------------
 MAIN_8:
+    LDY  #MSG_CR
+    JSR  BF_UT_PUTS
     LDY  #MSG_START_8
     JSR  BF_UT_PUTS
     JSR  BF_UT_WAITTX
