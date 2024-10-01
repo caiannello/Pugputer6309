@@ -64,7 +64,148 @@ I64         RMB 8       ; WORKING VALUE
 DIGIT       RMB 1       ; WORKING DIGIT
 LEADZ       RMB 1       ; 1:IGNORING LEADING ZEROES
 ;------------------------------------------------------------------------------
+; MAINLOOP - 6809 VERSION
+;------------------------------------------------------------------------------
+MAIN_8:
+    LDY  #MSG_CR
+    JSR  BF_UT_PUTS
+    LDY  #MSG_START_8
+    JSR  BF_UT_PUTS    
+    JSR  BF_UT_WAITTX
+    LDX  #STARTTICKS    ; GET STARTING SYS TICK COUNT (U64 16THS OF SECONDS)
+    JSR  BF_RTC_GETTIX  
+    LDX  #TEST_VECTORS
+MAINLOOP_8:
+    LDY  #SERBUF
+    JSR  ITOA64_8
+    CMPX #END_TEST_VECTORS
+    BNE  MAINLOOP_8
+    JMP  DO_END_TICKS
+;------------------------------------------------------------------------------
+; MAINLOOP - 6309 VERSION
+;------------------------------------------------------------------------------
+MAIN_3:
+    LDY  #MSG_START_3
+    JSR  BF_UT_PUTS
+    JSR  BF_UT_WAITTX
+    LDX  #STARTTICKS    ; GET STARTING SYS TICK COUNT (U64 16THS OF SECONDS)
+    JSR  BF_RTC_GETTIX  
+    LDX  #TEST_VECTORS
+MAINLOOP_3:
+    LDY  #SERBUF
+    JSR  ITOA64_3
+    CMPX #END_TEST_VECTORS
+    BNE  MAINLOOP_3
+    JMP  DO_END_TICKS
+;------------------------------------------------------------------------------
+DO_END_TICKS:
+    LDX  #ENDTICKS      ; GET ENDING TICKCOUNT
+    JSR  BF_RTC_GETTIX  
+    LDX  #ENDTICKS
+    LDU  #STARTTICKS
+    JSR  SUB64_XU_3
+    LDY  #MSG_TOOK
+    JSR  BF_UT_PUTS
+    LDY  #SERBUF
+    JSR  ITOA64_3
+    LDY  #SERBUF
+    JSR  BF_UT_PUTS
+    LDY  #MSG_END
+    JSR  BF_UT_PUTS
+    JSR  BF_UT_WAITTX
+    RTS
+;------------------------------------------------------------------------------
+; GIVEN AN I64 AT X, NEGATE IT. (COMPLEMENT ALL WORDS, THEN ADD 1.)
+;------------------------------------------------------------------------------
+NEGATE64_8:
+    LDA  #0
+    SUBA  7,X
+    STA   7,X
+    LDA  #0
+    SBCA  6,X
+    STA   6,X
+    LDA  #0
+    SBCA  5,X
+    STA   5,X
+    LDA  #0
+    SBCA  4,X
+    STA   4,X
+    LDA  #0
+    SBCA  3,X
+    STA   3,X
+    LDA  #0
+    SBCA  2,X
+    STA   2,X
+    LDA  #0
+    SBCA  1,X
+    STA   1,X
+    LDA  #0
+    SBCA  0,X
+    STA   0,X
+    RTS
+;------------------------------------------------------------------------------
+; GIVEN I64'S AT X AND U, SUBTRACT U FROM X, LEAVING RESULT IN X.
+;------------------------------------------------------------------------------
+SUB64_XU_8:
+    LDA   7,X
+    SUBA  7,U
+    STA   7,X
+    LDA   6,X
+    SBCA  6,U
+    STA   6,X
+    LDA   5,X
+    SBCA  5,U
+    STA   5,X
+    LDA   4,X
+    SBCA  4,U
+    STA   4,X
+    LDA   3,X
+    SBCA  3,U
+    STA   3,X
+    LDA   2,X
+    SBCA  2,U
+    STA   2,X
+    LDA   1,X
+    SBCA  1,U
+    STA   1,X
+    LDA   0,X
+    SBCA  0,U
+    STA   0,X
+    RTS
+;------------------------------------------------------------------------------
+; GIVEN I64'S AT X AND U, COMPARE X TO U.
+;------------------------------------------------------------------------------
+CMP64_XU_8:
+    ANDCC #$7E          ; CLEAR CARRY
+    LDA   0,X
+    CMPA  0,U
+    BNE   DONECMP64
+    LDA   1,X
+    CMPA  1,U
+    BNE   DONECMP64
+    LDA   2,X
+    CMPA  2,U
+    BNE   DONECMP64
+    LDA   3,X
+    CMPA  3,U
+    BNE   DONECMP64
+    LDA   4,X
+    CMPA  4,U
+    BNE   DONECMP64
+    LDA   5,X
+    CMPA  5,U
+    BNE   DONECMP64
+    LDA   6,X
+    CMPA  6,U
+    BNE   DONECMP64
+    LDA   7,X
+    CMPA  7,U
+    BNE   DONECMP64
+DONECMP64:
+    RTS      
+;------------------------------------------------------------------------------
 ; I64 POWERS OF 10, IN DESCENDING-ORDER, STARTING WITH 10^18
+;------------------------------------------------------------------------------
 POWERS:
     FDB $0DE0,$B6B3,$A764,$0000
     FDB $0163,$4578,$5D8A,$0000
@@ -85,6 +226,176 @@ POWERS:
     FDB $0000,$0000,$0000,$0064
     FDB $0000,$0000,$0000,$000A
     FDB $0000,$0000,$0000,$0001
+;------------------------------------------------------------------------------
+; GIVEN AN I64 AT X, OUTPUTS IT AS A NULL-TERMINATED DECIMAL STRING AT Y.
+; ON RETURN, X WILL BE PAST THE 8-BYTE INPUT, AND Y WILL POINT AT THE STR NULL.
+;------------------------------------------------------------------------------
+ITOA64_8:
+    LDD  ,X++           ; STASH I64 INPUT VALUE AT X TO TEMP WORKING VAR
+    STD  I64+0
+    LDD  ,X++
+    STD  I64+2
+    LDD  ,X++
+    STD  I64+4
+    LDD  ,X++
+    STD  I64+6
+    PSHS X
+    LDA  I64
+    ANDA #$80
+    BEQ  DIDNEG
+    LDX  #I64           ; IF I64 IS NEGATIVE, NEGATE IT,
+    JSR  NEGATE64_8
+    LDA  #'-'           ; AND OUTPUT A MINUS SIGN.
+    STA  ,Y+
+DIDNEG:
+    LDX  #I64           ; X AT TMP64
+    LDU  #POWERS        ; U AT POWERS TABLE
+    LDA  #1
+    STA  LEADZ          ; IGNORING LEADING ZEROES
+IT64_LOOP:              ; FOR EACH POWER OF TEN (EACH DIGIT)
+    LDA  #'0'
+    STA  DIGIT
+IT64_ILOOP:             ; CALCULATE A DIGIT
+    JSR  CMP64_XU_8     ; WHILE TMP64 >= POWER:
+    BLO  DONE_ILOOP
+    INC  DIGIT          ;     DIGIT++
+    JSR  SUB64_XU_8     ;     TMP64 -= POWER
+    BRA  IT64_ILOOP
+DONE_ILOOP:
+    LDA  LEADZ          ; IF NOT IGNORING LEADING ZEROES,
+    BEQ  ADDDIGIT       ; OUTPUT EVERY DIGIT.   
+    LDA  DIGIT
+    CMPA #'0'
+    BNE  NONZERO        ; DIGIT IS NONZERO.
+    CMPU #TEST_VECTORS-8 ; IF ALL ZEROES, DO OUTPUT THE LAST ONE.
+    BEQ  NONZERO
+    BRA  SKIPDIGIT      ; SKIP THIS ZERO DIGIT.
+NONZERO:
+    CLR  LEADZ          ; DONE IGNORING ZEROES.
+ADDDIGIT:
+    LDA  DIGIT          ; ADD DIGIT TO OUTPUT
+    STA  ,Y+
+SKIPDIGIT:
+    LEAU 8,U            ; POINT U AT NEXT (LOWER) POWER OF 10, IF ANY.
+    CMPU #POWERS+152    ; IF PLACE VALUES REMAINING,
+    BNE  IT64_LOOP      ; DO NEXT ONE.
+IT64_DONE:
+    LDA  #0
+    STA  ,Y
+    PULS X
+    RTS
+;------------------------------------------------------------------------------
+; GIVEN AN I64 AT X, NEGATE IT. (COMPLEMENT ALL WORDS, THEN ADD 1.)
+;------------------------------------------------------------------------------
+NEGATE64_3:
+    LDD  #0
+    SUBD 6,X
+    STD  6,X
+    LDD  #0
+    SBCD 4,X
+    STD  4,X
+    LDD  #0
+    SBCD 2,X
+    STD  2,X
+    LDD  #0
+    SBCD 0,X
+    STD  0,X
+    RTS
+;------------------------------------------------------------------------------
+; GIVEN I64'S AT X AND U, SUBTRACT U FROM X, LEAVING RESULT IN X.
+;------------------------------------------------------------------------------
+SUB64_XU_3:
+    LDD   6,X
+    SUBD  6,U
+    STD   6,X
+    LDD   4,X
+    SBCD  4,U
+    STD   4,X
+    LDD   2,X
+    SBCD  2,U
+    STD   2,X
+    LDD   0,X
+    SBCD  0,U
+    STD   0,X
+    RTS
+;------------------------------------------------------------------------------
+; GIVEN I64'S AT X AND U, COMPARE X TO U.
+;------------------------------------------------------------------------------
+CMP64_XU_3:
+    ANDCC #$7E          ; CLEAR CARRY
+    LDD   0,X
+    CMPD  0,U
+    BNE   DONECMP64_3
+    LDD   2,X
+    CMPD  2,U
+    BNE   DONECMP64_3
+    LDD   4,X
+    CMPD  4,U
+    BNE   DONECMP64_3
+    LDD   6,X
+    CMPD  6,U
+DONECMP64_3:
+    RTS      
+;------------------------------------------------------------------------------
+; GIVEN AN I64 AT X, OUTPUTS IT AS A NULL-TERMINATED DECIMAL STRING AT Y.
+; ON RETURN, X WILL BE PAST THE 8-BYTE INPUT, AND Y WILL POINT AT THE STR NULL.
+;------------------------------------------------------------------------------
+ITOA64_3:
+    LDQ   ,X++          ; STASH I64 INPUT VALUE AT X TO TEMP WORKING VAR
+    LEAX 2,X
+    STQ  I64+0
+    LDQ   ,X++
+    LEAX 2,X
+    STQ  I64+4
+    PSHS X
+    LDA  I64
+    ANDA #$80
+    BEQ  DIDNEG_3
+    LDX  #I64           ; IF I64 IS NEGATIVE, NEGATE IT,
+    JSR  NEGATE64_3
+    LDA  #'-'           ; AND OUTPUT A MINUS SIGN.
+    STA  ,Y+
+DIDNEG_3:
+    LDX  #I64           ; X AT TMP64
+    LDU  #POWERS        ; U AT POWERS TABLE
+    LDA  #1
+    STA  LEADZ          ; IGNORING LEADING ZEROES
+IT64_LOOP_3:            ; FOR EACH POWER OF TEN (EACH DIGIT)
+    LDA  #'0'
+    STA  DIGIT
+IT64_ILOOP_3:           ; CALCULATE A DIGIT
+    JSR  CMP64_XU_3     ; WHILE TMP64 >= POWER:
+    BLO  DONE_ILOOP_3
+    INC  DIGIT          ;     DIGIT++
+    JSR  SUB64_XU_3     ;     TMP64 -= POWER
+    BRA  IT64_ILOOP_3
+DONE_ILOOP_3:
+    LDA  LEADZ          ; IF NOT IGNORING LEADING ZEROES,
+    BEQ  ADDDIGIT_3     ; OUTPUT EVERY DIGIT.   
+    LDA  DIGIT
+    CMPA #'0'
+    BNE  NONZERO_3      ; DIGIT IS NONZERO.
+    CMPU #TEST_VECTORS-8 ; IF ALL ZEROES, DO OUTPUT THE LAST ONE.
+    BEQ  NONZERO_3
+    BRA  SKIPDIGIT_3    ; SKIP THIS ZERO DIGIT.
+NONZERO_3:
+    CLR  LEADZ          ; DONE IGNORING ZEROES.
+ADDDIGIT_3:
+    LDA  DIGIT          ; ADD DIGIT TO OUTPUT
+    STA  ,Y+
+SKIPDIGIT_3:
+    LEAU 8,U            ; POINT U AT NEXT (LOWER) POWER OF 10, IF ANY.
+    CMPU #POWERS+152    ; IF PLACE VALUES REMAINING,
+    BNE  IT64_LOOP_3    ; DO NEXT ONE.
+IT64_DONE_3:
+    LDA  #0
+    STA  ,Y
+    PULS X
+    RTS
+
+;------------------------------------------------------------------------------
+; TEST VALUES FOR BENCHMARK
+;------------------------------------------------------------------------------
 TEST_VECTORS:
 ;                INPUT                       EXPECTED_RESULT
     FDB $0000,$0000,$0000,$0000     ;                    "0"
@@ -2088,311 +2399,7 @@ TEST_VECTORS:
     FDB $7AD5,$2901,$35BB,$BB8B     ;  "8851025727839779723"
     FDB $6CE5,$B5E3,$CB08,$6C20     ;  "7846877915731487776"  
 ;------------------------------------------------------------------------------
-; MAINLOOP - 6809 VERSION
-;------------------------------------------------------------------------------
-MAIN_8:
-    LDY  #MSG_CR
-    JSR  BF_UT_PUTS
-    LDY  #MSG_START_8
-    JSR  BF_UT_PUTS    
-    JSR  BF_UT_WAITTX
-    LDX  #STARTTICKS    ; GET STARTING SYS TICK COUNT (U64 16THS OF SECONDS)
-    JSR  BF_RTC_GETTIX  
-    LDX  #TEST_VECTORS
-MAINLOOP_8:
-    LDY  #SERBUF
-    JSR  ITOA64_8
-    CMPX #MAIN_8
-    BNE  MAINLOOP_8
-    JMP  DO_END_TICKS
-;------------------------------------------------------------------------------
-; MAINLOOP - 6309 VERSION
-;------------------------------------------------------------------------------
-MAIN_3:
-    LDY  #MSG_START_3
-    JSR  BF_UT_PUTS
-    JSR  BF_UT_WAITTX
-    LDX  #STARTTICKS    ; GET STARTING SYS TICK COUNT (U64 16THS OF SECONDS)
-    JSR  BF_RTC_GETTIX  
-    LDX  #TEST_VECTORS
-MAINLOOP_3:
-    LDY  #SERBUF
-    JSR  ITOA64_3
-    CMPX #MAIN_8
-    BNE  MAINLOOP_3
-    JMP  DO_END_TICKS
-;------------------------------------------------------------------------------
-DO_END_TICKS:
-    LDX  #ENDTICKS      ; GET ENDING TICKCOUNT
-    JSR  BF_RTC_GETTIX  
-    LDX  #ENDTICKS
-    LDU  #STARTTICKS
-    JSR  SUB64_XU_3
-    LDY  #MSG_TOOK
-    JSR  BF_UT_PUTS
-    LDY  #SERBUF
-    JSR  ITOA64_3
-    LDY  #SERBUF
-    JSR  BF_UT_PUTS
-    LDY  #MSG_END
-    JSR  BF_UT_PUTS
-    JSR  BF_UT_WAITTX
-    RTS
-;------------------------------------------------------------------------------
-; GIVEN AN I64 AT X, NEGATE IT. (COMPLEMENT ALL WORDS, THEN ADD 1.)
-;------------------------------------------------------------------------------
-NEGATE64_8:
-    LDA  #0
-    SUBA  7,X
-    STA   7,X
-    LDA  #0
-    SBCA  6,X
-    STA   6,X
-    LDA  #0
-    SBCA  5,X
-    STA   5,X
-    LDA  #0
-    SBCA  4,X
-    STA   4,X
-    LDA  #0
-    SBCA  3,X
-    STA   3,X
-    LDA  #0
-    SBCA  2,X
-    STA   2,X
-    LDA  #0
-    SBCA  1,X
-    STA   1,X
-    LDA  #0
-    SBCA  0,X
-    STA   0,X
-    RTS
-;------------------------------------------------------------------------------
-; GIVEN I64'S AT X AND U, SUBTRACT U FROM X, LEAVING RESULT IN X.
-;------------------------------------------------------------------------------
-SUB64_XU_8:
-    LDA   7,X
-    SUBA  7,U
-    STA   7,X
-    LDA   6,X
-    SBCA  6,U
-    STA   6,X
-    LDA   5,X
-    SBCA  5,U
-    STA   5,X
-    LDA   4,X
-    SBCA  4,U
-    STA   4,X
-    LDA   3,X
-    SBCA  3,U
-    STA   3,X
-    LDA   2,X
-    SBCA  2,U
-    STA   2,X
-    LDA   1,X
-    SBCA  1,U
-    STA   1,X
-    LDA   0,X
-    SBCA  0,U
-    STA   0,X
-    RTS
-;------------------------------------------------------------------------------
-; GIVEN I64'S AT X AND U, COMPARE X TO U.
-;------------------------------------------------------------------------------
-CMP64_XU_8:
-    ANDCC #$7E          ; CLEAR CARRY
-    LDA   0,X
-    CMPA  0,U
-    BNE   DONECMP64
-    LDA   1,X
-    CMPA  1,U
-    BNE   DONECMP64
-    LDA   2,X
-    CMPA  2,U
-    BNE   DONECMP64
-    LDA   3,X
-    CMPA  3,U
-    BNE   DONECMP64
-    LDA   4,X
-    CMPA  4,U
-    BNE   DONECMP64
-    LDA   5,X
-    CMPA  5,U
-    BNE   DONECMP64
-    LDA   6,X
-    CMPA  6,U
-    BNE   DONECMP64
-    LDA   7,X
-    CMPA  7,U
-    BNE   DONECMP64
-DONECMP64:
-    RTS      
-;------------------------------------------------------------------------------
-; GIVEN AN I64 AT X, OUTPUTS IT AS A NULL-TERMINATED DECIMAL STRING AT Y.
-; ON RETURN, X WILL BE PAST THE 8-BYTE INPUT, AND Y WILL POINT AT THE STR NULL.
-;------------------------------------------------------------------------------
-ITOA64_8:
-    LDD  ,X++           ; STASH I64 INPUT VALUE AT X TO TEMP WORKING VAR
-    STD  I64+0
-    LDD  ,X++
-    STD  I64+2
-    LDD  ,X++
-    STD  I64+4
-    LDD  ,X++
-    STD  I64+6
-    PSHS X
-    LDA  I64
-    ANDA #$80
-    BEQ  DIDNEG
-    LDX  #I64           ; IF I64 IS NEGATIVE, NEGATE IT,
-    JSR  NEGATE64_8
-    LDA  #'-'           ; AND OUTPUT A MINUS SIGN.
-    STA  ,Y+
-DIDNEG:
-    LDX  #I64           ; X AT TMP64
-    LDU  #POWERS        ; U AT POWERS TABLE
-    LDA  #1
-    STA  LEADZ          ; IGNORING LEADING ZEROES
-IT64_LOOP:              ; FOR EACH POWER OF TEN (EACH DIGIT)
-    LDA  #'0'
-    STA  DIGIT
-IT64_ILOOP:             ; CALCULATE A DIGIT
-    JSR  CMP64_XU_8     ; WHILE TMP64 >= POWER:
-    BLO  DONE_ILOOP
-    INC  DIGIT          ;     DIGIT++
-    JSR  SUB64_XU_8     ;     TMP64 -= POWER
-    BRA  IT64_ILOOP
-DONE_ILOOP:
-    LDA  LEADZ          ; IF NOT IGNORING LEADING ZEROES,
-    BEQ  ADDDIGIT       ; OUTPUT EVERY DIGIT.   
-    LDA  DIGIT
-    CMPA #'0'
-    BNE  NONZERO        ; DIGIT IS NONZERO.
-    CMPU #TEST_VECTORS-8 ; IF ALL ZEROES, DO OUTPUT THE LAST ONE.
-    BEQ  NONZERO
-    BRA  SKIPDIGIT      ; SKIP THIS ZERO DIGIT.
-NONZERO:
-    CLR  LEADZ          ; DONE IGNORING ZEROES.
-ADDDIGIT:
-    LDA  DIGIT          ; ADD DIGIT TO OUTPUT
-    STA  ,Y+
-SKIPDIGIT:
-    LEAU 8,U            ; POINT U AT NEXT (LOWER) POWER OF 10, IF ANY.
-    CMPU #POWERS+152    ; IF PLACE VALUES REMAINING,
-    BNE  IT64_LOOP      ; DO NEXT ONE.
-IT64_DONE:
-    LDA  #0
-    STA  ,Y
-    PULS X
-    RTS
-;------------------------------------------------------------------------------
-; GIVEN AN I64 AT X, NEGATE IT. (COMPLEMENT ALL WORDS, THEN ADD 1.)
-;------------------------------------------------------------------------------
-NEGATE64_3:
-    LDD  #0
-    SUBD 6,X
-    STD  6,X
-    LDD  #0
-    SBCD 4,X
-    STD  4,X
-    LDD  #0
-    SBCD 2,X
-    STD  2,X
-    LDD  #0
-    SBCD 0,X
-    STD  0,X
-    RTS
-;------------------------------------------------------------------------------
-; GIVEN I64'S AT X AND U, SUBTRACT U FROM X, LEAVING RESULT IN X.
-;------------------------------------------------------------------------------
-SUB64_XU_3:
-    LDD   6,X
-    SUBD  6,U
-    STD   6,X
-    LDD   4,X
-    SBCD  4,U
-    STD   4,X
-    LDD   2,X
-    SBCD  2,U
-    STD   2,X
-    LDD   0,X
-    SBCD  0,U
-    STD   0,X
-    RTS
-;------------------------------------------------------------------------------
-; GIVEN I64'S AT X AND U, COMPARE X TO U.
-;------------------------------------------------------------------------------
-CMP64_XU_3:
-    ANDCC #$7E          ; CLEAR CARRY
-    LDD   0,X
-    CMPD  0,U
-    BNE   DONECMP64_3
-    LDD   2,X
-    CMPD  2,U
-    BNE   DONECMP64_3
-    LDD   4,X
-    CMPD  4,U
-    BNE   DONECMP64_3
-    LDD   6,X
-    CMPD  6,U
-DONECMP64_3:
-    RTS      
-;------------------------------------------------------------------------------
-; GIVEN AN I64 AT X, OUTPUTS IT AS A NULL-TERMINATED DECIMAL STRING AT Y.
-; ON RETURN, X WILL BE PAST THE 8-BYTE INPUT, AND Y WILL POINT AT THE STR NULL.
-;------------------------------------------------------------------------------
-ITOA64_3:
-    LDQ   ,X++          ; STASH I64 INPUT VALUE AT X TO TEMP WORKING VAR
-    LEAX 2,X
-    STQ  I64+0
-    LDQ   ,X++
-    LEAX 2,X
-    STQ  I64+4
-    PSHS X
-    LDA  I64
-    ANDA #$80
-    BEQ  DIDNEG_3
-    LDX  #I64           ; IF I64 IS NEGATIVE, NEGATE IT,
-    JSR  NEGATE64_3
-    LDA  #'-'           ; AND OUTPUT A MINUS SIGN.
-    STA  ,Y+
-DIDNEG_3:
-    LDX  #I64           ; X AT TMP64
-    LDU  #POWERS        ; U AT POWERS TABLE
-    LDA  #1
-    STA  LEADZ          ; IGNORING LEADING ZEROES
-IT64_LOOP_3:            ; FOR EACH POWER OF TEN (EACH DIGIT)
-    LDA  #'0'
-    STA  DIGIT
-IT64_ILOOP_3:           ; CALCULATE A DIGIT
-    JSR  CMP64_XU_3     ; WHILE TMP64 >= POWER:
-    BLO  DONE_ILOOP_3
-    INC  DIGIT          ;     DIGIT++
-    JSR  SUB64_XU_3     ;     TMP64 -= POWER
-    BRA  IT64_ILOOP_3
-DONE_ILOOP_3:
-    LDA  LEADZ          ; IF NOT IGNORING LEADING ZEROES,
-    BEQ  ADDDIGIT_3     ; OUTPUT EVERY DIGIT.   
-    LDA  DIGIT
-    CMPA #'0'
-    BNE  NONZERO_3      ; DIGIT IS NONZERO.
-    CMPU #TEST_VECTORS-8 ; IF ALL ZEROES, DO OUTPUT THE LAST ONE.
-    BEQ  NONZERO_3
-    BRA  SKIPDIGIT_3    ; SKIP THIS ZERO DIGIT.
-NONZERO_3:
-    CLR  LEADZ          ; DONE IGNORING ZEROES.
-ADDDIGIT_3:
-    LDA  DIGIT          ; ADD DIGIT TO OUTPUT
-    STA  ,Y+
-SKIPDIGIT_3:
-    LEAU 8,U            ; POINT U AT NEXT (LOWER) POWER OF 10, IF ANY.
-    CMPU #POWERS+152    ; IF PLACE VALUES REMAINING,
-    BNE  IT64_LOOP_3    ; DO NEXT ONE.
-IT64_DONE_3:
-    LDA  #0
-    STA  ,Y
-    PULS X
-    RTS
+END_TEST_VECTORS
 ;------------------------------------------------------------------------------
 ; EOF
 ;------------------------------------------------------------------------------
