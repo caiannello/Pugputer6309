@@ -30,7 +30,7 @@ START:
 ; CONSTS
 ;------------------------------------------------------------------------------
 MSG_START   FCB  LF,CR
-            FCC  "RUNNING ITOA64 ATOI64 BENCHMARK... "
+            FCC  "RUNNING BENCHMARK ITOA64 <-> ATOI64... "
             FCB  0
 MSG_TOOK    FCC  "DONE. ("
             FCB  0
