@@ -24,7 +24,7 @@ ESC EQU  $1B
     ORG $2000
 ;------------------------------------------------------------------------------
 START:
-    ;JSR  TICKSLOOP
+    ;JSR  TICKSLOOP    
     JSR TEST
     RTS
 ;------------------------------------------------------------------------------
@@ -169,28 +169,33 @@ PRINT_U64X:
     JSR  BF_UT_WAITTX
     RTS
 ;------------------------------------------------------------------------------
-S_HEXY:
-S_HEXA      TFR  A,B        ; SAVE ORIGINAL BINARY VALUE
-            LSRA            ; MOVE HIGH DIGIT TO LOW DIGIT
-            LSRA
-            LSRA
-            LSRA
-            CMPA #9
-            BLS  AD30       ; BRANCH IF HIGH DIGIT IS DECIMAL
-            ADDA #7         ; ELSE ADD 7 SO AFTER ADDING 'O' THE
-                            ; CHARACTER WILL BE IN ‘'A'..'F'
-AD30:       ADDA #'0        ; ADD ASCII O TO MAKE A CHARACTER
-            ANDB #$0F       ; MASK OFF LOW DIGIT
-            CMPB #9
-            BLS AD3OLD      ; BRANCH IF LOW DIGIT IS DECIMAL
-            ADDB #7         ; ELSE ADD 7 SO AFTER ADDING 'O! THE
-                            ; CHARACTER WILL BE IN '‘A'..'F!
-AD3OLD:     ADDB #'0        ; ADD ASCII O TO MAKE A CHARACTER
-            STA ,Y+         ; INSERT HEX BYTES INTO DEST STRING AT X
-            STB ,Y+         ; AND NCREMENT X
-            RTS 
+; CONVERTS VAL IN A TO HEX STRING AT Y. 
+; DOES INCREMENT Y, BUT DOESN'T NULL-TERMINATE STRING.
 ;------------------------------------------------------------------------------
-; GIVEN AN I64 AT X, NEGATE IT. (COMPLEMENT ALL WORDS, THEN ADD 1.)
+S_HEXY:
+    TFR  A,B        ; SAVE ORIGINAL BINARY VALUE
+    LSRA            ; MOVE HIGH DIGIT TO LOW DIGIT
+    LSRA
+    LSRA
+    LSRA
+    CMPA #9
+    BLS  AD30       ; BRANCH IF HIGH DIGIT IS DECIMAL
+    ADDA #7         ; ELSE ADD 7 SO AFTER ADDING 'O' THE
+                    ; CHARACTER WILL BE IN ‘'A'..'F'
+AD30:
+    ADDA #'0        ; ADD ASCII O TO MAKE A CHARACTER
+    ANDB #$0F       ; MASK OFF LOW DIGIT
+    CMPB #9
+    BLS AD3OLD      ; BRANCH IF LOW DIGIT IS DECIMAL
+    ADDB #7         ; ELSE ADD 7 SO AFTER ADDING 'O! THE
+                    ; CHARACTER WILL BE IN '‘A'..'F!
+AD3OLD:     
+    ADDB #'0        ; ADD ASCII O TO MAKE A CHARACTER
+    STA ,Y+         ; INSERT HEX BYTES INTO DEST STRING AT X
+    STB ,Y+         ; AND NCREMENT X
+    RTS 
+;------------------------------------------------------------------------------
+; GIVEN AN I64 AT X, NEGATE IT IN PLACE BY SUBTRACTING IT FROM ZERO.
 ;------------------------------------------------------------------------------
 NEGATE64:
     LDD  #0
@@ -323,7 +328,7 @@ DONE_ILOOP:
     LDA  DIGIT
     CMPA #'0'
     BNE  NONZERO        ; DIGIT IS NONZERO.
-    CMPU #TEST_VECTORS-8 ; IF ALL ZEROES, DO OUTPUT THE LAST ONE.
+    CMPU #POWERS+144    ; IF ALL ZEROES, DO OUTPUT THE LAST ONE.
     BEQ  NONZERO
     BRA  SKIPDIGIT      ; SKIP THIS ZERO DIGIT.
 NONZERO:
@@ -342,6 +347,7 @@ IT64_DONE:
     RTS
 ;------------------------------------------------------------------------------
 ; GIVEN A NULL-TERMINATED DECIMAL STRING AT Y, OUTPUTS AN 8-BYTE I64 AT X.
+; IF INPUT IS MALFORMED, RETURNS SMALLEST POSSIBLE INT64 IN X.
 ; ON RETURN, X AND Y WILL BE UNCHANGED.
 ;------------------------------------------------------------------------------
 ATOI64:
@@ -356,22 +362,24 @@ ATVAL:                  ; VALIDATION LOOP:
     CMPA #'-'           ; IF NEGATIVE SIGN.
     BEQ  ATNEG
     CMPA #'0'
-    BLO  ATVAL_END      ; END DUE TO NON-DIGIT.
+    BLO  ATVAL_END      ; IF OTHER NON-DIGIT WE'RE AT THE END OF STRING.
     CMPA #'9'
-    BHI  ATVAL_END      ; END DUE TO NON-DIGIT
-    INCB                ; COUNT GOOD DIGIT,
+    BHI  ATVAL_END
+    INCB                ; COUNT DECIMAL DIGITS,
     CMPB #22
-    BHI  AT64_DONE      ; IF NUM DIGITS EXCEEDS 22, BAIL.
+    BHI  AT64_FAIL      ; IF COUNT EXCEEDS 22, FAIL.
     LEAY 1,Y            ; IDX TO NEXT CHAR OF STRING,
     BRA  ATVAL          ; AND KEEP LOOPING.
 ATNEG:
+    LDA  ISNEG          ; IF WE'RE SEEING REPEATED NEGATIVE SIGNS,
+    BNE  AT64_FAIL      ; THEN FAIL.
     LDA  #1
     STA  ISNEG          ; NOTE IS NEGATIVE NUM,
     LEAY 1,Y            ; IDX TO NEXT CHAR OF STRING,
     BRA  ATVAL          ; AND KEEP LOOPING.
 ATVAL_END:
     TSTB
-    BEQ  AT64_DONE      ; IF NO DIGITS, BAIL.
+    BEQ  AT64_FAIL      ; IF NO DIGITS, FAIL.
     STB  NDIGITS
     ; CLEAR 8 BYTES AT X
     LDQ  #0
@@ -389,7 +397,7 @@ NEGPWRS:
     ; LOOP BACKWARDS THROUGH INPUT STRING, STARTING AT THE ONES' PLACE,
     ; AND FOR EACH DIGIT, MULTIPLY BY THE POWER AT U AND SUM IN RESULT.
     ; THEN DECREMENT STRING POS BY ONE AND DECREMENT U BY EIGHT.
-ATSTART
+ATSTART:
     LDB  NDIGITS
     LEAY -1,Y           ; REFERENCE CHAR AT ONES PLACE    
 ATDIGLOOP:
@@ -403,14 +411,26 @@ ATILOOP:
     DEC  DIGIT
     LDA  DIGIT
     BNE  ATILOOP
-ATZERO
+ATZERO:
     LEAY -1,Y           ; REF NEXT PLACE VAL IN STRING
     LEAU -8,U           ; AND NEXT PLACE VALUE IN POWERS TABLE
     LDB  NDIGITS
     BNE  ATDIGLOOP      ; LOOP FOR REMAINING PLACE VALUES
-
-AT64_DONE
+AT64_DONE:
     PULS X,Y
+    RTS
+AT64_FAIL:
+    PULS X,Y
+    JSR SET_MINI64_X
+    RTS
+;------------------------------------------------------------------------------
+; WRITES INT64_MIN TO ADRESS IN X
+;------------------------------------------------------------------------------
+SET_MINI64_X
+    LDQ  #NEGPOWERS+0
+    STQ  0,X
+    LDQ  #NEGPOWERS+4
+    STQ  4,X
     RTS
 ;------------------------------------------------------------------------------
 ; 2000 TEST VALUES (FOR BENCHMARKING)
