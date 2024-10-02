@@ -10,8 +10,6 @@
 ;------------------------------------------------------------------------------
     INCLUDE bios_func_tab.d     ; BIOS functions jump table
 ;------------------------------------------------------------------------------
-LF                  equ  $0A        ; LINE FEED
-CR                  equ  $0D        ; CARRIAGE RETURN
 TICKS_PER_MINUTE    equ  $3C0       ; 960
 TICKS_PER_SECOND    equ  $10        ; 16
 ; -----------------------------------------------------------------------------
@@ -21,91 +19,71 @@ TICKS_PER_SECOND    equ  $10        ; 16
 ; -----------------------------------------------------------------------------
 ENTRYPOINT  
     LDX  #TIMESET    ; SET SYSTEM TICK COUNT FROM TIMESET CONSTANT
-    JSR  BF_RTC_SETTIX
-    JMP  MAINLOOP
+    ;JSR  BF_RTC_SETTIX
+    JMP  TESTLOOP
 ;------------------------------------------------------------------------------
 ; STARTING TIMESTAMP (SET ABOVE) IT'S AN INT64 UNIX_TIMESTAMP_SECS*16
 ;------------------------------------------------------------------------------
-
-TIMESET     FQB $6,$6F9F1430
-
+TIMESET     FQB $6,$6FD76EE0
 ;------------------------------------------------------------------------------
 ; VARS
 ;------------------------------------------------------------------------------
-
-; USED IN MAIN
-
+; USED IN TEST
 MYBUF       RMB  64     ; STRING BUF
 THISTICKS   RMB  8      ; STASH OF FULL RTC TICK COUNTER (1/16THS OF SECS)
-
 ; USED IN TS_TO_DATE
-
 TMP64       RMB  8
 TMP16_0     RMB  2
 TMP16_1     RMB  2
 TMP8_0      RMB  1
 TMP8_1      RMB  1
-TMPYEAR     RMB  2
+
+TMPYEAR     RMB  2      ; DECIMAL RESULT
 TMPDAYYR    RMB  2
+TMPMON      RMB  1
+TMPDAYMON   RMB  1
 TMPHOUR     RMB  1
 TMPMIN      RMB  1
 TMPSEC      RMB  1
 TMPTICKS    RMB  1
-TMPMON      RMB  1
-TMPDAYMON   RMB  1
 
-YRHIBCD     RMB  1
+YRHIBCD     RMB  1      ; BCD RESULT
 YRLOWBCD    RMB  1
 MONBCD      RMB  1
 DAYMONBCD   RMB  1
 HOURBCD     RMB  1
 MINBCD      RMB  1
 SECBCD      RMB  1
-TICKBCD     RMB  1
+HUNDBCD     RMB  1
 ;------------------------------------------------------------------------------
-; MAIN
+; TEST
 ;------------------------------------------------------------------------------
-MAINLOOP    
+TESTLOOP    
     JSR  BF_UT_GETC ; QUIT LOOP IF ESC RECEIVED
     CMPA #$1B
     LBEQ ENDLOOP
-
     LDX  #THISTICKS ; GET SYSTEM TICK COUNT (U64 16THS OF SECONDS)
     JSR  BF_RTC_GETTIX  
-
     LDX  #THISTICKS
-    JSR  TS_TO_DATE ; CONVERT TICKCOUNT TO DATE/TIME
-
-    LDD  TMPYEAR    ; MAKE BCD VERSIONS FOR PRINTOUT
-    DIVD #100
-    STA  TMP8_0
-    STB  TMP8_1
-    LDA  TMP8_1
-    JSR  BN2BCD
-    STB  YRHIBCD
-    LDA  TMP8_0
-    JSR  BN2BCD
-    STB  YRLOWBCD
-    LDA  TMPMON
-    JSR  BN2BCD
-    STB  MONBCD
-    LDA  TMPDAYMON
-    JSR  BN2BCD
-    STB  DAYMONBCD
-    LDA  TMPHOUR
-    JSR  BN2BCD
-    STB  HOURBCD
-    LDA  TMPMIN
-    JSR  BN2BCD
-    STB  MINBCD
-    LDA  TMPSEC
-    JSR  BN2BCD
-    STB  SECBCD
-    LDA  TMPTICKS
-    JSR  BN2BCD
-    STB  TICKBCD
-
-    LDY  #MYBUF      ; OUTPUT AS STRING VIA SERIAL.
+    JSR  TS_TO_DATE ; CONVERT TICKCOUNT TO DATE/TIME,
+    LDY  #MYBUF     ; AND TO OUTPUT BUFFER,
+    JSR  STRDATE    ; WRITE AS AN ISO-8601 STRING.
+    LDA  #CR        ; ADD LF + CR + NULL
+    STA  ,Y+
+    LDA  #LF
+    STA  ,Y+
+    LDA  #0
+    STA  ,Y+
+    LDY  #MYBUF     ; OUTPUT STRING VIS SERIAL
+    JSR  BF_UT_PUTS
+    JSR  BF_UT_WAITTX
+    JMP  TESTLOOP   ; KEEP LOOPING  
+ENDLOOP
+    RTS
+;------------------------------------------------------------------------------
+; GIVEN BCD DATE FIELDS FROM TS_TO_DATE, OUTPUTS TO Y AS AN ISO-8601 STRING.
+;------------------------------------------------------------------------------
+STRDATE
     LDA  YRHIBCD
     JSR  S_HEXA
     LDA  YRLOWBCD
@@ -132,21 +110,14 @@ MAINLOOP
     JSR  S_HEXA
     LDA  #'.'
     STA  ,Y+
-    LDA  TICKBCD
+    LDA  HUNDBCD
     JSR  S_HEXA
-    LDA  #CR
-    STA  ,Y+
-    LDA  #LF
-    STA  ,Y+
-    LDA  #0
-    STA  ,Y+
-    LDY  #MYBUF
-    JSR  BF_UT_PUTS
-    JSR  BF_UT_WAITTX
-    JMP  MAINLOOP   ; KEEP LOOPING  
-ENDLOOP
+    LDA  #NUL
+    STA  ,Y
     RTS
-
+;------------------------------------------------------------------------------
+; CONVERTS BYTE VALUE FROM A TO AN UNTERMINATED 2-BYTE HEX STRING AT Y. 
+; Y IS INCREMENTED BY TWO. (L. LEVENTHAL)
 ;------------------------------------------------------------------------------
 S_HEXA      
     TFR  A,B        ; SAVE ORIGINAL BINARY VALUE
@@ -156,31 +127,24 @@ S_HEXA
     LSRA
     CMPA #9
     BLS  AD30       ; BRANCH IF HIGH DIGIT IS DECIMAL
-    ADDA #7         ; ELSE ADD 7 SO AFTER ADDING 'O' THE
+    ADDA #7         ; ELSE ADD 7 SO AFTER ADDING '0' THE
                     ; CHARACTER WILL BE IN ‘'A'..'F'
 AD30:       
-    ADDA #'0        ; ADD ASCII O TO MAKE A CHARACTER
+    ADDA #'0        ; ADD ASCII 0 TO MAKE A CHARACTER
     ANDB #$0F       ; MASK OFF LOW DIGIT
     CMPB #9
     BLS AD3OLD      ; BRANCH IF LOW DIGIT IS DECIMAL
-    ADDB #7         ; ELSE ADD 7 SO AFTER ADDING 'O! THE
+    ADDB #7         ; ELSE ADD 7 SO AFTER ADDING '0' THE
                     ; CHARACTER WILL BE IN '‘A'..'F!
 AD3OLD:     
-    ADDB #'0        ; ADD ASCII O TO MAKE A CHARACTER
-    STA ,Y+         ; INSERT HEX BYTES INTO DEST STRING AT X
-    STB ,Y+         ; AND NCREMENT X
+    ADDB #'0        ; ADD ASCII 0 TO MAKE A CHARACTER
+    STA ,Y+         ; INSERT HEX BYTES INTO DEST STRING AT Y
+    STB ,Y+         ; AND NCREMENT Y
     RTS     
 ;------------------------------------------------------------------------------
-; CONVERT A U8 IN A TO BCD IN D
+; CONVERT A U8 IN A TO BCD IN D (FROM LANCE LEVENTHAL)
 ;------------------------------------------------------------------------------
 BN2BCD: 
-;    LDB  #$FF       ; START QUOTIENT AT -1
-;D100LP: 
-;    INCB            ; ADD 1 TO QUOTIENT
-;    SUBA #100       ; SUBTRACT 100 FROM DIVIDEND
-;    BCC  D100LP     ; JUMP IF DIFFERENCE STILL POSITIVE
-;    ADDA #100       ; IF NOT, ADD THE LAST 100 BACK
-;    STB  ,-S        ; SAVE 100'S DIGIT ON STACK
     LDB  #$FF       ; START QUOTIENT AT -1
 D10LP:  
     INCB            ; ADD 1 TO QUOTIENT
@@ -193,7 +157,6 @@ D10LP:
     LSLB
     STA  ,-S        ; SAVE 1'S DIGIT ON STACK
     ADDB ,S+        ; COMBINE 1'S AND 10'S DIGITS IN B
- ;   LDA  ,S+        ; RETURN 100'S DIGIT IN A
     RTS
 ;------------------------------------------------------------------------------
 ; Compare U64 at Y to U32 at X
@@ -291,6 +254,8 @@ TICKS_PER_DAY       FQB  $151800            ; 1382400
 TICKS_PER_HOUR      FQB  $E100              ; 57600
 DAYS_IN_MONTHS      FCB  31,28,31,30,31,30,31,31,30,31,30,31
 DAYS_IN_MONTHS_LEAP FCB  31,29,31,30,31,30,31,31,30,31,30,31
+; TICKCOUNTS [0...15] IN HUNDREDTHS OF SECS * 100
+FRACS               FCB 0,6,12,19,25,31,38,44,50,56,62,69,75,81,88,94
 ;------------------------------------------------------------------------------
 TS_TO_DATE
     PSHS A,B,X,Y
@@ -330,14 +295,14 @@ GOTDAYYR
     ; by now, remaining timestamp will be a u32 (<$151800) and
     ; ticks per hour is a u16 ($E100), so we can calc this more efficiently
     ; (But we're not, yet.)
-HOURSLOOP
+HOURSLOOP               ; CALC HOUR OF DAY
     LDX  #TICKS_PER_HOUR
     JSR  Y64_CMPX32
     BLO  GOTHOUR
     JSR  I64Y_SUBI32X
     INC  TMPHOUR
     BRA  HOURSLOOP
-GOTHOUR
+GOTHOUR                 ; CALC MINUTE OF HOUR
     ; remaining timestamp will be a u16 (<$e100) and ticks per 
     ; minute is a u16 ($3c0), so we can calc minutes efficiently
     LDQ  #0
@@ -345,7 +310,7 @@ GOTHOUR
     DIVQ #TICKS_PER_MINUTE
     STF  TMPMIN
     STD  6,Y
-GOTMINUTE
+GOTMINUTE               ; CALC SECOND OF MINUTE               
     ; remaining timestamp will be a u16 (<$3C0) and
     ; ticks per second is a u8 ($10).
     LDD  6,Y
@@ -353,7 +318,7 @@ GOTMINUTE
     STB  TMPSEC
     TFR  A,D
     STB  TMPTICKS
-GOTSECOND
+GOTSECOND               ; CALC MONTH OF YEAR
     LDD  TMPDAYYR
     STD  TMP16_0
     LDD  TMPYEAR
@@ -378,10 +343,41 @@ MONTHSLOOP
     INC  TMPMON
     BRA  MONTHSLOOP
 GOTMONTH
-    INC  TMPMON     ; Months are numbered starting at one.
-    LDD  TMP16_0
-    STB  TMPDAYMON  ; Remaing days are the day of month,
-    INC  TMPDAYMON  ; which also starts at one. 
+    INC  TMPMON     ; MONTHS ARE NUMBERED STARTING AT ONE.
+    LDD  TMP16_0    ; STORE CURRENT DAY WITHIN MONTH
+    STB  TMPDAYMON
+    INC  TMPDAYMON  ; ALSO STARTING AT ONE.
+    LDD  TMPYEAR    ; GET YEAR AS INT16, E.G. 2024
+    DIVD #100       ; GET HIGH AND LOW PARTS, E.G. 20 AND 24
+    STA  TMP8_0
+    STB  TMP8_1
+    LDA  TMP8_1
+    JSR  BN2BCD
+    STB  YRHIBCD    ; HIGH PART AS BCD (CURRENTLY $20)
+    LDA  TMP8_0
+    JSR  BN2BCD
+    STB  YRLOWBCD   ; LOW PART AS BCD (CURRENTLY $24)
+    LDA  TMPMON     ; MONTH BCD ($01...$12)
+    JSR  BN2BCD
+    STB  MONBCD
+    LDA  TMPDAYMON  ; DAY OF MONTH BCD ($01...$31)
+    JSR  BN2BCD
+    STB  DAYMONBCD
+    LDA  TMPHOUR    ; HOUR OF DAY BCD ($00..$23)
+    JSR  BN2BCD
+    STB  HOURBCD
+    LDA  TMPMIN     ; MINUTE OF HOUR BCD ($00...$59)
+    JSR  BN2BCD
+    STB  MINBCD
+    LDA  TMPSEC     ; SECOND OF MINUTE BCD ($00...$59)
+    JSR  BN2BCD
+    STB  SECBCD
+    LDA  TMPTICKS   ; REMAINING TICKS AS HUNDREDTHS OF SEC BCD ($00...$94)
+    LDX  #FRACS
+    LDA  A,X
+    JSR  BN2BCD
+    STB  HUNDBCD
+
     PULS A,B,X,Y
     RTS
 ;------------------------------------------------------------------------------
