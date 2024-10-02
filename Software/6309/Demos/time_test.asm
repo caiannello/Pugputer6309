@@ -67,7 +67,7 @@ TESTLOOP
     LDX  #THISTICKS
     JSR  TS_TO_DATE ; CONVERT TICKCOUNT TO DATE/TIME,
     LDY  #MYBUF     ; AND TO OUTPUT BUFFER,
-    JSR  STRDATE    ; WRITE AS AN ISO-8601 STRING.
+    JSR  DATE_STRY  ; WRITE AS AN ISO-8601 STRING.
     LDA  #CR        ; ADD LF + CR + NULL
     STA  ,Y+
     LDA  #LF
@@ -83,7 +83,7 @@ ENDLOOP
 ;------------------------------------------------------------------------------
 ; GIVEN BCD DATE FIELDS FROM TS_TO_DATE, OUTPUTS TO Y AS AN ISO-8601 STRING.
 ;------------------------------------------------------------------------------
-STRDATE
+DATE_STRY
     LDA  YRHIBCD
     JSR  S_HEXA
     LDA  YRLOWBCD
