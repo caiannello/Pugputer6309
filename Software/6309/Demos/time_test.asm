@@ -28,17 +28,16 @@ TIMESET     FQB $6,$6FD76EE0
 ;------------------------------------------------------------------------------
 ; VARS
 ;------------------------------------------------------------------------------
-; USED IN TEST
 MYBUF       RMB  64     ; STRING BUF
-THISTICKS   RMB  8      ; STASH OF FULL RTC TICK COUNTER (1/16THS OF SECS)
-; USED IN TS_TO_DATE
-TMP64       RMB  8
+THISTICKS   RMB  8      ; STASH OF U64 RTC TICKCOUNT (1/16THS OF SECS)
+
+TMP64       RMB  8      ; TS_TO_DATE VARS
 TMP16_0     RMB  2
 TMP16_1     RMB  2
 TMP8_0      RMB  1
 TMP8_1      RMB  1
 
-TMPYEAR     RMB  2      ; DECIMAL RESULT
+TMPYEAR     RMB  2      ; TS_TO_DATE DECIMAL RESULT
 TMPDAYYR    RMB  2
 TMPMON      RMB  1
 TMPDAYMON   RMB  1
@@ -47,7 +46,7 @@ TMPMIN      RMB  1
 TMPSEC      RMB  1
 TMPTICKS    RMB  1
 
-YRHIBCD     RMB  1      ; BCD RESULT
+YRHIBCD     RMB  1      ; TS_TO_DATE BCD RESULT
 YRLOWBCD    RMB  1
 MONBCD      RMB  1
 DAYMONBCD   RMB  1
@@ -59,61 +58,64 @@ HUNDBCD     RMB  1
 ; TEST
 ;------------------------------------------------------------------------------
 TESTLOOP    
-    JSR  BF_UT_GETC ; QUIT LOOP IF ESC RECEIVED
+    JSR  BF_UT_GETC     ; QUIT LOOP IF ESC RECEIVED
     CMPA #$1B
-    LBEQ ENDLOOP
-    LDX  #THISTICKS ; GET SYSTEM TICK COUNT (U64 16THS OF SECONDS)
+    BEQ  ENDLOOP
+    LDX  #THISTICKS     ; GET SYSTEM TICKCOUNT
     JSR  BF_RTC_GETTIX  
     LDX  #THISTICKS
-    JSR  TS_TO_DATE ; CONVERT TICKCOUNT TO DATE/TIME,
-    LDY  #MYBUF     ; AND TO OUTPUT BUFFER,
-    JSR  DATE_STR_Y ; WRITE AS AN ISO-8601 STRING.
-    LDA  #CR        ; ADD LF + CR + NULL
+    JSR  TS_TO_DATE     ; CONVERT TO DATE/TIME,
+    LDY  #MYBUF
+    JSR  DATE_STR_Y     ; WRITE AS AN ISO-8601 STRING,
+    LDA  #CR            ; ADD LF + CR + NULL,
     STA  ,Y+
     LDA  #LF
     STA  ,Y+
     LDA  #0
     STA  ,Y+
-    LDY  #MYBUF     ; OUTPUT STRING VIS SERIAL
+    LDY  #MYBUF         ; OUTPUT VIA SERIAL,
     JSR  BF_UT_PUTS
     JSR  BF_UT_WAITTX
-    JMP  TESTLOOP   ; KEEP LOOPING  
+    JMP  TESTLOOP       ; AND KEEP LOOPING.
 ENDLOOP
     RTS
 ;------------------------------------------------------------------------------
 ; GIVEN BCD DATE FIELDS FROM TS_TO_DATE, OUTPUTS TO Y AS AN ISO-8601 STRING.
 ;------------------------------------------------------------------------------
 DATE_STR_Y
-    LDA  YRHIBCD
+    PSHS X
+    LDX  #YRHIBCD       ; POINT X AT BEGINNING OF BCD DATE FIELDS
+    LDA  ,X+            ; "YYYY-"
     JSR  S_HEXA
-    LDA  YRLOWBCD
-    JSR  S_HEXA
-    LDA  #'-'
-    STA  ,Y+
-    LDA  MONBCD
+    LDA  ,X+
     JSR  S_HEXA
     LDA  #'-'
     STA  ,Y+
-    LDA  DAYMONBCD
+    LDA  ,X+            ; "MM-"
+    JSR  S_HEXA
+    LDA  #'-'
+    STA  ,Y+
+    LDA  ,X+            ; "DD "
     JSR  S_HEXA
     LDA  #' '
     STA  ,Y+
-    LDA  HOURBCD
+    LDA  ,X+            ; "HH:"
     JSR  S_HEXA
     LDA  #':'
     STA  ,Y+
-    LDA  MINBCD
+    LDA  ,X+            ; "MM:"
     JSR  S_HEXA
     LDA  #':'
     STA  ,Y+
-    LDA  SECBCD
+    LDA  ,X+            ; "SS."
     JSR  S_HEXA
     LDA  #'.'
     STA  ,Y+
-    LDA  HUNDBCD
+    LDA  ,X+            ; "FF"
     JSR  S_HEXA
-    LDA  #NUL
+    LDA  #NUL           ; NULL TERMINATOR
     STA  ,Y
+    PULS X
     RTS
 ;------------------------------------------------------------------------------
 ; CONVERTS BYTE VALUE FROM A TO AN UNTERMINATED 2-BYTE HEX STRING AT Y. 
