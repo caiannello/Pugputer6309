@@ -2,6 +2,10 @@
 
 This is the same Yamaha graphics processor that is used in the MSX 2+ line of home computers. It is a descendant of the TI V9918 VDP which was used in the TI-99/4A home computer and the ColecoVision game console from the early 1980's. A CXA2075M composite encoder chip is used to provide S-video and composite outputs. The picture quality is decent, though there are some very faint 'jail bars' in composite mode.
 
+## Heads Up!
+
+Even though this design doesn't deviate much from the (working) V1 board, my prototype had timing problems with the SRAM! I ended up having to solder up a daughterboard with six DRAM's on it before she started working. In retrospect, I think the problem was that I used a 74AHC574 (CMOS) for the latch rather than a 74AHCT574 (CMOS TTL) . I need to verify that, since the DRAMS are getting hard to find. 
+
 ## Wishlist
 
 The V9958 Video Display Processor is starting to get more scarce, and the price is up to $40+ a piece now, and rising. The kind folks on the MSX Facebook Group have suggested the TN-VDP Tang Nano 20K project, which offers an FPGA-based replacement of this chip. I haven't put any hardware out yet, though, so I'm not married to V9958 compatibility, and I have a strong suspicion that a single Raspberry Pi Pico W could replace both the video card and the VIA card and maybe do WLAN too?
