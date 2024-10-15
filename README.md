@@ -58,7 +58,8 @@ Lily from a local pond, converted to the V9958's high-color YJK mode using a Pyt
 
 Experimental Pugputer startup screen + jingle by ([Bisqwit](https://https://bisqwit.iki.fi/)!
 
-https://github.com/caiannello/Pugputer6309/raw/refs/heads/main/Photos/sm_pugputer_startup.mp4
+[![Watch Pugputer Startup](https://github.com/caiannello/Pugputer6309/raw/refs/heads/main/Photos/sm_pugputer_startup.jpg)](https://github.com/caiannello/Pugputer6309/raw/refs/heads/main/Photos/sm_pugputer_startup.mp4)
+
 
 ### CPU Card v2 (Card cage design)
 
