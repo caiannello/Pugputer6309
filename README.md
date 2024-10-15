@@ -51,6 +51,9 @@ This one uses the library from the ancient [Motorola MC6839 FLOATING POINT ROM!]
 [PugMon](https://github.com/caiannello/Pugputer6309/tree/main/Software/6309/Pugmon)
 ![pugmon](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Pugmon%20on%20both%20VDP%20and%20UART.jpg)
 
+Lily from local pond, converted to the V9958's high-color YJK mode using a Python utility. ([Source code](https://github.com/caiannello/Pugputer6309/blob/main/Software/6309/Demos/lily_highcolor_yjk.asm))([Conversion Utility](https://github.com/caiannello/Pugputer6309/blob/main/Software/dev_utils/image_conversion/conv_yjk.py))
+![mana](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/lily_highcolor_yjk.jpg)
+
 ### CPU Card v2 (Card cage design)
 
 CPU Card with 1MB RAM and UART
