@@ -1,3 +1,7 @@
+#########################################
+# THANKS TO GRAUW FOR THE FORMULAE!!
+# https://map.grauw.nl/articles/yjk/ 
+#########################################
 import struct,math,zlib
 import pygame
 import subprocess
