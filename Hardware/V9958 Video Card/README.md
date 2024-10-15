@@ -20,7 +20,7 @@ I have a Pimaroni "Pico Demo" board which does 15-bit RGB VGA, stereo sound, and
 
 ## OPL3 Audio Module
 
-There's enough empty space on the video card to add this little music synthesizer module. The chips are one [Yamaha YMF262](https://www.polynominal.com/yamaha-opl3/) FM synthesizer, a YAC512 Stereo DAC, and an MC33074 buffer amplifier. There's some demos in the software demos section which playing some of my favorite VGM tunes, and it sounds very good to me.
+There's enough empty space on the video card to add this little music synthesizer module. The chips are one [Yamaha YMF262](https://www.polynominal.com/yamaha-opl3/) FM synthesizer, a YAC512 Stereo DAC, and an MC33074 buffer amplifier. There's some demos in the software demos section which play some of my favorite VGM tunes, and it sounds very good to me besides a very faint whine in the background which reminds me of the old Soundblaster days. Might need to find a way to filter that. :)
 
 ![OPL3 Module](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_prototype.jpg)
 
