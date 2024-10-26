@@ -10,66 +10,9 @@
 ; EXPERIMENTING WITH THE V9958 HIGHCOLOR MODES.
 ;
 ; I WROTE A PYTHON UTILITY, CONV_YJK.PY, WHICH CONVERTS 256X212-SIZED 
-; PNG FILES INTO HUFFMAN-CODED YJK BINARIES AS INCLUDED  BELOW.
+; PNG FILES INTO HUFFMAN-CODED YJK BINARIES AS SEEN BELOW.
 ;
-;------------------------------------------------------------------------------
-    INCLUDE DEFINES.D           ; COMMON DEFINITIONS
-    INCLUDE BIOS_FUNC_TAB.D     ; BIOS FCN JUMP TABLE AND CONSTANTS
-;------------------------------------------------------------------------------
-    ORG     $1000               ; BEGIN CODE & VARS
-; -----------------------------------------------------------------------------
-; PROGRAM ENTRYPOINT
-; -----------------------------------------------------------------------------
-ENTRYPOINT  
-    JMP  VDP_INIT
-; -----------------------------------------------------------------------------
-MSG_END     FCC  " TICKS"
-MSG_CR      FCB  LF,CR,LF,CR,0
-; -----------------------------------------------------------------------------
-VDP_SEQ     FCB $00,$87,$0E,$80,$08,$99,$40,$81,$0A,$88,$80,$89,$1F,$82,$00,$40
-            FCB $00,$8E,$00,$40,$00,$90,$05,$92  
-; -----------------------------------------------------------------------------        
-VDP_GRAF7   
-    LDX  #VDP_SEQ       ; SET 256 X 212 X YJK+YAE COLOR MODE
-VDP_ILOOP7
-    LDA  ,X+
-    STA  VREG
-    CMPX #VDP_GRAF7
-    BLO  VDP_ILOOP7
-    LDA  #$12       ; SET BG/BORDER (R,B,G)=(1,2,0)
-    STA  VPAL
-    LDA  #$00
-    STA  VPAL
-
-    RTS                 
-; -----------------------------------------------------------------------------
-;TROWCTDN        RMB 1
-CODETAB         RMB (1+2+1)*64 ; BYTE-ALIGNED CODE TABLE FOR SPEED
-ENDCODETAB              ; (PARSED FROM INITAL SECTION OF INPUT DATA)
-TSTART          RMB 8   ; START AND END TIMES FOR DURATION REPORT
-TEND            RMB 8
-SERBUF          RMB 32  ; SERIAL BUFFER FOR DEBUG LOGGING
-QCOUNT          RMB 2   ; DRAWING LOOP ITERATIONS
-YY              RMB 1   ; CURRENT (Y,J,K) VALUES
-JJ              RMB 1
-KK              RMB 1
-KLO             RMB 1   ; PIECEWISE J,K FOR THE VDP
-KHI             RMB 1
-JLO             RMB 1
-JHI             RMB 1
-
-TCODELEN        RMB 1   ; CURRENT HUFFMAN CODE LENGTH
-;TCODE           RMB 2   ; CURRENT HUFFMAN CODE
-;TSYMBOL         RMB 1
-
-
-TMP8            RMB 1
-TNUMROWS        RMB 1
-
-REM             RMB 1   ; HOLDS LATEST UNPROCESSED INPUT BITS
-REMLEN          RMB 1   ;  NUM BITS IN ABOVE
-; -----------------------------------------------------------------------------
-; ENCODED IMAGE FORMAT OUTPUT BY DCONV_YJK.PY:
+; ENCODED IMAGE FORMAT OUTPUT BY CONV_YJK.PY:
 ;   PACKED_HUFFMAN_CODE_TABLE       # SEE BELOW
 ;   Y:06b                           # INITIAL LUMA
 ;   J:06b                           # INITIAL CHROMA J
@@ -81,57 +24,126 @@ REMLEN          RMB 1   ;  NUM BITS IN ABOVE
 ;     ENCODED DELTA Y
 ;     ENCODED DELTA Y
 ;     ENCODED DELTA Y
+;
+; HUFFMAN TABLE FORMAT:
+;   WORD16  N (NUM ROWS IN THIS TABLE)
+;       ROW 0:
+;           BITS[4]     L (LENGTH IN BITS OF FOLLOWING CODE)
+;           BITS[L]     C (HUFFMAN CODE)
+;           BITS[6]     S (SIGNED 6-BIT INTEGER REPRESENTED BY CODE)
+;       ROW 1:
+;           BITS[4]     DL  (LENGTH DIFFERENCE FROM PREVIOUS CODE LENGTH)
+;           BITS[L+DL]  C   (HUFFMAN CODE)
+;           BITS[6]     S   (SIGNED 6-BIT INTEGER REPRESENTED BY CODE)
+;       ...
+;       ROW (N-1):
+;           BITS[4]     DL  (LENGTH DIFFERENCE FROM PREVIOUS CODE LENGTH)
+;           BITS[L+DL]  C   (HUFFMAN CODE)
+;           BITS[6]     S   (SIGNED 6-BIT INTEGER REPRESENTED BY CODE)
+;
+; ON STARTUP, THE TABLE IS PARSED INTO A BYTE-ALIGNED STRUCTURE, AT ADDRESS
+; #CODETAB, FOR FASTER DECODING. IN THEORY, THERE SHOULD BE NO MORE THAN 64 
+; CODES. IN THE FUTURE, IT MIGHT BE HELPFUL TO DEDICATE SOME CODES FOR USE 
+; AS ESCAPE-SYMBOLS TO DO SOME RUN-LENGTH ENCODING OR SIMILAR.
+; -----------------------------------------------------------------------------
+    INCLUDE DEFINES.D           ; COMMON DEFINITIONS
+    INCLUDE BIOS_FUNC_TAB.D     ; BIOS FCN JUMP TABLE AND CONSTANTS
+;------------------------------------------------------------------------------
+    ORG     $1000               ; BEGIN CODE & VARS
+; -----------------------------------------------------------------------------
+; PROGRAM ENTRYPOINT
+; -----------------------------------------------------------------------------
+ENTRYPOINT  
+    JMP  VDP_INIT
+; -----------------------------------------------------------------------------
+; VARS
+; -----------------------------------------------------------------------------
+CODETAB         RMB (1+2+1)*64 ; BYTE-ALIGNED CODE TABLE FOR SPEED
+ENDCODETAB              ; (CAN WE MAKE THIS FASTER USING DIRECT-PAGE?)
+
+REM             RMB 1   ; HOLDS LATEST UNPROCESSED INPUT BITS
+REMLEN          RMB 1   ; NUM BITS IN ABOVE
+QCOUNT          RMB 2   ; MAIN DRAWLOOP ITERATION
+
+YY              RMB 1   ; CURRENT (Y,J,K) VALUES
+JJ              RMB 1
+KK              RMB 1
+
+KLO             RMB 1   ; PIECEWISE J,K FOR THE VDP
+KHI             RMB 1
+JLO             RMB 1
+JHI             RMB 1
+
+TCODELEN        RMB 1   ; HUFFMAN CODE LENGTH DURING INITIAL TABLE PARSE
+TNUMROWS        RMB 1   ; NUM TABLE ROWS DURING INITIAL PARSE
+TMP8            RMB 1
+
+TSTART          RMB 8   ; START AND END TIMES FOR DURATION REPORT
+TEND            RMB 8
+SERBUF          RMB 8   ; SERIAL OUTPUT BUFFER FOR LOGGING
+; -----------------------------------------------------------------------------
+; CONSTS
+; -----------------------------------------------------------------------------
+VDP_SEQ     FCB $00,$87,$0E,$80,$08,$99,$40,$81,$0A,$88,$80,$89,$1F,$82,$00,$40
+            FCB $00,$8E,$00,$40,$E5,$92,$00,$90
 ; -----------------------------------------------------------------------------
 VDP_INIT:    
-    JSR  VDP_GRAF7
-    LDX  #TSTART    ; GET STARTING SYSTEM TIME IN 16THS OF SECS
+    LDX  #VDP_SEQ   ; SET 256 X 212 X YJK COLOR MODE
+VDP_ILOOP
+    LDA  ,X+
+    STA  VREG
+    CMPX #VDP_INIT
+    BLO  VDP_ILOOP
+    LDA  #$12       ; SET BG/BORDER (R,B,G) TODO: INCLUDE BG COLOR IN IMG DATA
+    STA  VPAL
+    LDA  #$00
+    STA  VPAL    
+    LDX  #TSTART    ; NOTE START TIME IN TICKS (16THS OF SECS)
     JSR  BF_RTC_GETTIX
 
-DECODER_INIT:    
-    LDU  #HUFFIMG   ; PARSE CODE TABLE TO BYTE-ALIGNED FORM FOR DECODER
-    LDD  ,U++
-    STB  TNUMROWS   ; NOTE NUMBER OF TABLE ROWS
-    ;STB  TROWCTDN
+    LDU  #HUFFIMG   ; START PARSING INPUT DATA AT #HUFFIMG.
+    LDD  ,U++       ; TODO: MAKE THIS FIELD A BYTE, AND INCLUDE IMG (X,Y,W,H)
+    STB  TNUMROWS   ; FIRST, NOTE NUMBER OF HUFFMAN TABLE ROWS.
     LDA  ,U+
-    STA  REM
-    LDA  #8
-    STA  REMLEN
-    LDA  #0
-    STA  TCODELEN
-    LDY  #CODETAB
-TBL_PARSE:    
-    LDF  #4
-    JSR  GET_BITS   ; READ 4-BIT CODE INCREASE IN LENGTH
-    STB  ,Y+        ; STORE DELTA CODELEN IN PARSED TABLE
-    ADDB TCODELEN
-    STB  TCODELEN 
-    TFR  B,F
-    JSR  GET_BITS   ; READ CODE
-    STD  ,Y++       ; STORE CODE IN PARSED TABLE
-    ;STD  TCODE
-    LDF  #6
-    JSR  GET_BITS   ; READ SYMBOL
-    JSR  SEX6
-    STB  ,Y+        ; STORE SIGN-EXTENDED SYMBOL IN PARSED TABLE
-    ;STB  TSYMBOL
-    DEC  TNUMROWS
-    BNE  TBL_PARSE
+    STA  REM        ; QUEUE UP THE NEXT 8 BITS OF INPUT,
+    LDA  #8         ; AND NOTE LENGTH OF UNPROCESSED BITS.
+    STA  REMLEN     ; (WE USE REM,REMLEN THROUGHOUT THE PROGRAM TO AID
+                    ; BITWISE PROCESSING OF INPUT)
+    LDA  #0         
+    STA  TCODELEN   ; FOR BETTER DECODING SPEED, UNPACK THE HUFFMAN
+    LDY  #CODETAB   ; TABLE TO BYTE-ALIGNED VALUES AT #CODETAB.
+TBL_PARSE:
+    LDE  #4
+    JSR  GET_BITS   ; READ 4-BIT INCREASE IN CODE LENGTH
+    STB  ,Y+        ; STORE IT IN CODETAB TABLE AS A UINT8
+    ADDB TCODELEN   ; SUM TOTAL CODE LENGTH
+    STB  TCODELEN
+    TFR  B,E
+    JSR  GET_BITS   ; READ IN THAT MANY BITS OF HUFFMAN CODE,
+    STD  ,Y++       ; AND STORE IT IN CODETAB AS A UINT16
+    LDE  #6
+    JSR  GET_BITS   ; READ 6-BIT SIGNED DELTA
+    JSR  SEX6       ; SIGN-EXTEND IT TO 8-BITS,
+    STB  ,Y+        ; AND STORE IN CODETAB AS A UINT8
+    DEC  TNUMROWS   ; COUNTDOWN TABLE ROWS
+    BNE  TBL_PARSE  ; DO NEXT ROW, IF ANY.
 
 INIT_YJK:           ; GET INITIAL VALUES OF Y,J, AND K.
-    LDF  #6
+    LDE  #6         ; (THE ENCODED DATA IS JUST CHANGES IN Y,J,K)
     JSR  GET_BITS
     JSR  SEX6       ; SIGN-EXTEND THE 6-BIT VALS TO 8-BITS
     STB  YY
-    LDF  #6
+    LDE  #6
     JSR  GET_BITS
     JSR  SEX6  
     STB  JJ
-    LDF  #6
+    LDE  #6
     JSR  GET_BITS
     JSR  SEX6  
     STB  KK
-START_DRAWING:      ; WE ARE NOW AT THE ENCODED DATA,
-    LDD  #13568     ; AND WE'LL PLOT (64 * 212) PIXEL-QUARTETS.
+
+START_DRAWING:      ; WE ARE NOW AT THE ENCODED DATA.
+    LDD  #13568     ; WE'LL PLOT (64 * 212) PIXEL-QUARTETS.
 DRAWLOOP:    
     STD  QCOUNT
     BSR  DECODE     ; GET DJ
@@ -145,11 +157,10 @@ DRAWLOOP:
     LSRB
     ANDB #$7
     STB  JHI
-
     BSR  DECODE     ; GET DK
     ADDB KK         ; K = K + DK
     STB  KK
-    TFR  B,A        ; SPLIT J INTO 2 3-BIT WORDS
+    TFR  B,A        ; SPLIT K INTO 2 3-BIT WORDS
     ANDA #$7
     STA  KLO
     LSRB
@@ -157,63 +168,56 @@ DRAWLOOP:
     LSRB
     ANDB #$7
     STB  KHI
-
-    LDX  #KLO       ; FOR EACH OF KLO,KHI,JLO,JHI
+    LDX  #KLO       ; FOR EACH OF KLO,KHI,JLO,JHI:
 PIXLOOP
-    BSR  DECODE     ; GET DY
-    ADDB YY         ; Y = Y + DY
+    BSR  DECODE     ;     GET DY
+    ADDB YY         ;     Y = Y + DY
     STB  YY
     LSLB
     LSLB
     LSLB
-    ORB  ,X+        ; PIXEL = (Y<<3) | JK_PIECE
-    STB  VDAT       ; SEND IT TO DISPLAY
+    ORB  ,X+        ;     PIXEL = (Y<<3) | JK_PIECE
+    STB  VDAT       ;     SEND IT TO DISPLAY
     CMPX #(JHI+1)
-    BLO  PIXLOOP
-
-    LDD  QCOUNT         ; PIXEL QUARTET COUNTDOWN,
+    BLO  PIXLOOP    
+    LDD  QCOUNT     ; PIXEL QUARTET COUNTDOWN
     DECD
-    LBNE DRAWLOOP       ; LOOP UNTIL SCREEN FILLED.
-    JMP  END_REPORT
+    BNE  DRAWLOOP   ; LOOP UNTIL SCREEN FILLED.
+    JMP  END_REPORT ; SHOW DECODE DURATION AND END PROGRAM.
 ; -----------------------------------------------------------------------------
-; MATCH THE HUFFMAN CODE AT (U,REM) AND RETURN SIGNED INT SYMBOL IN B.
-;
-; ON RETURN, (U,REM) WILL POINT TO THE NEXT INPUT BIT.
+; MATCH THE INPUT AT (U,REM,REMLEN) TO A HUF CODE, AND RETURN SIGNED BYTE 
+; (DELTA) IN B. ON RETURN, (U,REM,REMLEN) ARE ADVANCED TO THE NEXT INPUT BIT.
 ; -----------------------------------------------------------------------------
 DECODE:
     CLRD            ; CLEAR INPUT SHIFT-REGISTER
+    LDF  REMLEN
     LDY  #CODETAB   ; POINT Y TO HUFFMAN CODE TABLE
 DEC_LOOP:           ; PER EACH ROW OF CODE TABLE
     LDE  ,Y         ; NUM ADDL BITS OCCUPIED BY THIS CODE VS LAST ONE
     BEQ  COMPARE    ; IF WE HAVE ENOUGH INPUT BITS, GO TO COMPARISON.
-SHLOOP:
-    LDF  REMLEN
-    BNE  GOTREM
-    LDF  ,U+
+SHLOOP:             ; LEFT-SHIFT IN E BITS OF INPUT INTO D
+    TSTF
+    BNE  GOTREM     ; HAVE BITS IN OUR LITTLE INPUT BUFFER BYTE?
+    LDF  ,U+        ; READ ANOTHER BYTE INTO REM FROM INPUT AT U+
     STF  REM
-    LDF  #8
-    STF  REMLEN
+    LDF  #8         ; REMLEN IS EIGHT BITS AGAIN.
 GOTREM:
-    LSL  REM
+    LSL  REM        ; LEFT-SHIFT MSB FROM REM INTO LSB OF D
     ROLD
-    DEC REMLEN
-    DECE
-    BNE  SHLOOP
+    DECF            ; REMLEN DECREASED
+    DECE            ; NEEDED BITCOUNT DECREASED
+    BNE  SHLOOP     ; KEEP SHIFTING  UNTIL NO BORE BITS NEEDED.
 COMPARE:            ; COMPARE INPUT WORD TO HUFFMAN CODE.
     CMPD 1,Y        ; INWORD == CODE?
-    BEQ  DEC_DONE
-    LEAY 4,Y        ; NOPE, TRY NEXT CODE OF TABLE.
-    CMPY #ENDCODETAB
-    BEQ  DEC_FAIL   ; IF RAN OUT OF TABLE, THE DECODE FAILED!
+    BEQ  DEC_DONE   ; IF YES, WE'RE DONE.
+    LEAY 4,Y        ; IF NOPE, TRY NEXT CODE OF TABLE.
     BRA  DEC_LOOP
 DEC_DONE:
-    LDB  3,Y        ; MATCH! GET SYMBOL (SIGNED INT8) 
-    RTS
-DEC_FAIL:  
-    LDB  #0
+    STF  REMLEN
+    LDB  3,Y        ; GET DECODED DELTA (SIGNED BYTE)
     RTS
 ; -----------------------------------------------------------------------------
-; SIGN-EXTEND THE 6-BIT INTEGER IN REG B
+; SIGN-EXTEND TO 8-BITS THE 6-BIT VALUE IN REG B
 ; -----------------------------------------------------------------------------
 SEX6:
     STB  TMP8
@@ -226,25 +230,25 @@ SEXDONE:
     LDB  TMP8
     RTS    
 ;------------------------------------------------------------------------------
-; COPIES BITSTRING OF LEN. F FROM (U,REM) TO D, RIGHT-JUSTIFIED.
-; U,REM ARE ADVANCED TO NEXT BIT.
+; COPIES BITSTRING OF LEN. E FROM (U,REM,REMLEN) TO D, RIGHT-JUSTIFIED.
+; ON RETURN, (U,REM,REMLEN) ARE ADVANCED TO NEXT BIT. 
 ;------------------------------------------------------------------------------
 GET_BITS:
     CLRD            ; INIT DEST WORD
-    LDE  REMLEN
+    LDF  REMLEN
 GB_LOOP:
-    TSTE
+    TSTF
     BNE  GB_GOTREM
-    LDE  ,U+
-    STE  REM
-    LDE  #8
+    LDF  ,U+
+    STF  REM
+    LDF  #8
 GB_GOTREM:
     LSL  REM
     ROLD
-    DECE    
     DECF    
+    DECE    
     BNE  GB_LOOP
-    STE  REMLEN
+    STF  REMLEN
     RTS   
 ;------------------------------------------------------------------------------
 ; GIVEN I64'S AT X AND U, SUBTRACT U FROM X, LEAVING RESULT IN X.
@@ -264,54 +268,34 @@ SUB64_XU:
     STD  0,X
     RTS
 ;------------------------------------------------------------------------------
-; CONVERTS VAL IN A TO HEX STRING AT Y. 
-; DOES INCREMENT Y, BUT DOESN'T NULL-TERMINATE STRING.
-; I THINK I GOT THIS FROM L. LEVENTHAL'S BOOK.
+; SHOW HOW LONG IT TOOK TO DECODE/DRAW THE IMAGE AND END THE PROGRAM.
 ;------------------------------------------------------------------------------
-S_HEXY:
-    TFR  A,B        ; SAVE ORIGINAL BINARY VALUE
-    LSRA            ; MOVE HIGH DIGIT TO LOW DIGIT
-    LSRA
-    LSRA
-    LSRA
-    CMPA #9
-    BLS  AD30       ; BRANCH IF HIGH DIGIT IS DECIMAL
-    ADDA #7         ; ELSE ADD 7 SO AFTER ADDING 'O' THE
-                    ; CHARACTER WILL BE IN ‘'A'..'F'
-AD30:
-    ADDA #'0        ; ADD ASCII O TO MAKE A CHARACTER
-    ANDB #$0F       ; MASK OFF LOW DIGIT
-    CMPB #9
-    BLS AD3OLD      ; BRANCH IF LOW DIGIT IS DECIMAL
-    ADDB #7         ; ELSE ADD 7 SO AFTER ADDING 'O! THE
-                    ; CHARACTER WILL BE IN '‘A'..'F!
-AD3OLD:     
-    ADDB #'0        ; ADD ASCII O TO MAKE A CHARACTER
-    STA ,Y+         ; INSERT HEX BYTES INTO DEST STRING AT X
-    STB ,Y+         ; AND NCREMENT X
-    RTS
-
+MSG_TOOK    FCB  LF,CR
+            FCC  "*** Decode took "
+            FCB  0
+MSG_END     FCC  " ticks."
+MSG_CR      FCB  LF,CR,LF,CR,0
+; -----------------------------------------------------------------------------
 END_REPORT
     LDX  #TEND          ; GET END TIME. 
     JSR  BF_RTC_GETTIX  
     LDU  #TSTART        ; CALC ELAPSED TICKS,
-    JSR  SUB64_XU
-    LDY  #SERBUF        ; AND PRINT DURATION.
-    LDE  #8
-TIXLOOP:
-    LDA  ,X+
-    BSR  S_HEXY
-    DECE
-    BNE  TIXLOOP
+    JSR  SUB64_XU    
+    LDY  #MSG_TOOK
+    JSR  BF_UT_PUTS
+    LDX  #SERBUF        ; AND PRINT IT OUT
+    LDD  TEND+6
+    JSR  BF_S_INTD      ; IN DECIMAL.
     LDA  #NUL
-    STA  ,Y+
+    STA  ,X+
     LDY  #SERBUF
     JSR  BF_UT_PUTS
     LDY  #MSG_END
     JSR  BF_UT_PUTS
     JSR  BF_UT_WAITTX
-    RTS             ; END OF PROGRAM
-
+    RTS                 ; END OF PROGRAM
+; -----------------------------------------------------------------------------
+; ENCODED IMAGE AS OUTPUT BY CONV_YJK.PY
 ; -----------------------------------------------------------------------------
 HUFFIMG:
     FCB $00,$1D,$18,$02,$7E,$2C,$12,$5F,$C0,$A0,$85,$2F,$41,$00,$C5,$1F
