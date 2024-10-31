@@ -1,8 +1,11 @@
 ###############################################################################
-# PUGTERM - SERIAL TERMINAL FOR PUGPUTER 6309
+#
+# PUGTERM - SERIAL TERMINAL FOR TALKING TO THE PUGPUTER
 #
 # Pretty janky and lame at this point, but at least
 # you can DRAG AND DROP S-RECORDS to the pugputer!
+#
+# Requires pygame and pyserial
 #
 ###############################################################################
 import struct,math,zlib
@@ -19,16 +22,14 @@ pygame.init()
 # -----------------------------------------------------------------------------
 # globals
 # -----------------------------------------------------------------------------
+NORMAL_CAPTION = "PugTerm - Ver. 0.0.1"
+UPLOADING_CAPTION = "PugTerm - Ver. 0.0.1 - UPLOADING"
 SER_CONFIG = (19200,'com5')
 TEXT_COLOR = (255, 200, 16)
 BKGD_COLOR = (32, 16, 0)
 g_thread_run = True
 do_quit = False
 q = queue.Queue(32767)
-
-
-pygame.init()
-
 WW = 640*2  # starting/current window dimensions in pixels
 HH = 480*2
 
@@ -59,12 +60,6 @@ END_LIDX = 0
 # used for timing display updates (60Hz, hopefully)
 TLASTUPDATE = 0
 
-screen=pygame.display.set_mode([WW,HH], pygame.RESIZABLE, vsync=1)
-NORMAL_CAPTION = "PugTerm - Ver. 0.0.1"
-UPLOADING_CAPTION = "PugTerm - Ver. 0.0.1 - UPLOADING"
-
-pygame.display.set_caption(NORMAL_CAPTION)
-ser = serial.Serial()
 #------------------------------------------------------------------------------
 def serThread(baudval, portval):
     global g_thread_run, q,ser
@@ -366,13 +361,22 @@ def uploadSRecord(fname):
     except Exception as e:
         print(f'Upload failed: {e}')
     pygame.display.set_caption(NORMAL_CAPTION)
+
 #------------------------------------------------------------------------------
+# init code just flapping in the breeze here
+#------------------------------------------------------------------------------
+pygame.init()
+screen=pygame.display.set_mode([WW,HH], pygame.RESIZABLE, vsync=1)
+pygame.display.set_caption(NORMAL_CAPTION)
+ser = serial.Serial()
+
 # do initial screen update
 redraw()
 # init the serial port
 st = threading.Thread(target=serThread, args=SER_CONFIG)
 # Start the serial reader thread
 st.start()
+
 #------------------------------------------------------------------------------
 # main event loop
 #------------------------------------------------------------------------------
