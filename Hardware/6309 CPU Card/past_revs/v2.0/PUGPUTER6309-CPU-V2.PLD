@@ -1,0 +1,70 @@
+Name            PUGPUTER6309-CPU ;
+Partno          ATF22V10B ;
+Revision        03 ;
+Date            3/7/2024 ;
+Designer        Craig Iannello ;
+Company         Pugbutt Industries LLC ;
+Assembly        CPU Card ;
+Location        IC2 ;
+Device          g22v10 ;
+
+/*******************************************************************************
+  # 0000 - efff  and bk 00 - ff   RAM chips
+  # f000 - ffeff, fff0-ffff, Fixed ROM
+
+  # fff0 - ffef  IO space
+  #   ffb0 - ffbf  W65C22 Versatile Interface Adaptor
+  #   ffe0 - ffe3  Video Card music chip
+  #   ffe4 - ffe7  Video Card video chip
+  #   ffe8 - ffeb  Serial UART R65C51P2
+  #   ffec - ffef  Memory Bank Regs 0...3
+
+  # preliminary logic - discrete logic on cpu card 
+
+  hn3 = a[15]&a[14]&a[13]&a[12]  # high nybble is $f
+  hn2 = a[11]&a[10]&a[9]&a[8]    # next nybble is $f
+  ssf = a[7]&a[6]&a[5]
+  hn1 = ssf&a[4]                 # third nybble is $f
+*******************************************************************************/
+/* input signals - we don't use special clock PIN 1 
+*/
+
+pin 2      = E ;            /* E clock from HD6309              */
+pin 3      = RW ;           /* R/~W pin from HD6309             */
+pin 4      = a2;
+pin 5      = a3;
+pin 6      = e19;
+pin 7      = e20;
+pin 8      = e21;
+pin 9      = hn1;
+pin 10     = ssf;
+pin 11     = hn2;
+pin 13     = hn3;
+
+/* outputs
+*/
+
+pin 23     = read_n;
+pin 22     = write_n;
+pin 21     = ram0_n;
+pin 20     = rom_n;
+pin 19     = uart_n;
+pin 18     = mw_n;
+pin 17     = io_n;
+pin 16     = xmem_n;
+pin 15     = ram1_n;
+pin 14     = aux0;
+
+/** declarations **/
+
+/** equations **/
+
+read_n    = !E # !RW;
+write_n   = !E # RW;
+ram0_n    = !E # hn3 # e20 # e21 # e19;
+ram1_n    = !E # hn3 # e20 # e21 # !e19;
+rom_n     = !E # !RW # !hn3 # hn2 & !hn1;
+xmem_n    = !E # hn3;
+io_n      = !E # !hn3 # !hn2 # hn1;
+uart_n    = !E # !hn3 # !hn2 # hn1 # !ssf # !a3 # a2;
+mw_n      = !E # !hn3 # !hn2 # hn1 # !ssf # !a3 # !a2;
