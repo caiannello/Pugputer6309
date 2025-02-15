@@ -1,0 +1,52 @@
+Name            PUGPUTER6309-VDP2.1 ;
+Partno          ATF16V8B ;
+Revision        03 ;
+Date            7/22/2022 ;
+Designer        Craig Iannello ;
+Company         Pugbutt Industries LLC ;
+Assembly        V9958 video card ;
+Location        IC2 ;
+Device          g16v8a ;
+
+/********************************************************************************/
+/* ATF16v8b as glue logic on the V9958 video card for my 6309 homebrew computer */
+/*                                                                              */
+/*   ffe0 - ffe3  Video Card music chip                                         */
+/*   ffe4 - ffe7  Video Card video chip                                         */
+/*                                                                              */
+/* Compile using WINCUPL (http://www.atmel.com/tools/wincupl.aspx               */
+/*                                                                              */
+/********************************************************************************/
+/* input signals - we don't use special clock PIN 1 */
+
+pin 2      = E;
+pin 3      = RW;
+pin 4      = a2;
+pin 5      = a3;
+pin 6      = a4;
+pin 7      = a5;
+pin 8      = a6;
+pin 9      = a7;
+pin 11     = io_n;
+pin 12     = casx_n;
+pin 13     = cas1_n;
+pin 14     = cas0_n;
+
+/* outputs  */
+
+pin 15     = vcs_n;
+pin 16     = opl_n;
+pin 18     = vdp_read_n;   /* write enable /CSW for V9958 */
+pin 19     = vdp_write_n;  /* read enable /CSR for V9958 */
+
+/** equations **/
+
+vcs_n = cas0_n & cas1_n & casx_n; 		/* output high if any cas lines are low, else output high */
+
+/* vdp a7...a0 1110 00xx */
+vdp_read_n  = io_n # !RW # !a7 # !a6 # !a5 # a4 # a3 # !a2;
+vdp_write_n = io_n #  RW # !a7 # !a6 # !a5 # a4 # a3 # !a2;
+
+/* opl a7...a0 1110 01xx */
+
+opl_n       = !E # io_n # !a7 # !a6 # !a5 # a4 # a3 # a2;
