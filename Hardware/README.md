@@ -17,8 +17,8 @@ RAM Expansion         Gives the Pugputer more memory than actual pugs. (3 MB)
 all-in-one            Combines all of the above into one 10.6" x 3.5" board
 -------------------------------------------------------------------------------
 ```
-![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Layout.png)
-![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Schematic.png)
+![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/Layout.png)
+![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/Schematic.png)
 
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/VIA_SD_PSUP/Layout.png)
 ![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/VIA_SD_PSUP/Schematic.png)
