@@ -1,6 +1,14 @@
 ## 6309 CPU Card v2
+
 ```
-3/1/2024 UPDATE:
+2025-02-15 UPDATE:
+
+V2.1 moves the card-egde connecter fingers further from the board edge to facilitate gold-plating of the connector.
+
+```
+
+```
+2024-03-01 UPDATE:
 
 Added a new v2 CPU card. It has the same HD63C09 clocked at 3.57 MHz, 32K Flash
 ROM, and serial UART, but it adds 1 MB SRAM, expandable to 4 MB, and a real-
@@ -11,9 +19,9 @@ Rather than a pin header connection to the backplane, this one uses a classic
 
 Moved previous version to past_revs/ subfolder. 
 ```
-![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Layout.png)
+![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/Layout.png)
 
-![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Schematic.png)
+![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/Schematic.png)
 
 ## Memory Map v2
 ```

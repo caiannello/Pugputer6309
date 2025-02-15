@@ -59,12 +59,12 @@ pin 14     = aux0;
 
 /** equations **/
 
-read_n    = !E # !RW;
-write_n   = !E # RW;
+read_n    = !RW;
+write_n   = RW;
 ram0_n    = !E # hn3 # e20 # e21 # e19;
 ram1_n    = !E # hn3 # e20 # e21 # !e19;
 rom_n     = !E # !RW # !hn3 # hn2 & !hn1;
 xmem_n    = !E # hn3;
-io_n      = !E # !hn3 # !hn2 # hn1;
-uart_n    = !E # !hn3 # !hn2 # hn1 # !ssf # !a3 # a2;
+io_n      = !hn3 # !hn2 # hn1;
+uart_n    = !hn3 # !hn2 # hn1 # !ssf # !a3 # a2;
 mw_n      = !E # !hn3 # !hn2 # hn1 # !ssf # !a3 # !a2;
