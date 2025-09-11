@@ -1,0 +1,30 @@
+%SIGNAL
+PIN   2 =  E 
+PIN   3 =  WR_n 
+PIN   4 =  a2 
+PIN   5 =  a3 
+PIN   6 =  a4 
+PIN   7 =  a5 
+PIN   8 =  a6 
+PIN   9 =  a7 
+PIN  18 =  aux0 
+PIN  17 =  aux1 
+PIN  16 =  aux2 
+PIN  19 =  cs_n 
+PIN  11 =  io_n 
+%END
+
+%FIELD
+%END
+
+%EQUATION
+cs_n =>
+    io_n
+  # !a7
+  # !a6
+  # a5
+  # !a4
+  # a3
+  # a2
+
+%END

@@ -1,0 +1,42 @@
+Name            BREAKOUT ;
+Partno          ATF16V8B ;
+Revision        03 ;
+Date            7/15/2025 ;
+Designer        Craig Iannello ;
+Company         Pugbutt Industries LLC ;
+Assembly        Bus breakout card ;
+Location        IC2 ;
+Device          g16v8a ;
+
+/********************************************************************************/
+/* ATF16v8b as glue logic on the bus breakout card for my 6309 computer         */
+/*                                                                              */
+/*   ffd0 - ffef  main /cs                                                      */
+/*                                                                              */
+/* Compile using WINCUPL (http://www.atmel.com/tools/wincupl.aspx               */
+/*                                                                              */
+/********************************************************************************/
+/* input signals - we don't use special clock PIN 1 */
+
+pin 2      = E;
+pin 3      = WR_n;
+pin 4      = a2;
+pin 5      = a3;
+pin 6      = a4;
+pin 7      = a5;
+pin 8      = a6;
+pin 9      = a7;
+pin 11     = io_n;
+
+/* outputs  */
+
+pin 16     = aux2;
+pin 17     = aux1;
+pin 18     = aux0;
+pin 19     = cs_n;       
+
+/** equations **/
+
+/* cs a7...a0 1101 00xx */
+
+cs_n       = io_n # !a7 # !a6 # a5 # !a4 # a3 # a2;
