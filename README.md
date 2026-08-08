@@ -64,7 +64,7 @@ Experimental Pugputer startup screen + jingle by ([Bisqwit](https://https://bisq
 ### CPU Card v2 (Card cage design)
 
 CPU Card with 1MB RAM and UART
-![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/CPU%20Card%20v2%20Layout.png)
+![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/Layout.png)
 
 Backplane
 ![backplane v2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/backplane_v2.jpg)
