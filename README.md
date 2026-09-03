@@ -105,7 +105,7 @@ After choosing the Yamaha V9958 as my video chip and writing some code, I saw th
 
 [PugVDP](https://github.com/caiannello/PugVDP)
 
-But, the attention-span is weak, and having trash-talked the Yamaha VDP, I'll admit my project only does text mode so far. 
+But, the attention-span is weak, and having already trash-talked the Yamaha VDP, I'll admit that this project only does text mode so far. 
 ...but it's a *really* nice text mode!
 
 <img src="https://github.com/caiannello/PugVDP/blob/main/media/lorem.png?raw=true" width="640" height="480" />
