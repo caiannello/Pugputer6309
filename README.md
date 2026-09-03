@@ -111,6 +111,12 @@ But, the attention-span is weak, and having already trash-talked the Yamaha VDP,
 <img src="https://github.com/caiannello/PugVDP/blob/main/media/lorem.png?raw=true" width="640" height="480" />
 <img src="https://github.com/caiannello/PugVDP/blob/main/media/multicolor.png?raw=true" width="640" height="480" />
 
-### Animated GIF showing semigraphics characters
+### Animated GIF showing increasingly-small semigraphics characters
 <img src="https://github.com/caiannello/PugVDP/blob/main/media/torii_semigraphics_8x8_8x4_8x2_8x1_4x2.gif?raw=true" width="640" height="480" />
+
+^^ Still not a real graphics mode, though. Needs bitmaps, tilemaps, and sprites! My dream VDP would provide 80-column text and Super Famicom levels of tiles and sprites.
+
+Wow, you're still reading all the way down here? <3 <3 THANK YOU!
+
+
 
