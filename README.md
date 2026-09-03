@@ -96,3 +96,21 @@ If you are interested in this project or MC6809 and HD6309 CPU's in general, I p
 ## Todo: Youtube Videos
 
 Once this project is further along, I plan on making some demo videos and putting them on my [youtube channel](https://www.youtube.com/appliedcryogenics). In the meantime, there's some older projects on there, so it may still be worth a browse. 
+
+## Todo: Modern VDP Replacement!
+
+After choosing the Yamaha V9958 as my video chip and writing some code, I saw the prices on these vintage parts rising, and the number of listings dwindling. Also, I've decided it's not even that great of a chip. (Multicolor sprites are a major pain!) There's a lot of community efforts to emulate this whole family of chips (V9918, V9938, V9958) using a modern Raspberry Pi Pico! (But, like I said, though, I'm not terribly fond of these chips. I decided to try to use the Pi Pico to make something better... which resulted in...) 
+
+## The PugVDP Project!!
+
+[PugVDP](https://github.com/caiannello/PugVDP)
+
+But, the attention-span is weak, and having trash-talked the Yamaha VDP, I'll admit my project only does text mode so far. 
+...but it's a *really* nice text mode!
+
+<img src="https://github.com/caiannello/PugVDP/blob/main/media/lorem.png?raw=true" width="640" height="480" />
+<img src="https://github.com/caiannello/PugVDP/blob/main/media/multicolor.png?raw=true" width="640" height="480" />
+
+### Animated GIF showing semigraphics characters
+<img src="https://github.com/caiannello/PugVDP/blob/main/media/torii_semigraphics_8x8_8x4_8x2_8x1_4x2.gif?raw=true" width="640" height="480" />
+
