@@ -30,7 +30,8 @@ See the V9958 Video Card folder for the design files of the music synth module.
 I put the +5V voltage-regulator on the board BACKWARDS, and sent +12V into the +5V RAIL!! 
 Something apparently got fried. (I was so disappointed, I set the board aside,
 and I haven't had the nerve to try to troubleshoot what remains. Might be easier to just populate 
-a whole new board. $$$ :( )
+a whole new board. $$$ :( But, having decided to replace the V9958 in the Pugputer with a modern 
+replacement, that may never happen. )
 
 ## Layout and Schematic
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/all-in-one/layout.png)
