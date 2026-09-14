@@ -125,7 +125,9 @@ with this simpler option.
 These are thoughts about how to go about implementing the memory map on the 
 system and programming the PAL. Some of this is implemented with discrete 
 logic on the CPU card because the PAL doesnt have enough inputs to handle 
-everything alone.
+everything alone. The actual implementation is in the cpu_pld.PLD file,
+which is loadable in WINCUPL for simulation and conversion into a bitstream
+for PLD programming.
 
 # Discrete combinatorial logic to help onboard PAL
 
@@ -142,7 +144,7 @@ eclk, r//w, hn3, hn2, hn1, ssf, e21, e20, e19, a3, a2
 
 /rd   = !eclk | !r//w                      # bus: memory read
 /wr   = !eclk | r//w                       # bus: memory write
-io    = hn3 & hn2 & !hn1                   # bus: IO select
+/io   = !hn3 | !hn2 | hn1                  # bus: IO select
 xmem  = !hn3 & e20 | e21                   # bus: expansion mem select
 /ram0 = hn3 | e20 | e21 | e19              # onboard: ram chip 0 select
 /ram1 = hn3 | e20 | e21 | !e19             # onboard: ram chip 1 select
