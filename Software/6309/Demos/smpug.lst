@@ -1,0 +1,677 @@
+                      (        smpug.asm):00001         ;------------------------------------------------------------------------------
+                      (        smpug.asm):00002         ; PROJECT: SMPUG
+                      (        smpug.asm):00003         ; VERSION: 0.0.1
+                      (        smpug.asm):00004         ;    FILE: SMPUG.ASM
+                      (        smpug.asm):00005         ;  AUTHOR: CRAIG IANNELLO, PUGBUTT.COM
+                      (        smpug.asm):00006         ;
+                      (        smpug.asm):00007         ; DESCRIPTION: 
+                      (        smpug.asm):00008         ;   DRAWS A SMALL PUG IN FOUR COLOES USING THE V9958 VIDEO DISPLAY PROCESSOR.
+                      (        smpug.asm):00009         ;   AND PLAYS PUGPUTER STARTUP SOUND BY BISQWIT
+                      (        smpug.asm):00010         ;------------------------------------------------------------------------------
+                      (        smpug.asm):00011             INCLUDE DEFINES.D           ; COMMON DEFINITIONS
+                      (        DEFINES.D):00001         ; -----------------------------------------------------------------------------
+                      (        DEFINES.D):00002         ; IO DEVICE BASE ADDRESSES
+                      (        DEFINES.D):00003         ; -----------------------------------------------------------------------------
+                      (        DEFINES.D):00004         
+     FFEC             (        DEFINES.D):00005         BANK_BASE   EQU  $FFEC      : FFEC - FFEF: MEMORY BANK REGS 0...3 (BUILT-IN)
+     FFE8             (        DEFINES.D):00006         ACIA_BASE   EQU  $FFE8      ; FFE8 - FFEB: SERIAL UART R65C51P2 (BUILT-IN)
+     FFE4             (        DEFINES.D):00007         VDP_BASE    EQU  $FFE4      ; FFE4 - FFE7: VIDEO CHIP V9958
+     FFE0             (        DEFINES.D):00008         OPL3_BASE   EQU  $FFE0      ; FFE0 - FFE3: MUSIC CHIP YMF262 (OPL3)
+     FFB0             (        DEFINES.D):00009         VIA_BASE    EQU  $FFB0      ; FFB0 - FFBF: W65C22 VIA (SD CARD, SPI, KB, GPIO)
+                      (        DEFINES.D):00010         
+                      (        DEFINES.D):00011         ; V9958 VDP REGISTERS
+     FFE4             (        DEFINES.D):00012         VDAT        EQU  VDP_BASE+0 ; PORT 0: VRAM DATA (R/W)
+     FFE5             (        DEFINES.D):00013         VREG        EQU  VDP_BASE+1 ; PORT 1: STATUS REG (R), REGISTER/SETUP (W), VRAM ADDR (W)
+     FFE6             (        DEFINES.D):00014         VPAL        EQU  VDP_BASE+2 ; PORT 2: PALETTE REGISTERS (W)
+     FFE7             (        DEFINES.D):00015         VIND        EQU  VDP_BASE+3 ; PORT 3: REGISTER-INDIRECT ADDRESSING (W)
+                      (        DEFINES.D):00016         
+                      (        DEFINES.D):00017         ; MEMORY BANK REGISTERS 0..3 (BASE ADDRESS IN DEFINES.D)
+                      (        DEFINES.D):00018         ; THESE ARE WRITE-ONLY, SO WE KEEP COPIES OF 1 THROUGH 3 IN 
+                      (        DEFINES.D):00019         ; VARS IN MAIN.ASM: SBANK_1...SBANK_3
+                      (        DEFINES.D):00020         
+     FFEC             (        DEFINES.D):00021         MBANK_0     EQU  BANK_BASE+0
+     FFED             (        DEFINES.D):00022         MBANK_1     EQU  BANK_BASE+1
+     FFEE             (        DEFINES.D):00023         MBANK_2     EQU  BANK_BASE+2
+     FFEF             (        DEFINES.D):00024         MBANK_3     EQU  BANK_BASE+3
+                      (        DEFINES.D):00025         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00026         ; COMMON DEFINITIONS
+                      (        DEFINES.D):00027         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00028         ; ASCII CODES
+     001B             (        DEFINES.D):00029         ESC         EQU  $1B    ; ESCAPE
+     000A             (        DEFINES.D):00030         LF          EQU  $0A    ; LINE FEED
+     000D             (        DEFINES.D):00031         CR          EQU  $0D    ; CARRIAGE RETURN
+     0000             (        DEFINES.D):00032         NUL         EQU  $00    ; NULL
+     0020             (        DEFINES.D):00033         SPACE       EQU  $20
+     007E             (        DEFINES.D):00034         TILDE       EQU  $7E
+                      (        DEFINES.D):00035         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00036         _DATE       STRUCT
+0000s                 (        DEFINES.D):00037         YEAR        RMB  2      ; DATE AS INTEGERS
+0002s                 (        DEFINES.D):00038         DAYYR       RMB  2
+0004s                 (        DEFINES.D):00039         MON         RMB  1
+0005s                 (        DEFINES.D):00040         DAYMON      RMB  1
+0006s                 (        DEFINES.D):00041         HOUR        RMB  1
+0007s                 (        DEFINES.D):00042         MIN         RMB  1
+0008s                 (        DEFINES.D):00043         SEC         RMB  1
+0009s                 (        DEFINES.D):00044         HUND        RMB  1
+000As                 (        DEFINES.D):00045         YEARBCD     RMB  2      ; DATE AS BCD
+000Cs                 (        DEFINES.D):00046         DAYYRBCD    RMB  2
+000Es                 (        DEFINES.D):00047         MONBCD      RMB  1
+000Fs                 (        DEFINES.D):00048         DAYMONBCD   RMB  1
+0010s                 (        DEFINES.D):00049         HOURBCD     RMB  1
+0011s                 (        DEFINES.D):00050         MINBCD      RMB  1
+0012s                 (        DEFINES.D):00051         SECBCD      RMB  1
+0013s                 (        DEFINES.D):00052         HUNDBCD     RMB  1
+0014s                 (        DEFINES.D):00053                     ENDS
+                      (        DEFINES.D):00054         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00055         ; EOF
+                      (        DEFINES.D):00056         ;------------------------------------------------------------------------------
+                      (        smpug.asm):00012             INCLUDE BIOS_FUNC_TAB.D     ; BIOS FCN JUMP TABLE AND CONSTANTS
+                      (  BIOS_FUNC_TAB.D):00001         ;------------------------------------------------------------------------------
+                      (  BIOS_FUNC_TAB.D):00002         ; BIOS BIOS FUNCTION JUMP TABLE ADDRESSES
+                      (  BIOS_FUNC_TAB.D):00003         ;------------------------------------------------------------------------------
+     FEA0             (  BIOS_FUNC_TAB.D):00004         FUNC_BASE       EQU  $FEA0          ; SEE 6309/BOOT/MAIN.ASM FOR DEFS
+                      (  BIOS_FUNC_TAB.D):00005         ;------------------------------------------------------------------------------
+     FEA0             (  BIOS_FUNC_TAB.D):00006         BF_V_RESET      EQU  FUNC_BASE+0
+     FEA3             (  BIOS_FUNC_TAB.D):00007         BF_UT_GETC      EQU  FUNC_BASE+3
+     FEA6             (  BIOS_FUNC_TAB.D):00008         BF_UT_GETS      EQU  FUNC_BASE+6
+     FEA9             (  BIOS_FUNC_TAB.D):00009         BF_UT_PUTC      EQU  FUNC_BASE+9    ;
+     FEAC             (  BIOS_FUNC_TAB.D):00010         BF_UT_PUTS      EQU  FUNC_BASE+12
+     FEAF             (  BIOS_FUNC_TAB.D):00011         BF_UT_WAITTX    EQU  FUNC_BASE+15
+     FEB2             (  BIOS_FUNC_TAB.D):00012         BF_UT_CLRSCR    EQU  FUNC_BASE+18
+     FEB5             (  BIOS_FUNC_TAB.D):00013         BF_S_HEXA       EQU  FUNC_BASE+21   ; CONVERT REG A TO HEX OCTET AT X, X+=2
+     FEB8             (  BIOS_FUNC_TAB.D):00014         BF_S_EOL        EQU  FUNC_BASE+24   ; PUT CR, LF, $00 AT X, X+=3
+     FEBB             (  BIOS_FUNC_TAB.D):00015         BF_S_LEN        EQU  FUNC_BASE+27   ; PUT LEN OF STRING AT X INTO REG B
+     FEBE             (  BIOS_FUNC_TAB.D):00016         BF_S_CPY        EQU  FUNC_BASE+30   ; COPY STRING AT Y TO MEM AT X. X+=?
+     FEC1             (  BIOS_FUNC_TAB.D):00017         BF_RTC_GETTIX   EQU  FUNC_BASE+33   ; GET CURRENT SYSTEM TICKS TO I64 AT X.
+     FEC4             (  BIOS_FUNC_TAB.D):00018         BF_S_TOUPPER    EQU  FUNC_BASE+36   ; MAKE A UPPERCASE IF IT IS LOWERCASE
+     FEC7             (  BIOS_FUNC_TAB.D):00019         BF_S_INTD       EQU  FUNC_BASE+39   ; CONVERT REG D TO STRING AT X, X+=?
+     FECA             (  BIOS_FUNC_TAB.D):00020         BF_RTC_SETTIX   EQU  FUNC_BASE+42   ; SET CURRENT SYSTEM TICKS FROM I64 AT X.
+                      (  BIOS_FUNC_TAB.D):00021         ;------------------------------------------------------------------------------
+                      (  BIOS_FUNC_TAB.D):00022         ; EOF
+                      (  BIOS_FUNC_TAB.D):00023         ;------------------------------------------------------------------------------
+                      (        smpug.asm):00013         ;------------------------------------------------------------------------------
+                      (        smpug.asm):00014         ; V9958 VDP REGISTERS
+                      (        smpug.asm):00015         #VDAT        EQU  VDP_BASE+0 ; PORT 0: VRAM DATA (R/W)
+                      (        smpug.asm):00016         #VREG        EQU  VDP_BASE+1 ; PORT 1: STATUS REG (R), REGISTER/SETUP (W), VRAM ADDR (W)
+                      (        smpug.asm):00017         #VPAL        EQU  VDP_BASE+2 ; PORT 2: PALETTE REGISTERS (W)
+                      (        smpug.asm):00018         #VIND        EQU  VDP_BASE+3 ; PORT 3: REGISTER-INDIRECT ADDRESSING (W)
+                      (        smpug.asm):00019         
+                      (        smpug.asm):00020         ; 80-COLUMN TEXT IS BLUISH-WHITE ON DARK BLUE..
+     0012             (        smpug.asm):00021         BACKGROUND1       EQU   $12     ; 0 R2 R1 R0 0 B2 B1 B0
+     0001             (        smpug.asm):00022         BACKGROUND2       EQU   $01     ; 0 0  0  0  0 G2 G1 G0
+     0057             (        smpug.asm):00023         FOREGROUND1       EQU   $57     ; 0 R2 R1 R0 0 B2 B1 B0
+     0005             (        smpug.asm):00024         FOREGROUND2       EQU   $05     ; 0 0  0  0  0 G2 G1 G0
+     0080             (        smpug.asm):00025         DISPMODE          EQU   DM_NTSC           ; DM_PAL OR DM_NTSC
+     0050             (        smpug.asm):00026         LINELENGTH        EQU   80                ; TODO: HANDLE 40-COLUMN MODES
+     0080             (        smpug.asm):00027         DM_NTSC           EQU   128 ; 0 FOR 24 LINE MODE
+     0082             (        smpug.asm):00028         DM_PAL            EQU   130 ; 2 FOR 24 LINE MODE
+     ????             (        smpug.asm):00029         DISPLAYSIZE       EQU   LINELENGTH*LINECOUNT
+     0003             (        smpug.asm):00030         VDP_REG2_PAGE0    EQU   $3           ; PAGE 0 AT 0X0
+     000B             (        smpug.asm):00031         VDP_REG2_PAGE1    EQU   $B           ; PAGE 1 AT 0X2000
+                      (        smpug.asm):00032         ;------------------------------------------------------------------------------
+                      (        smpug.asm):00033                     ORG     $1000   ; VARS
+                      (        smpug.asm):00034         ; -----------------------------------------------------------------------------
+                      (        smpug.asm):00035         ; PROGRAM ENTRYPOINT
+                      (        smpug.asm):00036         ; -----------------------------------------------------------------------------
+1000                  (        smpug.asm):00037         ENTRYPOINT  
+1000 BD1007           (        smpug.asm):00038             JSR DRAWIMG
+1003 BD10C5           (        smpug.asm):00039             JSR PLAYSOUND
+1006 39               (        smpug.asm):00040             RTS
+                      (        smpug.asm):00041         ; -----------------------------------------------------------------------------
+1007                  (        smpug.asm):00042         DRAWIMG
+1007 8610             (        smpug.asm):00043             LDA #$10  ; SELECT FG1, BG 0    
+1009 B7FFE5           (        smpug.asm):00044             STA VREG
+100C 8687             (        smpug.asm):00045             LDA #$87  ; .. IN VDP REGISTER 7
+100E B7FFE5           (        smpug.asm):00046             STA VREG    
+1011 8E11F5           (        smpug.asm):00047             LDX  #VDP_G4_SEQ ; SET MODE GRAPHICS4
+1014                  (        smpug.asm):00048         VDP_INIT    
+1014 A680             (        smpug.asm):00049             LDA  ,X+
+1016 B7FFE5           (        smpug.asm):00050             STA  VREG
+1019 8C1205           (        smpug.asm):00051             CMPX #(VDP_G4_SEQ+VDP_G4_SZ)
+101C 25F6             (        smpug.asm):00052             BLO  VDP_INIT
+101E 8E124A           (        smpug.asm):00053             LDX  #PALETTE   ; SET 16-COLOR PALETTE
+1021 8600             (        smpug.asm):00054             LDA  #0
+1023 B7FFE5           (        smpug.asm):00055             STA  VREG
+1026 8690             (        smpug.asm):00056             LDA  #$90
+1028 B7FFE5           (        smpug.asm):00057             STA  VREG
+102B 118600           (        smpug.asm):00058             LDE  #0
+102E                  (        smpug.asm):00059         SET_PAL     
+102E A680             (        smpug.asm):00060             LDA  ,X+
+1030 B7FFE6           (        smpug.asm):00061             STA  VPAL
+1033 A680             (        smpug.asm):00062             LDA  ,X+
+1035 B7FFE6           (        smpug.asm):00063             STA  VPAL
+1038 114C             (        smpug.asm):00064             INCE
+103A 118110           (        smpug.asm):00065             CMPE #16
+103D 25EF             (        smpug.asm):00066             BLO  SET_PAL
+103F 8602             (        smpug.asm):00067             LDA  #2
+1041 B71249           (        smpug.asm):00068             STA  OUTELEMS
+1044 CE1252           (        smpug.asm):00069             LDU  #IMG       ; POINT X TO START OF RLE DATA
+                      (        smpug.asm):00070         
+1047                  (        smpug.asm):00071         DRAWLOOP    
+1047 A6C0             (        smpug.asm):00072             LDA  ,U+        ; GET NEXT BYTE OF RLE DATA
+1049 2B35             (        smpug.asm):00073             BMI  U16ELEM    ; IF TOP BIT SET, NEED TO GET ANOTHER BYTE.
+                      (        smpug.asm):00074         
+104B                  (        smpug.asm):00075         U8ELEM              ; THIS PIXEL RUN IS ENCODED IN ONE BYTE:
+104B 1F89             (        smpug.asm):00076             TFR  A,B 
+104D C403             (        smpug.asm):00077             ANDB #3
+104F F71245           (        smpug.asm):00078             STB  PIXCOLR    ; PIXEL COLOR
+1052 44               (        smpug.asm):00079             LSRA
+1053 44               (        smpug.asm):00080             LSRA    
+1054 4C               (        smpug.asm):00081             INCA
+1055 B71247           (        smpug.asm):00082             STA  PIXCNT+1   ; RUN LENGTH
+1058                  (        smpug.asm):00083         DRAWPIXELS8  
+1058 F61248           (        smpug.asm):00084             LDB  OUTBYTE
+105B                  (        smpug.asm):00085         LOOPPIXELS8         ; SHIFT PIXEL INTO OUTPUT BYTE
+105B 58               (        smpug.asm):00086             LSLB
+105C 58               (        smpug.asm):00087             LSLB
+105D 58               (        smpug.asm):00088             LSLB
+105E 58               (        smpug.asm):00089             LSLB
+105F FA1245           (        smpug.asm):00090             ORB  PIXCOLR
+1062 7A1249           (        smpug.asm):00091             DEC  OUTELEMS
+1065 260A             (        smpug.asm):00092             BNE  SKIPPLOT8
+1067 F7FFE4           (        smpug.asm):00093             STB  VDAT       ; EVERY TWO PIXELS, SEND BYTE THE VDP
+106A 8602             (        smpug.asm):00094             LDA  #2
+106C B71249           (        smpug.asm):00095             STA  OUTELEMS       
+106F 2003             (        smpug.asm):00096             BRA  ELOOP8
+1071                  (        smpug.asm):00097         SKIPPLOT8
+1071 F71248           (        smpug.asm):00098             STB  OUTBYTE
+1074                  (        smpug.asm):00099         ELOOP8
+1074 7A1247           (        smpug.asm):00100             DEC  PIXCNT+1   ; CHECK FOR END OF PIXEL RUN
+1077 26E2             (        smpug.asm):00101             BNE  LOOPPIXELS8
+1079 118313DF         (        smpug.asm):00102             CMPU #ENDIMG    ; CHECK FOR END OF IMAGE
+107D 26C8             (        smpug.asm):00103             BNE  DRAWLOOP
+107F 39               (        smpug.asm):00104             RTS             ; IMAGE DONE.
+                      (        smpug.asm):00105         
+1080                  (        smpug.asm):00106         U16ELEM             ; THIS PIXEL RUN IS ENCODED IN TWO BYTES:
+1080 E6C0             (        smpug.asm):00107             LDB  ,U+  
+1082 847F             (        smpug.asm):00108             ANDA #$7F
+1084 1F06             (        smpug.asm):00109             TFR  D,W
+1086 C403             (        smpug.asm):00110             ANDB #3
+1088 F71245           (        smpug.asm):00111             STB  PIXCOLR    ; PIXEL COLOR
+108B 1F60             (        smpug.asm):00112             TFR  W,D
+108D 1044             (        smpug.asm):00113             LSRD
+108F 1044             (        smpug.asm):00114             LSRD
+1091 104C             (        smpug.asm):00115             INCD
+1093 FD1246           (        smpug.asm):00116             STD  PIXCNT     ; RUN LENGTH   
+1096                  (        smpug.asm):00117         DRAWPIXELS          ; SHIFT PIXEL INTO OUTPUT BYTE
+1096 F61248           (        smpug.asm):00118             LDB  OUTBYTE
+1099                  (        smpug.asm):00119         LOOPPIXELS16
+1099 58               (        smpug.asm):00120             LSLB
+109A 58               (        smpug.asm):00121             LSLB
+109B 58               (        smpug.asm):00122             LSLB
+109C 58               (        smpug.asm):00123             LSLB
+109D FA1245           (        smpug.asm):00124             ORB  PIXCOLR
+10A0 7A1249           (        smpug.asm):00125             DEC  OUTELEMS
+10A3 260A             (        smpug.asm):00126             BNE  SKIPPLOT
+10A5 F7FFE4           (        smpug.asm):00127             STB  VDAT       ; EVERY TWO PIXELS, SEND BYTE THE VDP
+10A8 8602             (        smpug.asm):00128             LDA  #2
+10AA B71249           (        smpug.asm):00129             STA  OUTELEMS       
+10AD 2003             (        smpug.asm):00130             BRA  ELOOP
+10AF                  (        smpug.asm):00131         SKIPPLOT
+10AF F71248           (        smpug.asm):00132             STB  OUTBYTE
+10B2                  (        smpug.asm):00133         ELOOP
+10B2 10B61246         (        smpug.asm):00134             LDW  PIXCNT
+10B6 105A             (        smpug.asm):00135             DECW
+10B8 10B71246         (        smpug.asm):00136             STW  PIXCNT     ; CHECK FOR END OF PIXEL RUN
+10BC 26DB             (        smpug.asm):00137             BNE  LOOPPIXELS16
+10BE 118313DF         (        smpug.asm):00138             CMPU #ENDIMG    ; CHECK FOR END OF IMAGE
+10C2 2683             (        smpug.asm):00139             BNE DRAWLOOP
+10C4 39               (        smpug.asm):00140             RTS             ; IMAGE DONE.
+                      (        smpug.asm):00141         
+10C5 8600             (        smpug.asm):00142         PLAYSOUND   LDA  #$00
+10C7 C600             (        smpug.asm):00143                     LDB  #$00
+10C9 118600           (        smpug.asm):00144                     LDE  #$00
+10CC BD11C4           (        smpug.asm):00145                     JSR  OPL_WRITE
+10CF 8608             (        smpug.asm):00146                     LDA  #$08
+10D1 C640             (        smpug.asm):00147                     LDB  #$40
+10D3 118600           (        smpug.asm):00148                     LDE  #$00
+10D6 BD11C4           (        smpug.asm):00149                     JSR  OPL_WRITE
+10D9 86BD             (        smpug.asm):00150                     LDA  #$BD
+10DB C600             (        smpug.asm):00151                     LDB  #$00
+10DD 118600           (        smpug.asm):00152                     LDE  #$00
+10E0 BD11C4           (        smpug.asm):00153                     JSR  OPL_WRITE
+10E3 8600             (        smpug.asm):00154                     LDA  #$00
+10E5 C600             (        smpug.asm):00155                     LDB  #$00
+10E7 118601           (        smpug.asm):00156                     LDE  #$01
+10EA BD11C4           (        smpug.asm):00157                     JSR  OPL_WRITE
+10ED 8608             (        smpug.asm):00158                     LDA  #$08
+10EF C640             (        smpug.asm):00159                     LDB  #$40
+10F1 118601           (        smpug.asm):00160                     LDE  #$01
+10F4 BD11C4           (        smpug.asm):00161                     JSR  OPL_WRITE
+10F7 86BD             (        smpug.asm):00162                     LDA  #$BD
+10F9 C600             (        smpug.asm):00163                     LDB  #$00
+10FB 118601           (        smpug.asm):00164                     LDE  #$01
+10FE BD11C4           (        smpug.asm):00165                     JSR  OPL_WRITE
+1101 8E13DF           (        smpug.asm):00166                     LDX  #SONG
+1104 A680             (        smpug.asm):00167         SONGLOOP    LDA  ,X+
+1106 815A             (        smpug.asm):00168                     CMPA #$5A
+1108 2765             (        smpug.asm):00169                     BEQ  WR_BANK0
+110A 815E             (        smpug.asm):00170                     CMPA #$5E
+110C 2761             (        smpug.asm):00171                     BEQ  WR_BANK0
+110E 815F             (        smpug.asm):00172                     CMPA #$5F
+1110 2750             (        smpug.asm):00173                     BEQ  WR_BANK1
+1112 8161             (        smpug.asm):00174                     CMPA #$61
+1114 273D             (        smpug.asm):00175                     BEQ  DLY_VAR0
+1116 8162             (        smpug.asm):00176                     CMPA #$62
+1118 272F             (        smpug.asm):00177                     BEQ  DLY_F0
+111A 8163             (        smpug.asm):00178                     CMPA #$63
+111C 2721             (        smpug.asm):00179                     BEQ  DLY_F1
+111E 8180             (        smpug.asm):00180                     CMPA #$80
+1120 2713             (        smpug.asm):00181                     BEQ  DLY_F2
+1122 8170             (        smpug.asm):00182                     CMPA #$70
+1124 2D53             (        smpug.asm):00183                     BLT  LOOPEND
+1126 8180             (        smpug.asm):00184                     CMPA #$80
+1128 2C4F             (        smpug.asm):00185                     BGE  LOOPEND
+112A 840F             (        smpug.asm):00186         DLY_VAR1    ANDA #$0F     ; DELAY Y = (A & 0XF)+1
+112C 4C               (        smpug.asm):00187                     INCA
+112D 1F82             (        smpug.asm):00188                     TFR  A,Y
+112F BD11EB           (        smpug.asm):00189                     JSR  DELAY
+1132 7E1179           (        smpug.asm):00190                     JMP  LOOPEND                             
+1135 108E002D         (        smpug.asm):00191         DLY_F2      LDY  #45
+1139 BD11EB           (        smpug.asm):00192                     JSR  DELAY
+113C 7E1179           (        smpug.asm):00193                     JMP  LOOPEND                        
+113F 108E0372         (        smpug.asm):00194         DLY_F1      LDY  #882
+1143 BD11EB           (        smpug.asm):00195                     JSR  DELAY
+1146 7E1179           (        smpug.asm):00196                     JMP  LOOPEND                        
+1149 108E02DF         (        smpug.asm):00197         DLY_F0      LDY  #735
+114D BD11EB           (        smpug.asm):00198                     JSR  DELAY
+1150 7E1179           (        smpug.asm):00199                     JMP  LOOPEND                        
+1153 10AE81           (        smpug.asm):00200         DLY_VAR0    LDY  ,X++
+1156 1F20             (        smpug.asm):00201                     TFR  Y,D    ; SWAP DUMB LITTLE-ENDIAN WORD TO BIG-ENDIAN
+1158 1E89             (        smpug.asm):00202                     EXG  A,B    ; (AS NATURE INTENDED.)
+115A 1F02             (        smpug.asm):00203                     TFR  D,Y
+115C BD11EB           (        smpug.asm):00204                     JSR  DELAY
+115F 7E1179           (        smpug.asm):00205                     JMP  LOOPEND
+1162 A680             (        smpug.asm):00206         WR_BANK1    LDA  ,X+
+1164 E680             (        smpug.asm):00207                     LDB  ,X+
+1166 118601           (        smpug.asm):00208                     LDE  #1
+1169 BD11C4           (        smpug.asm):00209                     JSR  OPL_WRITE
+116C 7E1179           (        smpug.asm):00210                     JMP  LOOPEND
+116F A680             (        smpug.asm):00211         WR_BANK0    LDA  ,X+
+1171 E680             (        smpug.asm):00212                     LDB  ,X+
+1173 118600           (        smpug.asm):00213                     LDE  #0
+1176 BD11C4           (        smpug.asm):00214                     JSR  OPL_WRITE
+1179 BDFEA3           (        smpug.asm):00215         LOOPEND     JSR  BF_UT_GETC
+117C 811B             (        smpug.asm):00216                     CMPA #$1B
+117E 2707             (        smpug.asm):00217                     BEQ  ENDLOOP
+1180 8C198E           (        smpug.asm):00218                     CMPX #ENDSONG
+1183 1026FF7D         (        smpug.asm):00219                     LBNE SONGLOOP
+1187 8600             (        smpug.asm):00220         ENDLOOP     LDA  #$00
+1189 C600             (        smpug.asm):00221                     LDB  #$00
+118B 118600           (        smpug.asm):00222                     LDE  #$00
+118E BD11C4           (        smpug.asm):00223                     JSR  OPL_WRITE
+1191 8608             (        smpug.asm):00224                     LDA  #$08
+1193 C640             (        smpug.asm):00225                     LDB  #$40
+1195 118600           (        smpug.asm):00226                     LDE  #$00
+1198 BD11C4           (        smpug.asm):00227                     JSR  OPL_WRITE
+119B 86BD             (        smpug.asm):00228                     LDA  #$BD
+119D C600             (        smpug.asm):00229                     LDB  #$00
+119F 118600           (        smpug.asm):00230                     LDE  #$00
+11A2 BD11C4           (        smpug.asm):00231                     JSR  OPL_WRITE
+11A5 8600             (        smpug.asm):00232                     LDA  #$00
+11A7 C600             (        smpug.asm):00233                     LDB  #$00
+11A9 118601           (        smpug.asm):00234                     LDE  #$01
+11AC BD11C4           (        smpug.asm):00235                     JSR  OPL_WRITE
+11AF 8608             (        smpug.asm):00236                     LDA  #$08
+11B1 C640             (        smpug.asm):00237                     LDB  #$40
+11B3 118601           (        smpug.asm):00238                     LDE  #$01
+11B6 BD11C4           (        smpug.asm):00239                     JSR  OPL_WRITE
+11B9 86BD             (        smpug.asm):00240                     LDA  #$BD
+11BB C600             (        smpug.asm):00241                     LDB  #$00
+11BD 118601           (        smpug.asm):00242                     LDE  #$01
+11C0 BD11C4           (        smpug.asm):00243                     JSR  OPL_WRITE            
+11C3 39               (        smpug.asm):00244                     RTS             ; ALL DONE.
+                      (        smpug.asm):00245         ; -----------------------------------------------------------------------------
+                      (        smpug.asm):00246         ; A = REG NUM, B = VALUE, E = OPL3 BANK NUMBER (0,1)           
+                      (        smpug.asm):00247         ; -----------------------------------------------------------------------------
+11C4 118100           (        smpug.asm):00248         OPL_WRITE   CMPE #00
+11C7 2711             (        smpug.asm):00249                     BEQ  BANK0
+11C9 B7FFE2           (        smpug.asm):00250         BANK1       STA  OPL3_BASE+2
+11CC 12               (        smpug.asm):00251                     NOP
+11CD 12               (        smpug.asm):00252                     NOP
+11CE 12               (        smpug.asm):00253                     NOP
+11CF 12               (        smpug.asm):00254                     NOP
+11D0 12               (        smpug.asm):00255                     NOP
+11D1 F7FFE3           (        smpug.asm):00256                     STB  OPL3_BASE+3
+11D4 12               (        smpug.asm):00257                     NOP
+11D5 12               (        smpug.asm):00258                     NOP
+11D6 12               (        smpug.asm):00259                     NOP
+11D7 12               (        smpug.asm):00260                     NOP
+11D8 12               (        smpug.asm):00261                     NOP
+11D9 39               (        smpug.asm):00262                     RTS
+11DA B7FFE0           (        smpug.asm):00263         BANK0       STA  OPL3_BASE+0
+11DD 12               (        smpug.asm):00264                     NOP
+11DE 12               (        smpug.asm):00265                     NOP
+11DF 12               (        smpug.asm):00266                     NOP
+11E0 12               (        smpug.asm):00267                     NOP
+11E1 12               (        smpug.asm):00268                     NOP
+11E2 F7FFE1           (        smpug.asm):00269                     STB  OPL3_BASE+1
+11E5 12               (        smpug.asm):00270                     NOP
+11E6 12               (        smpug.asm):00271                     NOP
+11E7 12               (        smpug.asm):00272                     NOP
+11E8 12               (        smpug.asm):00273                     NOP
+11E9 12               (        smpug.asm):00274                     NOP
+11EA 39               (        smpug.asm):00275                     RTS
+                      (        smpug.asm):00276         ; -----------------------------------------------------------------------------
+                      (        smpug.asm):00277         ; WAIT THE NUMBER OF SAMPLE PERIODS GIVEN IN Y. THE SAMPLE RATE IS 44100 HZ
+                      (        smpug.asm):00278         ; -----------------------------------------------------------------------------
+11EB C611             (        smpug.asm):00279         DELAY       LDB  #17
+11ED 5A               (        smpug.asm):00280         DLOOP       DECB
+11EE 26FD             (        smpug.asm):00281                     BNE  DLOOP
+11F0 313F             (        smpug.asm):00282                     LEAY -1,Y
+11F2 26F7             (        smpug.asm):00283                     BNE  DELAY
+11F4 39               (        smpug.asm):00284                     RTS
+                      (        smpug.asm):00285         
+                      (        smpug.asm):00286         ; -----------------------------------------------------------------------------
+     0010             (        smpug.asm):00287         VDP_G4_SZ   EQU     16      ; INIT SEQ FOR VDP MODE GRAPHICS4 (512 X 212 X 16)
+11F5 1087068040810A88 (        smpug.asm):00288         VDP_G4_SEQ  FCB     $10,$87,$06,$80,$40,$81,$0A,$88,$80,$89,$1F,$82,$00,$8E,$00,$40
+     80891F82008E0040
+1205                  (        smpug.asm):00289         OUTBUF      RMB     64
+1245                  (        smpug.asm):00290         PIXCOLR     RMB     1
+1246                  (        smpug.asm):00291         PIXCNT      RMB     2
+1248                  (        smpug.asm):00292         OUTBYTE     RMB     1
+1249                  (        smpug.asm):00293         OUTELEMS    RMB     1
+                      (        smpug.asm):00294         ; -----------------------------------------------------------------------------
+124A                  (        smpug.asm):00295         PALETTE:
+124A 0000220246056405 (        smpug.asm):00296             FDB $0000,$2202,$4605,$6405
+1252                  (        smpug.asm):00297         IMG:
+1252 8C5A1183DA0D0B09 (        smpug.asm):00298             FCB $8C,$5A,$11,$83,$DA,$0D,$0B,$09,$00,$83,$CA,$00,$01,$23,$00,$05,$04,$83,$BA,$00,$01,$2B,$00,$05,$04,$83,$B2,$00,$01,$33,$0D,$00
+     0083CA0001230005
+     0483BA00012B0005
+     0483B20001330D00
+1272 83AA00051F09070D (        smpug.asm):00299             FCB $83,$AA,$00,$05,$1F,$09,$07,$0D,$00,$83,$A6,$00,$05,$07,$05,$0F,$01,$17,$00,$05,$00,$83,$A2,$00,$05,$00,$0F,$01,$13,$09,$07,$09
+     0083A6000507050F
+     011700050083A200
+     05000F0113090709
+1292 0083A20D07051305 (        smpug.asm):00300             FCB $00,$83,$A2,$0D,$07,$05,$13,$05,$02,$00,$01,$07,$05,$00,$83,$A2,$09,$07,$01,$00,$05,$03,$0D,$00,$01,$04,$07,$00,$01,$83,$A6,$05
+     02000107050083A2
+     0907010005030D00
+     010407000183A605
+12B2 0003010204010C01 (        smpug.asm):00301             FCB $00,$03,$01,$02,$04,$01,$0C,$01,$0C,$07,$00,$01,$83,$A6,$00,$01,$00,$03,$0C,$01,$1C,$01,$0B,$00,$83,$AA,$04,$03,$08,$01,$10,$01
+     0C07000183A60001
+     00030C011C010B00
+     83AA040308011001
+12D2 04050B0183860D16 (        smpug.asm):00302             FCB $04,$05,$0B,$01,$83,$86,$0D,$16,$00,$03,$09,$00,$05,$04,$09,$0C,$07,$01,$83,$82,$01,$0F,$01,$0A,$01,$00,$01,$03,$01,$08,$09,$00
+     000309000504090C
+     07018382010F010A
+     0100010301080900
+12F2 1907018382011309 (        smpug.asm):00303             FCB $19,$07,$01,$83,$82,$01,$13,$09,$07,$01,$03,$00,$11,$08,$11,$0B,$01,$83,$82,$01,$03,$01,$07,$05,$0F,$01,$03,$15,$08,$11,$07,$01
+     070103001108110B
+     0183820103010705
+     0F01031508110701
+1312 8386010709130103 (        smpug.asm):00304             FCB $83,$86,$01,$07,$09,$13,$01,$03,$01,$00,$09,$00,$03,$01,$03,$01,$00,$01,$00,$07,$01,$83,$8E,$01,$2F,$01,$00,$05,$07,$01,$07,$01
+     0100090003010301
+     0001000701838E01
+     2F01000507010701
+1332 000B018392012301 (        smpug.asm):00305             FCB $00,$0B,$01,$83,$92,$01,$23,$01,$07,$01,$04,$01,$0B,$05,$00,$07,$01,$83,$96,$01,$27,$01,$0B,$01,$00,$01,$03,$01,$04,$07,$05,$83
+     070104010B050007
+     0183960127010B01
+     0001030104070583
+1352 96012B010B010C07 (        smpug.asm):00306             FCB $96,$01,$2B,$01,$0B,$01,$0C,$07,$05,$83,$9A,$01,$2F,$09,$1F,$01,$83,$9A,$01,$5B,$01,$83,$96,$01,$5B,$01,$83,$9A,$01,$5B,$01,$83
+     05839A012F091F01
+     839A015B01839601
+     5B01839A015B0183
+1372 96015705839A011B (        smpug.asm):00307             FCB $96,$01,$57,$05,$83,$9A,$01,$1B,$05,$0B,$01,$1F,$01,$00,$83,$9E,$01,$17,$01,$03,$05,$07,$01,$13,$01,$03,$01,$03,$01,$83,$9E,$01
+     050B011F0100839E
+     0117010305070113
+     0103010301839E01
+1392 0F01000B00010301 (        smpug.asm):00308             FCB $0F,$01,$00,$0B,$00,$01,$03,$01,$13,$01,$00,$07,$01,$83,$9E,$01,$0B,$01,$06,$01,$07,$01,$02,$05,$13,$01,$0B,$01,$83,$9E,$01,$0B
+     1301000701839E01
+     0B01060107010205
+     13010B01839E010B
+13B2 01060D060113010B (        smpug.asm):00309             FCB $01,$06,$0D,$06,$01,$13,$01,$0B,$01,$83,$A2,$09,$26,$01,$0F,$01,$0B,$01,$83,$D6,$01,$0F,$01,$04,$01,$83,$DE,$01,$0B,$01,$83,$EE
+     0183A20926010F01
+     0B0183D6010F0104
+     0183DE010B0183EE
+13D2 09FFFAFFFAFFFAFF (        smpug.asm):00310             FCB $09,$FF,$FA,$FF,$FA,$FF,$FA,$FF,$FA,$FF,$FA,$B7,$B6
+     FAFFFAB7B6
+13DF                  (        smpug.asm):00311         ENDIMG
+                      (        smpug.asm):00312         ; -----------------------------------------------------------------------------
+13DF                  (        smpug.asm):00313         SONG:  ; VGM DATA
+13DF 5AB0005AB1005AB2 (        smpug.asm):00314             FCB $5A,$B0,$00,$5A,$B1,$00,$5A,$B2,$00,$5A,$B3,$00,$5A,$B4,$00,$5A,$B5,$00
+     005AB3005AB4005A
+     B500
+13F1 5AB6005AB7005AB8 (        smpug.asm):00315             FCB $5A,$B6,$00,$5A,$B7,$00,$5A,$B8,$00,$5F,$B0,$00,$5F,$B1,$00,$5F,$B2,$00
+     005FB0005FB1005F
+     B200
+1403 5FB3005FB4005FB5 (        smpug.asm):00316             FCB $5F,$B3,$00,$5F,$B4,$00,$5F,$B5,$00,$5F,$B6,$00,$5F,$B7,$00,$5F,$B8,$00
+     005FB6005FB7005F
+     B800
+1415 5A04605A04805F05 (        smpug.asm):00317             FCB $5A,$04,$60,$5A,$04,$80,$5F,$05,$00,$5F,$05,$01,$5F,$05,$00,$5A,$01,$20
+     005F05015F05005A
+     0120
+1427 5F05015ABDC05F04 (        smpug.asm):00318             FCB $5F,$05,$01,$5A,$BD,$C0,$5F,$04,$3F,$5A,$20,$21,$5A,$21,$30,$5A,$22,$30
+     3F5A20215A21305A
+     2230
+1439 5A23615A24A05A25 (        smpug.asm):00319             FCB $5A,$23,$61,$5A,$24,$A0,$5A,$25,$A0,$5A,$28,$A1,$5A,$29,$61,$5A,$2A,$61
+     A05A28A15A29615A
+     2A61
+144B 5A2B215A2C215A2D (        smpug.asm):00320             FCB $5A,$2B,$21,$5A,$2C,$21,$5A,$2D,$21,$5A,$30,$31,$5A,$31,$31,$5A,$32,$31
+     215A30315A31315A
+     3231
+145D 5A33315A34345A35 (        smpug.asm):00321             FCB $5A,$33,$31,$5A,$34,$34,$5A,$35,$34,$5A,$40,$16,$5A,$41,$98,$5A,$42,$98
+     345A40165A41985A
+     4298
+146F 5A43095A44085A45 (        smpug.asm):00322             FCB $5A,$43,$09,$5A,$44,$08,$5A,$45,$08,$5A,$48,$8A,$5A,$49,$92,$5A,$4A,$92
+     085A488A5A49925A
+     4A92
+1481 5A4B005A4C065A4D (        smpug.asm):00323             FCB $5A,$4B,$00,$5A,$4C,$06,$5A,$4D,$06,$5A,$50,$8D,$5A,$51,$0A,$5A,$52,$0A
+     065A508D5A510A5A
+     520A
+1493 5A53005A54055A55 (        smpug.asm):00324             FCB $5A,$53,$00,$5A,$54,$05,$5A,$55,$0A,$5A,$60,$C2,$5A,$61,$61,$5A,$62,$61
+     0A5A60C25A61615A
+     6261
+14A5 5A63CF5A64645A65 (        smpug.asm):00325             FCB $5A,$63,$CF,$5A,$64,$64,$5A,$65,$64,$5A,$68,$74,$5A,$69,$65,$5A,$6A,$65
+     645A68745A69655A
+     6A65
+14B7 5A6B7F5A6C655A6D (        smpug.asm):00326             FCB $5A,$6B,$7F,$5A,$6C,$65,$5A,$6D,$65,$5A,$70,$F1,$5A,$71,$A8,$5A,$72,$A8
+     655A70F15A71A85A
+     72A8
+14C9 5A73F15A74D25A75 (        smpug.asm):00327             FCB $5A,$73,$F1,$5A,$74,$D2,$5A,$75,$D2,$5A,$80,$35,$5A,$81,$03,$5A,$82,$03
+     D25A80355A81035A
+     8203
+14DB 5A830A5A84175A85 (        smpug.asm):00328             FCB $5A,$83,$0A,$5A,$84,$17,$5A,$85,$17,$5A,$88,$45,$5A,$89,$17,$5A,$8A,$17
+     175A88455A89175A
+     8A17
+14ED 5A8B085A8C175A8D (        smpug.asm):00329             FCB $5A,$8B,$08,$5A,$8C,$17,$5A,$8D,$17,$5A,$90,$E8,$5A,$91,$10,$5A,$92,$10
+     175A90E85A91105A
+     9210
+14FF 5A93785A94B95A95 (        smpug.asm):00330             FCB $5A,$93,$78,$5A,$94,$B9,$5A,$95,$B9,$5A,$A0,$58,$5A,$A1,$B0,$5A,$A2,$03
+     B95AA0585AA1B05A
+     A203
+1511 5AA3585AA4B05AA5 (        smpug.asm):00331             FCB $5A,$A3,$58,$5A,$A4,$B0,$5A,$A5,$03,$5A,$A6,$B0,$5A,$A7,$03,$5A,$A8,$B8
+     035AA6B05AA7035A
+     A8B8
+1523 5AB0215AB12E5AB2 (        smpug.asm):00332             FCB $5A,$B0,$21,$5A,$B1,$2E,$5A,$B2,$2E,$5A,$B3,$21,$5A,$B4,$2E,$5A,$B5,$2E
+     2E5AB3215AB42E5A
+     B52E
+1535 5AB6225AB73A5AB8 (        smpug.asm):00333             FCB $5A,$B6,$22,$5A,$B7,$3A,$5A,$B8,$32,$5A,$C0,$3E,$5A,$C1,$3E,$5A,$C2,$2E
+     325AC03E5AC13E5A
+     C22E
+1547 5AC33F5AC43F5AC5 (        smpug.asm):00334             FCB $5A,$C3,$3F,$5A,$C4,$3F,$5A,$C5,$2F,$5A,$C6,$3A,$5A,$C7,$36,$5A,$C8,$36
+     2F5AC63A5AC7365A
+     C836
+1559 5AE0005AE1025AE2 (        smpug.asm):00335             FCB $5A,$E0,$00,$5A,$E1,$02,$5A,$E2,$02,$5A,$E3,$00,$5A,$E4,$02,$5A,$E5,$02
+     025AE3005AE4025A
+     E502
+156B 5AE8005AE9015AEA (        smpug.asm):00336             FCB $5A,$E8,$00,$5A,$E9,$01,$5A,$EA,$01,$5A,$EB,$00,$5A,$EC,$00,$5A,$ED,$00
+     015AEB005AEC005A
+     ED00
+157D 5AF0005AF1005AF2 (        smpug.asm):00337             FCB $5A,$F0,$00,$5A,$F1,$00,$5A,$F2,$00,$5A,$F3,$00,$5A,$F4,$01,$5A,$F5,$01
+     005AF3005AF4015A
+     F501
+158F 5F300E5F33005F40 (        smpug.asm):00338             FCB $5F,$30,$0E,$5F,$33,$00,$5F,$40,$BF,$5F,$41,$BF,$5F,$42,$BF,$5F,$43,$9E
+     BF5F41BF5F42BF5F
+     439E
+15A1 5F449E5F459E5F48 (        smpug.asm):00339             FCB $5F,$44,$9E,$5F,$45,$9E,$5F,$48,$BF,$5F,$49,$BF,$5F,$4A,$BF,$5F,$4B,$BF
+     BF5F49BF5F4ABF5F
+     4BBF
+15B3 5F4CBF5F4DBF5F50 (        smpug.asm):00340             FCB $5F,$4C,$BF,$5F,$4D,$BF,$5F,$50,$00,$5F,$51,$BF,$5F,$52,$BF,$5F,$53,$00
+     005F51BF5F52BF5F
+     5300
+15C5 5F54BF5F55BF5F70 (        smpug.asm):00341             FCB $5F,$54,$BF,$5F,$55,$BF,$5F,$70,$1E,$5F,$73,$18,$5F,$90,$00,$5F,$93,$FE
+     1E5F73185F90005F
+     93FE
+15D7 5FA6635FB6335FC6 (        smpug.asm):00342             FCB $5F,$A6,$63,$5F,$B6,$33,$5F,$C6,$3E,$5F,$F0,$00,$5F,$F3,$03,$61,$E7,$23
+     3E5FF0005FF30361
+     E723
+15E9 5F31315F510A5F71 (        smpug.asm):00343             FCB $5F,$31,$31,$5F,$51,$0A,$5F,$71,$A8,$5F,$91,$10,$5F,$F1,$00,$5F,$34,$34
+     A85F91105FF1005F
+     3434
+15FB 5F54055F74D25F94 (        smpug.asm):00344             FCB $5F,$54,$05,$5F,$74,$D2,$5F,$94,$B9,$5F,$F4,$01,$5F,$A7,$63,$5F,$B7,$37
+     B95FF4015FA7635F
+     B737
+160D 5FC73661601D5AB7 (        smpug.asm):00345             FCB $5F,$C7,$36,$61,$60,$1D,$5A,$B7,$1A,$61,$44,$03,$5F,$20,$21,$5F,$40,$16
+     1A6144035F20215F
+     4016
+161F 5F60C25F80355FA0 (        smpug.asm):00346             FCB $5F,$60,$C2,$5F,$80,$35,$5F,$A0,$63,$5F,$B0,$27,$5F,$C0,$3E,$5F,$E0,$00
+     635FB0275FC03E5F
+     E000
+1631 5F23615F32315F43 (        smpug.asm):00347             FCB $5F,$23,$61,$5F,$32,$31,$5F,$43,$10,$5F,$52,$0A,$5F,$63,$CF,$5F,$72,$A8
+     105F520A5F63CF5F
+     72A8
+1643 5F830A5F92105FA3 (        smpug.asm):00348             FCB $5F,$83,$0A,$5F,$92,$10,$5F,$A3,$63,$5F,$B3,$27,$5F,$C3,$3F,$5F,$E3,$00
+     635FB3275FC33F5F
+     E300
+1655 5FF2005A44055A54 (        smpug.asm):00349             FCB $5F,$F2,$00,$5A,$44,$05,$5A,$54,$0A,$5F,$35,$34,$5A,$45,$05,$5F,$55,$05
+     0A5F35345A45055F
+     5505
+1667 5F75D25F95B95FF5 (        smpug.asm):00350             FCB $5F,$75,$D2,$5F,$95,$B9,$5F,$F5,$01,$5A,$A7,$B8,$5A,$B7,$36,$5A,$B8,$12
+     015AA7B85AB7365A
+     B812
+1679 5F28A15F488A5F68 (        smpug.asm):00351             FCB $5F,$28,$A1,$5F,$48,$8A,$5F,$68,$74,$5F,$88,$45,$5F,$A8,$B0,$5F,$B8,$3A
+     745F88455FA8B05F
+     B83A
+168B 5FC8365FE8005F2B (        smpug.asm):00352             FCB $5F,$C8,$36,$5F,$E8,$00,$5F,$2B,$21,$5F,$4B,$09,$5F,$6B,$7F,$5F,$8B,$08
+     215F4B095F6B7F5F
+     8B08
+169D 5FEB005A4C035A4D (        smpug.asm):00353             FCB $5F,$EB,$00,$5A,$4C,$03,$5A,$4D,$03,$61,$D9,$16,$5A,$52,$8D,$5A,$72,$F1
+     0361D9165A528D5A
+     72F1
+16AF 5A92E85A35315A55 (        smpug.asm):00354             FCB $5A,$92,$E8,$5A,$35,$31,$5A,$55,$00,$5A,$75,$F1,$5A,$95,$78,$5A,$F5,$00
+     005A75F15A95785A
+     F500
+16C1 5AB6025AA8B05AB8 (        smpug.asm):00355             FCB $5A,$B6,$02,$5A,$A8,$B0,$5A,$B8,$26,$5A,$C8,$3A,$61,$CB,$09,$5F,$B6,$13
+     265AC83A61CB095F
+     B613
+16D3 6187065FB7176144 (        smpug.asm):00356             FCB $61,$87,$06,$5F,$B7,$17,$61,$44,$03,$5A,$B7,$16,$5F,$B8,$1A,$61,$95,$13
+     035AB7165FB81A61
+     9513
+16E5 5F518D5F71F15F91 (        smpug.asm):00357             FCB $5F,$51,$8D,$5F,$71,$F1,$5F,$91,$E8,$5F,$43,$09,$5A,$44,$03,$5F,$34,$31
+     E85F43095A44035F
+     3431
+16F7 5A45035F54005F74 (        smpug.asm):00358             FCB $5A,$45,$03,$5F,$54,$00,$5F,$74,$F1,$5F,$94,$78,$5F,$F4,$00,$5F,$A7,$B0
+     F15F94785FF4005F
+     A7B0
+1709 5FB7225FC73A5AB8 (        smpug.asm):00359             FCB $5F,$B7,$22,$5F,$C7,$3A,$5A,$B8,$06,$5F,$4B,$00,$5A,$4C,$01,$5A,$4D,$01
+     065F4B005A4C015A
+     4D01
+171B 61CE475A54055F55 (        smpug.asm):00360             FCB $61,$CE,$47,$5A,$54,$05,$5F,$55,$0A,$5A,$A7,$65,$5A,$B7,$36,$5F,$A8,$6D
+     0A5AA7655AB7365F
+     A86D
+172D 5FB8335A4C005A4D (        smpug.asm):00361             FCB $5F,$B8,$33,$5A,$4C,$00,$5A,$4D,$00,$61,$95,$13,$5A,$B6,$26,$5F,$B7,$02
+     006195135AB6265F
+     B702
+173F 61CB095A520A5A72 (        smpug.asm):00362             FCB $61,$CB,$09,$5A,$52,$0A,$5A,$72,$A8,$5A,$92,$10,$5A,$35,$34,$5A,$55,$05
+     A85A92105A35345A
+     5505
+1751 5A75D25A95B95AF5 (        smpug.asm):00363             FCB $5A,$75,$D2,$5A,$95,$B9,$5A,$F5,$01,$5A,$A8,$43,$5A,$B8,$36,$5A,$C8,$36
+     015AA8435AB8365A
+     C836
+1763 61E7235AA0325AB0 (        smpug.asm):00364             FCB $61,$E7,$23,$5A,$A0,$32,$5A,$B0,$27,$5F,$21,$21,$5F,$41,$16,$5A,$51,$8D
+     275F21215F41165A
+     518D
+1775 5F510A5F61C25A71 (        smpug.asm):00365             FCB $5F,$51,$0A,$5F,$61,$C2,$5A,$71,$F1,$5F,$71,$A8,$5F,$81,$35,$5A,$91,$E8
+     F15F71A85F81355A
+     91E8
+1787 5F91105FA16C5AB1 (        smpug.asm):00366             FCB $5F,$91,$10,$5F,$A1,$6C,$5A,$B1,$0E,$5F,$B0,$07,$5F,$B1,$21,$5F,$C1,$3E
+     0E5FB0075FB1215F
+     C13E
+1799 5FE1005AB20E5F22 (        smpug.asm):00367             FCB $5F,$E1,$00,$5A,$B2,$0E,$5F,$22,$30,$5F,$42,$98,$5F,$62,$61,$5F,$82,$03
+     305F42985F62615F
+     8203
+17AB 5FA2045AA3325AB3 (        smpug.asm):00368             FCB $5F,$A2,$04,$5A,$A3,$32,$5A,$B3,$27,$5F,$B3,$07,$5F,$B2,$2F,$5F,$C2,$3E
+     275FB3075FB22F5F
+     C23E
+17BD 5FE2025A34315A54 (        smpug.asm):00369             FCB $5F,$E2,$02,$5A,$34,$31,$5A,$54,$00,$5A,$74,$F1,$5A,$94,$78,$5A,$B4,$0E
+     005A74F15A94785A
+     B40E
+17CF 5AF4005F24615F25 (        smpug.asm):00370             FCB $5A,$F4,$00,$5F,$24,$61,$5F,$25,$A0,$5F,$34,$34,$5F,$44,$09,$5F,$45,$1F
+     A05F34345F44095F
+     451F
+17E1 5F54055F64CF5F65 (        smpug.asm):00371             FCB $5F,$54,$05,$5F,$64,$CF,$5F,$65,$64,$5F,$74,$D2,$5F,$84,$0A,$5F,$85,$17
+     645F74D25F840A5F
+     8517
+17F3 5F94B95FA46C5FA5 (        smpug.asm):00372             FCB $5F,$94,$B9,$5F,$A4,$6C,$5F,$A5,$04,$5A,$B5,$0E,$5F,$B4,$21,$5F,$B5,$2F
+     045AB50E5FB4215F
+     B52F
+1805 5FC43F5FC53F5FE4 (        smpug.asm):00373             FCB $5F,$C4,$3F,$5F,$C5,$3F,$5F,$E4,$00,$5F,$E5,$02,$5F,$F4,$01,$5A,$B6,$06
+     005FE5025FF4015A
+     B606
+1817 5AA7045FA7045AB7 (        smpug.asm):00374             FCB $5A,$A7,$04,$5F,$A7,$04,$5A,$B7,$23,$5F,$B7,$37,$5A,$C7,$3A,$5F,$C7,$36
+     235FB7375AC73A5F
+     C736
+1829 5AA8045AB8375F29 (        smpug.asm):00375             FCB $5A,$A8,$04,$5A,$B8,$37,$5F,$29,$A1,$5F,$49,$8A,$5F,$69,$74,$5F,$89,$45
+     A15F498A5F69745F
+     8945
+183B 5FE9005F2A615F4A (        smpug.asm):00376             FCB $5F,$E9,$00,$5F,$2A,$61,$5F,$4A,$92,$5F,$6A,$65,$5F,$8A,$17,$5F,$EA,$01
+     925F6A655F8A175F
+     EA01
+184D 5F2C215F2D215F4C (        smpug.asm):00377             FCB $5F,$2C,$21,$5F,$2D,$21,$5F,$4C,$00,$5F,$4D,$1E,$5F,$6C,$7F,$5F,$6D,$65
+     005F4D1E5F6C7F5F
+     6D65
+185F 5F8C085F8D175FEC (        smpug.asm):00378             FCB $5F,$8C,$08,$5F,$8D,$17,$5F,$EC,$00,$5F,$ED,$00,$61,$87,$06,$5F,$B8,$13
+     005FED006187065F
+     B813
+1871 611C1A5FA8D85FB8 (        smpug.asm):00379             FCB $61,$1C,$1A,$5F,$A8,$D8,$5F,$B8,$33,$61,$E7,$23,$5A,$B0,$07,$5A,$21,$21
+     3361E7235AB0075A
+     2121
+1883 5A41165A61C25A81 (        smpug.asm):00380             FCB $5A,$41,$16,$5A,$61,$C2,$5A,$81,$35,$5F,$A0,$82,$5A,$A1,$04,$5F,$B1,$01
+     355FA0825AA1045F
+     B101
+1895 5FB0215AB1275AE1 (        smpug.asm):00381             FCB $5F,$B0,$21,$5A,$B1,$27,$5A,$E1,$00,$5F,$A3,$82,$5A,$B3,$07,$5F,$B3,$21
+     005FA3825AB3075F
+     B321
+18A7 5A24615A44095A64 (        smpug.asm):00382             FCB $5A,$24,$61,$5A,$44,$09,$5A,$64,$CF,$5A,$84,$0A,$5A,$A4,$04,$5A,$B4,$27
+     CF5A840A5AA4045A
+     B427
+18B9 5AE4005F45125FB4 (        smpug.asm):00383             FCB $5A,$E4,$00,$5F,$45,$12,$5F,$B4,$01,$5A,$A8,$43,$5A,$B8,$3A,$5A,$29,$A1
+     015AA8435AB83A5A
+     29A1
+18CB 5A498A5A69745A89 (        smpug.asm):00384             FCB $5A,$49,$8A,$5A,$69,$74,$5A,$89,$45,$5F,$A8,$0D,$5F,$B8,$2B,$5A,$E9,$00
+     455FA80D5FB82B5A
+     E900
+18DD 5A6C7F5A8C085F4D (        smpug.asm):00385             FCB $5A,$6C,$7F,$5A,$8C,$08,$5F,$4D,$10,$61,$52,$10,$5F,$B7,$17,$61,$52,$10
+     106152105FB71761
+     5210
+18EF 5FB73B61D9165AB8 (        smpug.asm):00386             FCB $5F,$B7,$3B,$61,$D9,$16,$5A,$B8,$1A,$61,$CB,$09,$5F,$45,$07,$5F,$4D,$05
+     1A61CB095F45075F
+     4D05
+1901 6187065FB71B6100 (        smpug.asm):00387             FCB $61,$87,$06,$5F,$B7,$1B,$61,$00,$00,$5F,$45,$11,$5F,$4D,$0F,$61,$D9,$16
+     005F45115F4D0F61
+     D916
+1913 5FB0015A22215A42 (        smpug.asm):00388             FCB $5F,$B0,$01,$5A,$22,$21,$5A,$42,$16,$5A,$62,$C2,$5A,$82,$35,$5A,$B2,$26
+     165A62C25A82355A
+     B226
+1925 5AC23E5AE2005FB3 (        smpug.asm):00389             FCB $5A,$C2,$3E,$5A,$E2,$00,$5F,$B3,$01,$5A,$25,$61,$5A,$45,$1B,$5A,$65,$CF
+     015A25615A451B5A
+     65CF
+1937 5A850A5AB5265AC5 (        smpug.asm):00390             FCB $5A,$85,$0A,$5A,$B5,$26,$5A,$C5,$3F,$5A,$E5,$00,$5A,$2A,$A1,$5A,$4A,$8A
+     3F5AE5005A2AA15A
+     4A8A
+1949 5A6A745A8A455AEA (        smpug.asm):00391             FCB $5A,$6A,$74,$5A,$8A,$45,$5A,$EA,$00,$5A,$4D,$16,$5A,$6D,$7F,$5A,$8D,$08
+     005A4D165A6D7F5A
+     8D08
+195B 61B22D5FB20F5A45 (        smpug.asm):00392             FCB $61,$B2,$2D,$5F,$B2,$0F,$5A,$45,$09,$5F,$B5,$0F,$5A,$4D,$00,$61,$CE,$47
+     095FB50F5A4D0061
+     CE47
+196D 5AB2065A440B5AB5 (        smpug.asm):00393             FCB $5A,$B2,$06,$5A,$44,$0B,$5A,$B5,$06,$5A,$4C,$03,$61,$8A,$44,$5A,$B1,$07
+     065A4C03618A445A
+     B107
+197F 5AB40761C03A5FB8 (        smpug.asm):00394             FCB $5A,$B4,$07,$61,$C0,$3A,$5F,$B8,$0B,$61,$CB,$09,$5A,$B7,$03
+     0B61CB095AB703
+198E                  (        smpug.asm):00395         ENDSONG
+                      (        smpug.asm):00396         
+                      (        smpug.asm):00397         ;------------------------------------------------------------------------------
+                      (        smpug.asm):00398         ; EOF
+                      (        smpug.asm):00399         ;------------------------------------------------------------------------------

@@ -1,55 +1,39 @@
-; -----------------------------------------------------------------------------
-; Microsoft Extended BASIC for 6809, 1982 release
+; Extended MS BASIC with autostart ROM 
 ;
-; Transcribed and stripped of Color-Computer specific stuff by Grant Searle, 
-; working from the book "Extended BASIC Unravelled", by Walter K. Zydhek.
+; This is a derived work from that of Grant Searle.
+; http://searle.hostei.com/grant/6809/Simple6809.html
 ;
-; In 2014, it was adapted by Tom Circuit to compile under lwtools 4.10.
-;
-; In 2022-2023 this version has been expanded by Craig Iannello to support
-; the following additional hardware:
-; 
-; Rockwell  R65C51P2         Serial UART
-; Yamaha    V9958            Video Display Processor
-; Pugbutt   Mega-Multipass   Sound / SD Card / IO Card
+; I have used Grant's 6809 Extended BASIC with very
+; minimal adapations to port to hd6309 CPU or the
+; SBC hardware CPLD V1.3.
 ;
 ; target toolchain: lwtools lwasm ver 4.10 
 ;
-; Authors' sites:
-;
-; http://searle.x10host.com/6809/Simple6809.html
-; https://github.com/tomcircuit/hd6309sbc
-; https://github.com/caiannello/pugputer
-; https://youtube.com/appliedcryogenics
-;
-; -----------------------------------------------------------------------------
-    INCLUDE DEFINES.D           ; COMMON DEFINITIONS
-    INCLUDE BIOS_FUNC_TAB.D     ; BIOS FCN JUMP TABLE AND CONSTANTS
-; -----------------------------------------------------------------------------
+; tomcircuit 5/20/2014
 
-; CONSTANTS AND DEFINES
-
+ZSCCAC    EQU  $E012          ; SCC channel A command
+ZSCCAD    EQU  $E013          ; SCC channel A data
+SYSCFG    EQU  $E040		; ROM WS, ROMSEL, ROMSEH, and RA14 select
+IOPORT    EQU  $E050          ; SD card and LED control
+                               
 BS        EQU  8              BACKSPACE 
-;LF        EQU  $A             LINEFEED
-;CR        EQU  $D             ENTER KEY 
-;ESC       EQU  $1B            ESCAPE CODE 
-;SPACE     EQU  $20            SPACE (BLANK) 
+LF        EQU  $A             LINEFEED
+CR        EQU  $D             ENTER KEY 
+ESC       EQU  $1B            ESCAPE CODE 
+SPACE     EQU  $20            SPACE (BLANK) 
 STKBUF    EQU  58             STACK BUFFER ROOM 
 LBUFMX    EQU  250            MAX NUMBER OF CHARS IN A BASIC LINE 
 MAXLIN    EQU  $FA            MAXIMUM MS BYTE OF LINE NUMBER 
 
 ; PSEUDO OPS                      
-SKP1      EQU  $21            OP CODE OF BRN â€” SKIP ONE BYTE 
+SKP1      EQU  $21            OP CODE OF BRN — SKIP ONE BYTE 
 SKP2      EQU  $8C            OP CODE OF CMPX # - SKIP TWO BYTES 
 SKP1LD    EQU  $86            OP CODE OF LDA # - SKIP THE NEXT BYTE 
-;                             AND LOAD THE VALUE OF THAT BYTE INTO ACCA â€” THIS 
+;                             AND LOAD THE VALUE OF THAT BYTE INTO ACCA — THIS 
 ;                             IS USUALLY USED TO LOAD ACCA WITH A NON ZERO VALUE 
-BASIC_CODE   EQU  $1000       ; Bootloader loads and enters applications here
-BASIC_STATE  EQU  $4000       ; BASIC state is outside the bootloader RAM area
-RAM_TOP      EQU  $F000       ; Exclusive end of the default 64K RAM mapping
-          ORG  BASIC_STATE
-          SETDP $40
+RTS_LOW   EQU  $95             
 
+          ORG  0               
 ENDFLG    RMB  1              STOP/END FLAG: POSITIVE=STOP, NEG=END 
 CHARAC    RMB  1              TERMINATOR FLAG 1 
 ENDCHR    RMB  1              TERMINATOR FLAG 2 
@@ -100,7 +84,7 @@ V45       RMB  1
 V46       RMB  1               
 V47       RMB  1               
 V48       RMB  2               
-; FLOATING POINT ACCUMULATOR #5 :PACKED: ($4Aâ€”$4E)                      
+; FLOATING POINT ACCUMULATOR #5 :PACKED: ($4A—$4E)                      
 V4A       RMB  1               
 V4B       RMB  2               
 V4D       RMB  2               
@@ -132,7 +116,7 @@ ZERO      RMB  2              *PV DUMMY - THESE TWO BYTES ARE ALWAYS ZERO
 ; THE FOLLOWING BYTES ARE MOVED DOWN FROM ROM                      
 LPTCFW    RMB  1              16 
 LPTLCF    RMB  1              112 
-LPTWID    RMB  1              80 
+LPTWID    RMB  1              132 
 LPTPOS    RMB  1              0 
 EXECJP    RMB  2              LB4AA 
                                
@@ -164,6 +148,12 @@ VD7       RMB  1
 VD8       RMB  1               
 VD9       RMB  1               
 VDA       RMB  1               
+SW3VEC    RMB  3               
+SW2VEC    RMB  3               
+SWIVEC    RMB  3               
+NMIVEC    RMB  3               
+IRQVEC    RMB  3               
+FRQVEC    RMB  3               
 USRJMP    RMB  3              JUMP ADDRESS FOR BASIC'S USR FUNCTION 
 RVSEED    RMB  1              * FLOATING POINT RANDOM NUMBER SEED EXPONENT 
           RMB  4              * MANTISSA: INITIALLY SET TO $804FC75259 
@@ -184,21 +174,73 @@ STRSTK    RMB  8*5            STRING DESCRIPTOR STACK
 LINHDR    RMB  2              LINE INPUT BUFFER HEADER 
 LINBUF    RMB  LBUFMX+1       BASIC LINE INPUT BUFFER 
 STRBUF    RMB  41             STRING BUFFER 
-DUMP_ADRS RMB  2              ADDRESS USED BY HEXDUMP ROUTINE
-
+                               
 PROGST    RMB  1              START OF PROGRAM SPACE 
-  
-          ORG  BASIC_CODE    ; RELOCATABLE CODE -----------------------
 
+;         INTERRUPT VECTORS                 
+V_SWI3    EQU  $FFF2
+V_SWI2    EQU  $FFF4           
+V_FIRQ    EQU  $FFF6           
+V_IRQ     EQU  $FFF8           
+V_SWI     EQU  $FFFA           
+V_NMI     EQU  $FFFC           
+V_RESET   EQU  $FFFE           
+                               
+          ORG  $D000           
+                               
+; Wait for a keystroke from the console.
+KEYWAIT   BSR  KEYIN          ; GET A CHARACTER FROM CONSOLE IN 
+          BEQ  KEYWAIT        ; LOOP IF NO KEY DOWN 
+          RTS                  
+                               
+; THIS ROUTINE GETS A KEYSTROKE FROM THE KEYBOARD IF A KEY                      
+; IS DOWN. IT RETURNS ZERO TRUE IF THERE WAS NO KEY DOWN.                      
+KEYIN     LDA  ZSCCAC         ; reset register pointer to WR0/RR0
+          LDA  ZSCCAC         ; load RR0 (status)
+          BITA #1              
+          BEQ  NOCHAR          
+          LDA  ZSCCAD         ; read character from SCC into A
+          ANDA #$7F            
+          RTS                  
+NOCHAR    CLRA                 
+          RTS                  
+                               
+; CONSOLE OUT                      
+PUTCHR    BSR  WAITACIA        
+          PSHS A               
+          CMPA #CR            IS IT CARRIAGE RETURN? 
+          BEQ  NEWLINE        YES 
+          STA  ZSCCAD         ; put character in data register        
+          INC  LPTPOS         INCREMENT CHARACTER COUNTER 
+          LDA  LPTPOS         CHECK FOR END OF LINE PRINTER LINE 
+          CMPA LPTWID         AT END OF LINE PRINTER LINE? 
+          BLO  PUTEND         NO 
+NEWLINE   CLR  LPTPOS         RESET CHARACTER COUNTER 
+          BSR  WAITACIA        
+          LDA  #CR
+          STA  ZSCCAD         ; put CR in data register        
+          BSR  WAITACIA        
+          LDA  #LF            DO LINEFEED AFTER CR 
+          STA  ZSCCAD         ; put LF in data register        
+PUTEND    PULS A               
+          RTS                  
+                               
+WAITACIA  PSHS A               
+WRWAIT    LDA  ZSCCAC         ; reset register pointer to WR0/RR0
+          LDA  ZSCCAC         ; load RR0 (status)
+          BITA #4              
+          BEQ  WRWAIT          
+          PULS A               
+          RTS                  
+                              
 RESVEC:
 LA00E     LDS  #LINBUF+LBUFMX+1 SET STACK TO TOP OF LINE INPUT BUFFER
-          LDMD #$01           ; switch to 6309 native mode
-          LDA  #$40           ; BASIC state variables live on direct page $40
-          TFR  A,DP
-          ; JSR  UART_INIT      ;initialize SERIAL PORT  (already done by bios)
+	     AIM  %11111100,IOPORT  ; turn off LED1 and LED2
+		AIM  %11111110,SYSCFG  ; make ROM 0WS access
+          JSR  SCCA_INIT      ;initialize SCC channel A
           LDA  RSTFLG         GET WARM START FLAG 
           CMPA #$55           IS IT A WARM START? 
-          BNE  BACDST         NO - DO A COLD START          
+          BNE  BACDST         NO - D0 A COLD START          
           LDX  RSTVEC         WARM START VECTOR 
           LDA  ,X             GET FIRST BYTE OF WARM START ADDR 
           CMPA #$12           IS IT NOP? 
@@ -208,134 +250,86 @@ LA00E     LDS  #LINBUF+LBUFMX+1 SET STACK TO TOP OF LINE INPUT BUFFER
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; COLD START ENTRY
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
-BACDST    LDX  #BASIC_STATE    CLEAR BASIC STATE RAM, NOT BOOT RAM
-LA077     CLR  ,X+             CLEAR ONE BASIC STATE BYTE
-          CMPX #PROGST         KEEP GOING THROUGH THE STATE AREA
-          BNE  LA077
-
+BACDST    OIM  %00010011,IOPORT   ; turn ON LED1 and LED2, disable SD card
+          LDX  #PROGST+1      POINT X TO CLEAR 1ST 1K OF RAM 
+LA077     CLR  ,--X           MOVE POINTER DOWN TWO-CLEAR BYTE 
+          LEAX 1,X            ADVANCE POINTER ONE 
+          BNE  LA077          KEEP GOING IF NOT AT BOTTOM OF PAGE 0 
           LDX  #PROGST        SET TO START OF PROGRAM SPACE 
           CLR  ,X+            CLEAR 1ST BYTE OF BASIC PROGRAM 
           STX  TXTTAB         BEGINNING OF BASIC PROGRAM 
-LA093     LDX  #RAM_TOP        CODE MARKS THE TOP OF BASIC RAM
-          STX  TOPRAM         SAVE ABSOLUTE TOP OF BASIC RAM
+LA084     LDA  2,X            LOOK FOR END OF MEMORY 
+          COMA                * COMPLEMENT IT AND PUT IT BACK 
+          STA  2,X            * INTO SYSTEM MEMORY 
+          CMPA 2,X            IS IT RAM? 
+          BNE  LA093          BRANCH IF NOT (ROM, BAD RAM OR NO RAM) 
+          LEAX 1,X            MOVE POINTER UP ONE 
+          COM  1,X            RE-COMPLEMENT TO RESTORE BYTE 
+          BRA  LA084          KEEP LOOKING FOR END OF RAM 
+LA093     STX  TOPRAM         SAVE ABSOLUTE TOP OF RAM 
           STX  MEMSIZ         SAVE TOP OF STRING SPACE 
           STX  STRTAB         SAVE START OF STRING VARIABLES 
           LEAX -200,X         CLEAR 200 - DEFAULT STRING SPACE TO 200 BYTES 
           STX  FRETOP         SAVE START OF STRING SPACE 
-          ;TFR  X,S            PUT STACK THERE 
+          TFR  X,S            PUT STACK THERE 
           LDX  #LA10D         POINT X TO ROM SOURCE DATA 
           LDU  #LPTCFW        POINT U TO RAM DESTINATION 
           LDB  #18            MOVE 18 BYTES 
           JSR  LA59A          MOVE 18 BYTES FROM ROM TO RAM 
+          LDU  #IRQVEC        POINT U TO NEXT RAM DESTINATION 
+          LDB  #4             MOVE 4 MORE BYTES 
+          JSR  LA59A          MOVE 4 BYTES FROM ROM TO RAM 
           LDA  #$39            
           STA  LINHDR-1       PUT RTS IN LINHDR-1 
-          JSR  LAD19          G0 DO A â€˜NEWâ€™ 
+          JSR  LAD19          G0 DO A ‘NEW’ 
 ; EXTENDED BASIC INITIALISATION                      
           LDX  #USR0          INITIALIZE ADDRESS OF START OF 
           STX  USRADR         USR JUMP TABLE 
-; INITIALIZE THE USR CALLS TO â€˜FC ERRORâ€™                      
-          LDU  #LB44A         ADDRESS OF â€˜FC ERRORâ€™ ROUTINE 
+; INITIALIZE THE USR CALLS TO ‘FC ERROR’                      
+          LDU  #LB44A         ADDRESS OF ‘FC ERROR’ ROUTINE 
           LDB  #10            10 USR CALLS IN EX BASIC 
-L8031     STU  ,X++           STORE â€˜FCâ€™ ERROR AT USR ADDRESSES 
+L8031     STU  ,X++           STORE ‘FC’ ERROR AT USR ADDRESSES 
           DECB                FINISHED ALL 10? 
           BNE  L8031          NO 
 		
-; wait for two characters to come in from keyboard after powerup
-; before showing th startup banner
-;L8032     JSR  KEYIN
-;          BEQ  L8032
-;L8033     JSR  KEYIN
-;          BEQ  L8033
+; HD6309 SBC can be USB powered, which means that
+; power is applied before USB bridge enumerates.
+; Therefore, to ensure that communications are
+; established, wait for TWO characters to come in 
+; from the SCC. This ensures that the copyright 
+; banner is visible, also.
+L8032     JSR  KEYIN
+          BEQ  L8032
+		AIM  %11111110,IOPORT  ; turn OFF LED1
+L8033     JSR  KEYIN
+          BEQ  L8033
+		AIM  %11111100,IOPORT  ; turn OFF LED1 and LED2
 ; OUTPUT THE WELCOME BANNER AT COLDSTART
           LDX  #LA147-1       POINT X TO COLOR BASIC COPYRIGHT MESSAGE 
-          JSR  LB99C          PRINT â€˜COLOR BASICâ€™ 
+          JSR  LB99C          PRINT ‘COLOR BASIC’ 
           LDX  #BAWMST        WARM START ADDRESS 
           STX  RSTVEC         SAVE IT 
           LDA  #$55           WARM START FLAG 
           STA  RSTFLG         SAVE IT 
-          JMP  LA0F3          GO TO BASICâ€™S MAIN LOOP 
-
-HEXDUMP: ; DUMPS 16 BYTES OF MEMORY POINTED BY DUMP_ADRS TO SCREEN
-        LDX  #LINBUF
-        LDA  #'>            PUT '>' BEFORE ADDRESS
-        STA  ,X+            TWICE BECAUSE BASIC LINEPRINT IS WEIRD
-        STA  ,X+
-        LDA  DUMP_ADRS      THEN 4-CHAR HEX ADDRESS
-        BSR  HEXBYTE
-        LDA  DUMP_ADRS+1
-        BSR  HEXBYTE
-        LDA  #32            THEN A SPACE,
-        STA  ,X+
-        LDY  DUMP_ADRS      GET STARTING ADDRESS IN Y
-        LDE  #16            FOR 16 ITERATIONS
-        LDU  #(LINBUF+2+5+16*3)  POINT U AT ASCII PART AFTER HEX CHARS
-        LDA  #$A8               WHICH BEGINS WITH A DELIMITER
-        STA  ,U+
-        LDF  #'.
-HEXLOOP:
-        LDA  ,Y+
-        CMPA #$22
-        BNE  NOTQUOTE       BASIC LINE PRINTER DOESNT LIKE QUOTES
-        STF  ,U+
-        BRA DONEASCII        
-NOTQUOTE:
-        CMPA #32
-        BGE  ASCIIOK
-        STF  ,U+
-        BRA DONEASCII
-ASCIIOK:
-        STA  ,U+            ADD ASCII CHAR TO U POS
-DONEASCII:
-        BSR  HEXBYTE        2-CHAR MEMORY BYTE TO X POS
-        LDA  #32            THEN A SPACE,
-        STA  ,X+
-        DECE
-        BNE  HEXLOOP
-        STY  DUMP_ADRS      UPDATE DUMP POSITION TO NEXT ROW
-        LDA  #$A8           END DELIMITER TO ASCII PART
-        STA  ,U+              
-        LDA  #CR            THEN A CR
-        STA  ,U+
-        CLR  ,U             MAKE LAST BYTE IN INPUT BUFFER = 0
-        LDX  #LINBUF
-        JSR  LB99C          PRINT HEXDUMP LINE
-        RTS
-
-HEXBYTE: ; CONVERTS VAL IN A TO A 2-BYTE HEXSTRING AND PUTS IN BUF AT X
-        TFR  A,B            SAVE ORIGINAL BINARY VALUE
-        LSRA                MOVE HIGH DIGIT TO LOW DIGIT
-        LSRA
-        LSRA
-        LSRA
-        CMPA #9
-        BLS  AD30           BRANCH IF HIGH DIGIT IS DECIMAL
-        ADDA #7             ELSE ADD 7 SO AFTER ADDING 'O' THE
-                            ; CHARACTER WILL BE IN â€˜'A'..'F'
-AD30:   ADDA #'0            ADD ASCII O TO MAKE A CHARACTER
-        ANDB #$0F           MASK OFF LOW DIGIT
-        CMPB #9
-        BLS AD3OLD          BRANCH IF LOW DIGIT IS DECIMAL
-        ADDB #7             ELSE ADD 7 SO AFTER ADDING 'O! THE
-                            ; CHARACTER WILL BE IN 'â€˜A'..'F!
-AD3OLD: ADDB #'0            ADD ASCII O TO MAKE A CHARACTER
-        STA ,X+             ; INSERT HEX BYTES INTO DEST STRING AT X
-        STB ,X+             ; AND NCREMENT X
-        RTS 
-
+          BRA  LA0F3          GO TO BASIC’S MAIN LOOP 
+		
 ;;;;;;;;;;;;;;;;;;;;;;;;;;                               
 ; WARM START ENTRY
 ;;;;;;;;;;;;;;;;;;;;;;;;;;                               
-BAWMST    NOP                 NOP REQâ€™D FOR WARM START  
+BAWMST    NOP                 NOP REQ’D FOR WARM START  
           JSR  LAD33          DO PART OF A NEW 
 LA0F3     JMP  LAC73          GO TO MAIN LOOP OF BASIC 
 ;                              
+; FIRQ SERVICE ROUTINE                      
+BFRQSV                         
+          RTI                  
 ;                              
 ; THESE BYTES ARE MOVED TO ADDRESSES $76 - $85 THE DIRECT PAGE                      
 LA10D     FCB  16             TAB FIELD WIDTH 
           FCB  64             LAST TAB ZONE 
           FCB  80             PRINTER WIDTH 
           FCB  0              LINE PRINTER POSITION 
-          FDB  LB44A          ARGUMENT OF EXEC COMMAND - SET TO â€˜FCâ€™ ERROR 
+          FDB  LB44A          ARGUMENT OF EXEC COMMAND - SET TO ‘FC’ ERROR 
 ; LINE INPUT ROUTINE                      
           INC  CHARAD+1        
           BNE  LA123           
@@ -343,8 +337,10 @@ LA10D     FCB  16             TAB FIELD WIDTH
 LA123     LDA  >0000           
           JMP  BROMHK          
 ;                              
-; The bootloader owns hardware interrupt dispatch and Ctrl-C handling.
-          JMP  LB44A          USR ADDRESS FOR 8K BASIC (INITIALIZED TO â€˜FCâ€™ ERROR) 
+; THESE BYTES ARE MOVED TO ADDRESSES $A7-$B1                      
+          JMP  BIRQSV         IRQ SERVICE 
+          JMP  BFRQSV         FIRQ SERVICE 
+          JMP  LB44A          USR ADDRESS FOR 8K BASIC (INITIALIZED TO ‘FC’ ERROR) 
           FCB  $80            *RANDOM SEED 
           FDB  $4FC7          *RANDON SEED OF MANTISSA 
           FDB  $5259          *.811635157 
@@ -460,6 +456,10 @@ LA5C4     RTS
 LA5C7     JSR  GETCCH         GET CURRENT INPUT CHAR FROM BASIC LINE 
 LA5C9     BEQ  LA5C4          RETURN IF END OF LINE 
           JMP  LB277          SYNTAX ERROR IF ANY MORE CHARACTERS 
+; IRQ SERVICE                      
+BIRQSV                         
+LA9C5     RTI  RETURN FROM INTERRUPT  
+                               
 ; SET CARRY IF NUMERIC - RETURN WITH                      
 ; ZERO FLAG SET IF ACCA = 0 OR 3A(:) - END                      
 ; OF BASIC LINE OR SUB LINE                      
@@ -792,25 +792,25 @@ LABF2     FCB  CR
           FCC  "BREAK"         
           FCB  $00             
                                
-; SEARCH THE STACK FOR â€˜GOSUB/RETURNâ€™ OR â€˜FOR/NEXTâ€™ DATA.                      
-; THE â€˜FOR/NEXTâ€™ INDEX VARIABLE DESCRIPTOR ADDRESS BEING                      
+; SEARCH THE STACK FOR ‘GOSUB/RETURN’ OR ‘FOR/NEXT’ DATA.                      
+; THE ‘FOR/NEXT’ INDEX VARIABLE DESCRIPTOR ADDRESS BEING                      
 ; SOUGHT IS STORED IN VARDES. EACH BLOCK OF FOR/NEXT DATA IS 18                      
 ; BYTES WITH A $80 LEADER BYTE AND THE GOSUB/RETURN DATA IS 5 BYTES                      
 ; WITH AN $A6 LEADER BYTE. THE FIRST NON "FOR/NEXT" DATA                      
-; IS CONSIDERED â€˜GOSUB/RETURNâ€™                      
+; IS CONSIDERED ‘GOSUB/RETURN’                      
 LABF9     LEAX 4,S            POINT X TO 3RD ADDRESS ON STACK - IGNORE THE 
 ;                             FIRST TWO RETURN ADDRESSES ON THE STACK  
-LABFB     LDB  #18            18 BYTES SAVED ON STACK FOR EACH â€˜FORâ€™ LOOP 
+LABFB     LDB  #18            18 BYTES SAVED ON STACK FOR EACH ‘FOR’ LOOP 
           STX  TEMPTR         SAVE POINTER 
           LDA  ,X             GET 1ST BYTE 
           SUBA #$80           * CHECK FOR TYPE OF STACK JUMP FOUND 
-          BNE  LAC1A          * BRANCH IF NOT â€˜FOR/NEXTâ€™ 
+          BNE  LAC1A          * BRANCH IF NOT ‘FOR/NEXT’ 
           LDX  1,X            = GET INDEX VARIABLE DESCRIPTOR 
           STX  TMPTR1         = POINTER AND SAVE IT IN TMPTR1 
           LDX  VARDES         GET INDEX VARIABLE BEING SEARCHED FOR 
           BEQ  LAC16          BRANCH IF DEFAULT INDEX VARIABLE - USE THE 
-;                             FIRST â€˜FOR/NEXTâ€™ DATA FOUND ON STACK 
-;                             IF NO INDEX VARIABLE AFTER â€˜NEXTâ€™ 
+;                             FIRST ‘FOR/NEXT’ DATA FOUND ON STACK 
+;                             IF NO INDEX VARIABLE AFTER ‘NEXT’ 
           CMPX TMPTR1         DOES THE STACK INDEX MATCH THE ONE 
 ;                             BEING SEARCHED FOR? 
           BEQ  LAC1A          YES 
@@ -818,9 +818,9 @@ LABFB     LDB  #18            18 BYTES SAVED ON STACK FOR EACH â€˜FORâ€™ LOOP
           ABX                 * 18 TO IT AND LOOK FOR 
           BRA  LABFB          * NEXT BLOCK OF DATA 
 LAC16     LDX  TMPTR1         = GET 1ST INDEX VARIABLE FOUND AND 
-          STX  VARDES         = SAVE AS â€˜NEXTâ€™ INDEX 
-LAC1A     LDX  TEMPTR         POINT X TO START OF â€˜FOR/NEXTâ€™ DATA 
-          TSTA                SET ZERO FLAG IF â€˜FOR/NEXTâ€™ DATA 
+          STX  VARDES         = SAVE AS ‘NEXT’ INDEX 
+LAC1A     LDX  TEMPTR         POINT X TO START OF ‘FOR/NEXT’ DATA 
+          TSTA                SET ZERO FLAG IF ‘FOR/NEXT’ DATA 
           RTS                  
 ; CHECK FOR MEMORY SPACE FOR NEW TOP OF                      
 ; ARRAYS AND MOVE ARRAYS TO NEW LOCATION                      
@@ -853,7 +853,7 @@ LAC44     LDB  #6*2           OUT OF MEMORY ERROR
 ; ERROR SERVICING ROUTINE                      
 LAC46     JSR  LAD33          RESET STACK, STRING STACK, CONTINUE POINTER 
           JSR  LB95C          SEND A CR TO SCREEN 
-          JSR  LB9AF          SEND A â€˜?â€˜ TO SCREEN 
+          JSR  LB9AF          SEND A ‘?‘ TO SCREEN 
           LDX  #LABAF         POINT TO ERROR TABLE 
 LAC60     ABX                 ADD MESSAGE NUMBER OFFSET 
           BSR  LACA0          * GET TWO CHARACTERS FROM X AND 
@@ -863,18 +863,18 @@ LAC68     JSR  LB99C          PRINT MESSAGE POINTED TO BY X
           LDA  CURLIN         GET CURRENT LINE NUMBER (CURL IN) 
           INCA                TEST FOR DIRECT MODE 
           BEQ  LAC73          BRANCH IF DIRECT MODE 
-          JSR  LBDC5          PRINT â€˜IN ****â€˜ 
+          JSR  LBDC5          PRINT ‘IN ****‘ 
                                
 ; THIS IS THE MAIN LOOP OF BASIC WHEN IN DIRECT MODE                      
 LAC73     JSR  LB95C          MOVE CURSOR TO START OF LINE 
-          LDX  #LABED         POINT X TO â€˜OKâ€™, CR MESSAGE 
-          JSR  LB99C          PRINT â€˜OKâ€™, CR 
+          LDX  #LABED         POINT X TO ‘OK’, CR MESSAGE 
+          JSR  LB99C          PRINT ‘OK’, CR 
 LAC7C     JSR  LA390          GO GET AN INPUT LINE 
           LDU  #$FFFF         THE LINE NUMBER FOR DIRECT MODE IS $FFFF 
           STU  CURLIN         SAVE IT IN CURLIN 
           BCS  LAC7C          BRANCH IF LINE INPUT TERMINATED BY BREAK 
           STX  CHARAD         SAVE (X) AS CURRENT INPUT POINTER - THIS WILL 
-;                             ENABLE THE â€˜LIVE KEYBOARDâ€™ (DIRECT) MODE. THE  
+;                             ENABLE THE ‘LIVE KEYBOARD’ (DIRECT) MODE. THE  
 ;                             LINE JUST ENTERED WILL BE INTERPRETED  
           JSR  GETNCH         GET NEXT CHARACTER FROM BASIC 
           BEQ  LAC7C          NO LINE INPUT - GET ANOTHER LINE 
@@ -902,7 +902,7 @@ LACA8     LDX  BINVAL         GET CONVERTED LINE NUMBER
           STD  VARTAB         * THE LENGTH OF THIS LINE NUMBER FROM THE PROGRAM 
           LDU  ,X             POINT U TO ADDRESS OF NEXT LINE NUMBER 
 ; DELETE OLD LINE FROM BASIC PROGRAM                      
-LACC0     PULU A              GET A BYTE FROM WHATâ€™S LEFT OF PROGRAM 
+LACC0     PULU A              GET A BYTE FROM WHAT’S LEFT OF PROGRAM 
           STA  ,X+            MOVE IT DOWN 
           CMPX VARTAB         COMPARE TO END OF BASIC PROGRAM 
           BNE  LACC0          BRANCH IF NOT AT END 
@@ -913,7 +913,7 @@ LACC8     LDA  LINBUF         * CHECK TO SEE IF THERE IS A LINE IN
           ADDB TMPLOC         * ADD LENGTH OF CRUNCHED LINE, 
           ADCA #0             * PROPOGATE CARRY AND SAVE NEW END 
           STD  V41            * OF PROGRAM IN V41 
-          JSR  LAC1E          = MAKE SURE THEREâ€™S ENOUGH RAM FOR THIS 
+          JSR  LAC1E          = MAKE SURE THERE’S ENOUGH RAM FOR THIS 
 ;                             = LINE & MAKE A HOLE IN BASIC FOR NEW LINE  
           LDU  #LINHDR-2      POINT U TO LINE TO BE INSERTED 
 LACDD     PULU A              GET A BYTE FROM NEW LINE 
@@ -924,7 +924,7 @@ LACDD     PULU A              GET A BYTE FROM NEW LINE
           STX  VARTAB         = END OF PROGRAM 
 LACE9     BSR  LAD21          RESET INPUT POINTER, CLEAR VARIABLES, INITIALIZE 
           BSR  LACEF          ADJUST START OF NEXT LINE ADDRESSES 
-          BRA  LAC7C          REENTER BASICâ€™S INPUT LOOP 
+          BRA  LAC7C          REENTER BASIC’S INPUT LOOP 
 ; COMPUTE THE START OF NEXT LINE ADDRESSES FOR THE BASIC PROGRAM                      
 LACEF     LDX  TXTTAB         POINT X TO START OF PROGRAM 
 LACF1     LDD  ,X             GET ADDRESS OF NEXT LINE 
@@ -962,7 +962,7 @@ LAD21     LDX  TXTTAB         GET START OF BASIC
 ; ERASE ALL VARIABLES                      
 LAD26     LDX  MEMSIZ         * RESET START OF STRING VARIABLES 
           STX  STRTAB         * TO TOP OF STRING SPACE 
-          JSR  RESTOR         RESET â€˜DATAâ€™ POINTER TO START OF BASIC 
+          JSR  RESTOR         RESET ‘DATA’ POINTER TO START OF BASIC 
           LDX  VARTAB         * GET START OF VARIABLES AND USE IT 
           STX  ARYTAB         * TO RESET START OF ARRAYS 
           STX  ARYEND         RESET END OF ARRAYS 
@@ -972,8 +972,8 @@ LAD33     LDX  #STRSTK        * RESET STRING STACK POINTER TO
           LDS  FRETOP         RESTORE STACK POINTER 
           CLR  ,-S            PUT A ZERO BYTE ON STACK - TO CLEAR ANY RETURN OF 
 ;                             FOR/NEXT DATA FROM THE STACK 
-          CLR  OLDPTR         RESET â€˜CONTâ€™ ADDRESS SO YOU 
-          CLR  OLDPTR+1       â€˜CANâ€™T CONTINUEâ€™ 
+          CLR  OLDPTR         RESET ‘CONT’ ADDRESS SO YOU 
+          CLR  OLDPTR+1       ‘CAN’T CONTINUE’ 
           CLR  ARYDIS         CLEAR THE ARRAY DISABLE FLAG 
           JMP  ,X             RETURN TO CALLING ROUTINE - THIS IS NECESSARY 
 ;                             SINCE THE STACK WAS RESET 
@@ -985,29 +985,29 @@ LAD33     LDX  #STRSTK        * RESET STRING STACK POINTER TO
 ; BYTES ARE DEFINED AS FOLLOWS: 0- $80 (FOR FLAG);                      
 ;         1,2=INDEX VARIABLE DESCRIPTOR POINTER; 3-7=FP VALUE OF STEP;  
 ;         8=STEP DIRECTION: $FF IF NEGATIVE; 0 IF ZERO; 1 IF POSITIVE;  
-; 9-13=FP VALUE OF â€˜TOâ€™ PARAMETER;                      
+; 9-13=FP VALUE OF ‘TO’ PARAMETER;                      
 ; 14,15=CURRENT LINE NUMBER; 16,17=RAM ADDRESS OF THE END                      
-;         OF   THE LINE CONTAINING THE â€˜FORâ€™ STATEMENT  
+;         OF   THE LINE CONTAINING THE ‘FOR’ STATEMENT  
 FOR       LDA  #$80           * SAVE THE DISABLE ARRAY FLAG IN VO8 
           STA  ARYDIS         * DO NOT ALLOW THE INDEX VARIABLE TO BE AN ARRAY 
           JSR  LET            SET INDEX VARIABLE TO INITIAL VALUE 
-          JSR  LABF9          SEARCH THE STACK FOR â€˜FOR/NEXTâ€™ DATA 
+          JSR  LABF9          SEARCH THE STACK FOR ‘FOR/NEXT’ DATA 
           LEAS 2,S            PURGE RETURN ADDRESS OFF OF THE STACK 
           BNE  LAD59          BRANCH IF INDEX VARIABLE NOT ALREADY BEING USED 
-          LDX  TEMPTR         GET (ADDRESS + 18) OF MATCHED â€˜FOR/NEXTâ€™ DATA 
+          LDX  TEMPTR         GET (ADDRESS + 18) OF MATCHED ‘FOR/NEXT’ DATA 
           LEAS B,X            MOVE THE STACK POINTER TO THE BEGINNING OF THE 
-; MATCHED â€˜FOR/NEXTâ€™ DATA SO THE NEW DATA WILL                      
+; MATCHED ‘FOR/NEXT’ DATA SO THE NEW DATA WILL                      
 ; OVERLAY THE OLD DATA. THIS WILL ALSO DESTROY                      
-; ALL OF THE â€˜RETURNâ€™ AND â€˜FOR/NEXTâ€™ DATA BELOW                      
+; ALL OF THE ‘RETURN’ AND ‘FOR/NEXT’ DATA BELOW                      
 ; THIS POINT ON THE STACK                      
 LAD59     LDB  #$09           * CHECK FOR ROOM FOR 18 BYTES 
           JSR  LAC33          * IN FREE RAM 
           JSR  LAEE8          GET ADDR OF END OF SUBLINE IN X 
           LDD  CURLIN         GET CURRENT LINE NUMBER 
           PSHS X,B,A          SAVE LINE ADDR AND LINE NUMBER ON STACK 
-          LDB  #TOK_TO        TOKEN FOR â€˜TOâ€™ 
-          JSR  LB26F          SYNTAX CHECK FOR â€˜TOâ€™ 
-          JSR  LB143          â€˜TMâ€™ ERROR IF INDEX VARIABLE SET TO STRING 
+          LDB  #TOK_TO        TOKEN FOR ‘TO’ 
+          JSR  LB26F          SYNTAX CHECK FOR ‘TO’ 
+          JSR  LB143          ‘TM’ ERROR IF INDEX VARIABLE SET TO STRING 
           JSR  LB141          EVALUATE EXPRESSION 
 ;                              
           LDB  FP0SGN         GET FPA0 MANTISSA SIGN 
@@ -1020,31 +1020,31 @@ LAD7F     LDX  #LBAC5         POINT X TO FLOATING POINT NUMBER 1.0 (DEFAULT STEP
           JSR  LBC14          MOVE (X) TO FPA0 
           JSR  GETCCH         GET CURRENT INPUT CHARACTER 
           CMPA #TOK_STEP      STEP TOKEN 
-          BNE  LAD90          BRANCH IF NO â€˜STEPâ€™ VALUE 
+          BNE  LAD90          BRANCH IF NO ‘STEP’ VALUE 
           JSR  GETNCH         GET A CHARACTER FROM BASIC 
           JSR  LB141          EVALUATE NUMERIC EXPRESSION 
 LAD90     JSR  LBC6D          CHECK STATUS OF FPA0 
           JSR  LB1E6          SAVE STATUS AND FPA0 ON THE STACK 
-          LDD  VARDES         * GET DESCRIPTOR POINTER FOR THE â€˜STEPâ€™ 
+          LDD  VARDES         * GET DESCRIPTOR POINTER FOR THE ‘STEP’ 
           PSHS B,A            * VARIABLE AND SAVE IT ON THE STACK 
-          LDA  #$80           = GET THE â€˜FORâ€™ FLAG AND 
+          LDA  #$80           = GET THE ‘FOR’ FLAG AND 
           PSHS A              = SAVE IT ON THE STACK 
 ;                              
 ; MAIN COMMAND INTERPRETATION LOOP                      
 LAD9E     ANDCC #$AF          ENABLE IRQ,FIRQ 
           BSR  LADEB          CHECK FOR KEYBOARD BREAK 
-          LDX  CHARAD         GET BASICâ€™S INPUT POINTER 
+          LDX  CHARAD         GET BASIC’S INPUT POINTER 
           STX  TINPTR         SAVE IT 
           LDA  ,X+            GET CURRENT INPUT CHAR & MOVE POINTER 
           BEQ  LADB4          BRANCH IF END OF LINE 
           CMPA #':            CHECK FOR LINE SEPARATOR 
           BEQ  LADC0          BRANCH IF COLON 
-LADB1     JMP  LB277          â€˜SYNTAX ERRORâ€™-IF NOT LINE SEPARATOR 
+LADB1     JMP  LB277          ‘SYNTAX ERROR’-IF NOT LINE SEPARATOR 
 LADB4     LDA  ,X++           GET MS BYTE OF ADDRESS OF NEXT BASIC LINE 
           STA  ENDFLG         SAVE IN STOP/END FLAG - CAUSE A STOP IF 
 ;                             NEXT LINE ADDRESS IS < $8000; CAUSE 
 ;                             AN END IF ADDRESS > $8000 
-          BEQ  LAE15          BRANCH TO â€˜STOPâ€™ - END OF PROGRAM 
+          BEQ  LAE15          BRANCH TO ‘STOP’ - END OF PROGRAM 
           LDD  ,X+            GET CURRENT LINE NUMBER 
           STD  CURLIN         SAVE IN CURLIN 
           STX  CHARAD         SAVE ADDRESS OF FIRST BYTE OF LINE 
@@ -1063,19 +1063,19 @@ LADC0     JSR  GETNCH         GET A CHARACTER FROM BASIC
           BRA  LAD9E          GO BACK TO MAIN LOOP 
 LADC6     BEQ  LADEA          RETURN IF END OF LINE (RTS - was BEQ LAE40) 
           TSTA                CHECK FOR TOKEN - BIT 7 SET (NEGATIVE) 
-          LBPL LET            BRANCH IF NOT A TOKEN - GO DO A â€˜LETâ€™ WHICH 
-;                             IS THE â€˜DEFAULTâ€™ TOKEN FOR MICROSOFT BASIC 
+          LBPL LET            BRANCH IF NOT A TOKEN - GO DO A ‘LET’ WHICH 
+;                             IS THE ‘DEFAULT’ TOKEN FOR MICROSOFT BASIC 
           CMPA #$FF           SECONDARY TOKEN 
           BEQ  SECTOK          
           CMPA #TOK_HIGH_EXEC SKIPF TOKEN - HIGHEST EXECUTABLE COMMAND IN BASIC 
-          BHI  LADB1          â€˜SYNTAX ERRORâ€™ IF NON-EXECUTABLE TOKEN 
-          LDX  COMVEC+3       GET ADDRESS OF BASICâ€™S COMMAND TABLE 
+          BHI  LADB1          ‘SYNTAX ERROR’ IF NON-EXECUTABLE TOKEN 
+          LDX  COMVEC+3       GET ADDRESS OF BASIC’S COMMAND TABLE 
 LADD4     ASLA                X2 (2 BYTE/JUMP ADDRESS) & DISCARD BIT 7 
           TFR  A,B            SAVE COMMAND OFFSET IN ACCB 
           ABX                 NON X POINTS TO COMMAND JUMP ADDR 
           JSR  GETNCH         GET AN INPUT CHAR 
 ;                              
-; HERE IS WHERE WE BRANCH TO DO A â€˜COMMANDâ€™                      
+; HERE IS WHERE WE BRANCH TO DO A ‘COMMAND’                      
           JMP  [,X]           GO DO A COMMAND 
 SECTOK                         
 ; THE ONLY SECONDARY TOKEN THAT CAN ALSO BE AN EXECUTABLE IS                      
@@ -1113,7 +1113,7 @@ END       JSR  GETCCH         GET CURRENT INPUT CHAR
 STOP      ORCC #$01           SET CARRY FLAG 
 LAE0B     BNE  LAE40          BRANCH IF ARGUMENT EXISTS 
           LDX  CHARAD         * SAVE CURRENT POSITION OF 
-          STX  TINPTR         * BASICâ€™S INPUT POINTER 
+          STX  TINPTR         * BASIC’S INPUT POINTER 
 LAE11     ROR  ENDFLG         ROTATE CARRY INTO BIT 7 OF STOP/END FLAG 
           LEAS 2,S            PURGE RETURN ADDRESS OFF STACK 
 LAE15     LDX  CURLIN         GET CURRENT LINE NUMBER 
@@ -1121,20 +1121,20 @@ LAE15     LDX  CURLIN         GET CURRENT LINE NUMBER
           BEQ  LAE22          YES 
           STX  OLDTXT         SAVE CURRENT LINE NUMBER 
           LDX  TINPTR         * GET AND SAVE CURRENT POSITION 
-          STX  OLDPTR         * OF BASICâ€™S INPUT POINTER 
+          STX  OLDPTR         * OF BASIC’S INPUT POINTER 
 LAE22                          
-          LDX  #LABF2-1       POINT TO CR, â€˜BREAKâ€™ MESSAGE 
+          LDX  #LABF2-1       POINT TO CR, ‘BREAK’ MESSAGE 
           TST  ENDFLG         CHECK STOP/END FLAG 
           LBPL LAC73          BRANCH TO MAIN LOOP OF BASIC IF END 
-          JMP  LAC68          PRINT â€˜BREAK AT ####â€™ AND GO TO 
-;                             BASICâ€™S MAIN LOOP IF â€˜STOPâ€™ 
+          JMP  LAC68          PRINT ‘BREAK AT ####’ AND GO TO 
+;                             BASIC’S MAIN LOOP IF ‘STOP’ 
                                
 ; CONT                         
 CONT      BNE  LAE40          RETURN IF ARGUMENT GIVEN 
-          LDB  #2*16          â€˜CANâ€™T CONTINUEâ€™ ERROR 
+          LDB  #2*16          ‘CAN’T CONTINUE’ ERROR 
           LDX  OLDPTR         GET CONTINUE ADDRESS (INPUT POINTER) 
-          LBEQ LAC46          â€˜CNâ€™ ERROR IF CONTINUE ADDRESS = 0 
-          STX  CHARAD         RESET BASICâ€™S INPUT POINTER 
+          LBEQ LAC46          ‘CN’ ERROR IF CONTINUE ADDRESS = 0 
+          STX  CHARAD         RESET BASIC’S INPUT POINTER 
           LDX  OLDTXT         GET LINE NUMBER 
           STX  CURLIN         RESET CURRENT LINE NUMBER 
 LAE40     RTS                  
@@ -1150,75 +1150,75 @@ CLEAR     BEQ  LAE6F          BRANCH IF NO ARGUMENT
           JSR  LB73D          EVALUATE EXPRESSlON; RETURN VALUE IN X 
           LEAX -1,X           X = TOP OF CLEARED SPACE 
           CMPX TOPRAM         COMPARE TO TOP OF RAM 
-          BHI  LAE72          â€˜OMâ€™ ERROR IF > TOP OF RAM 
+          BHI  LAE72          ‘OM’ ERROR IF > TOP OF RAM 
 LAE5A     TFR  X,D            ACCD = TOP OF CLEARED SPACE 
           SUBD ,S++           SUBTRACT OUT AMOUNT OF CLEARED SPACE 
-          BCS  LAE72          â€˜OMâ€™ ERROR IF FREE MEM < 0 
+          BCS  LAE72          ‘OM’ ERROR IF FREE MEM < 0 
           TFR  D,U            U = BOTTOM OF CLEARED SPACE 
           SUBD #STKBUF        SUBTRACT OUT STACK BUFFER 
-          BCS  LAE72          â€˜OMâ€™ ERROR IF FREE MEM < 0 
+          BCS  LAE72          ‘OM’ ERROR IF FREE MEM < 0 
           SUBD VARTAB         SUBTRACT OUT START OF VARIABLES 
-          BCS  LAE72          â€˜OMâ€™ ERROR IF FREE MEM < 0 
+          BCS  LAE72          ‘OM’ ERROR IF FREE MEM < 0 
           STU  FRETOP         SAVE NEW BOTTOM OF CLEARED SPACE 
           STX  MEMSIZ         SAVE NEW TOP OF CLEARED SPACE 
 LAE6F     JMP  LAD26          ERASE ALL VARIABLES, INITIALIZE POINTERS, ETC 
-LAE72     JMP  LAC44          â€˜OMâ€™ ERROR 
+LAE72     JMP  LAC44          ‘OM’ ERROR 
 ;                              
 ; RUN                          
 RUN       JSR  GETCCH         * GET CURRENT INPUT CHARACTER 
           LBEQ LAD21          * IF NO LINE NUMBER 
           JSR  LAD26          ERASE ALL VARIABLES 
-          BRA  LAE9F          â€˜GOTOâ€™ THE RUN ADDRESS 
+          BRA  LAE9F          ‘GOTO’ THE RUN ADDRESS 
 ;                              
 ; GO                           
 GO        TFR  A,B            SAVE INPUT CHARACTER IN ACCB 
 LAE88     JSR  GETNCH         GET A CHARACTER FROM BASIC 
-          CMPB #TOK_TO        â€˜TOâ€™ TOKEN 
+          CMPB #TOK_TO        ‘TO’ TOKEN 
           BEQ  LAEA4          BRANCH IF GOTO 
-          CMPB #TOK_SUB       â€˜SUBâ€™ TOKEN 
-          BNE  LAED7          â€˜SYNTAX ERRORâ€™ IF NEITHER 
+          CMPB #TOK_SUB       ‘SUB’ TOKEN 
+          BNE  LAED7          ‘SYNTAX ERROR’ IF NEITHER 
           LDB  #3             =ROOM FOR 6 
           JSR  LAC33          =BYTES ON STACK? 
           LDU  CHARAD         * SAVE CURRENT BASIC INPUT POINTER, LINE 
           LDX  CURLIN         * NUMBER AND SUB TOKEN ON STACK 
           LDA  #TOK_SUB       * 
           PSHS U,X,A          * 
-LAE9F     BSR  LAEA4          GO DO A â€˜GOTOâ€™ 
-          JMP  LAD9E          JUMP BACK TO BASICâ€™S MAIN LOOP 
+LAE9F     BSR  LAEA4          GO DO A ‘GOTO’ 
+          JMP  LAD9E          JUMP BACK TO BASIC’S MAIN LOOP 
 ; GOTO                         
 LAEA4     JSR  GETCCH         GET CURRENT INPUT CHAR 
           JSR  LAF67          GET LINE NUMBER TO BINARY IN BINVAL 
-          BSR  LAEEB          ADVANCE BASICâ€™S POINTER TO END OF LINE 
+          BSR  LAEEB          ADVANCE BASIC’S POINTER TO END OF LINE 
           LEAX $01,X          POINT TO START OF NEXT LINE 
           LDD  BINVAL         GET THE LINE NUMBER TO RUN 
           CMPD CURLIN         COMPARE TO CURRENT LINE NUMBER 
-          BHI  LAEB6          IF REOâ€™D LINE NUMBER IS > CURRENT LINE NUMBER, 
-;              DONâ€™T START LOOKING FROM  
+          BHI  LAEB6          IF REO’D LINE NUMBER IS > CURRENT LINE NUMBER, 
+;              DON’T START LOOKING FROM  
 ;              START OF PROGRAM  
           LDX  TXTTAB         BEGINNING OF PROGRAM 
 LAEB6     JSR  LAD05          GO FIND A LINE NUMBER 
-          BCS  LAED2          â€˜UNDEFINED LINE NUMBERâ€™ 
+          BCS  LAED2          ‘UNDEFINED LINE NUMBER’ 
 LAEBB     LEAX -1,X           MOVE BACK TO JUST BEFORE START OF LINE 
-          STX  CHARAD         RESET BASICâ€™S INPUT POINTER 
+          STX  CHARAD         RESET BASIC’S INPUT POINTER 
 LAEBF     RTS                  
 ;                              
 ; RETURN                       
 RETURN    BNE  LAEBF          EXIT ROUTINE IF ARGUMENT GIVEN 
           LDA  #$FF           * PUT AN ILLEGAL VARIABLE NAME IN FIRST BYTE OF 
-          STA  VARDES         * VARDES WHICH WILL CAUSE â€˜FOR/NEXTâ€™ DATA ON THE 
+          STA  VARDES         * VARDES WHICH WILL CAUSE ‘FOR/NEXT’ DATA ON THE 
 ;              STACK TO BE IGNORED  
           JSR  LABF9          CHECK FOR RETURN DATA ON THE STACK 
           TFR  X,S            RESET STACK POINTER - PURGE TWO RETURN ADDRESSES 
 ;              FROM THE STACK  
           CMPA #TOK_SUB-$80   SUB TOKEN - $80 
-          BEQ  LAEDA          BRANCH IF â€˜RETURNâ€™ FROM SUBROUTINE 
-          LDB  #2*2           ERROR #2 â€˜RETURN WITHOUT GOSUBâ€™ 
+          BEQ  LAEDA          BRANCH IF ‘RETURN’ FROM SUBROUTINE 
+          LDB  #2*2           ERROR #2 ‘RETURN WITHOUT GOSUB’ 
           FCB  SKP2           SKIP TWO BYTES 
-LAED2     LDB  #7*2           ERROR #7 â€˜UNDEFINED LINE NUMBERâ€™ 
+LAED2     LDB  #7*2           ERROR #7 ‘UNDEFINED LINE NUMBER’ 
           JMP  LAC46          JUMP TO ERROR HANDLER 
-LAED7     JMP  LB277          â€˜SYNTAX ERRORâ€™ 
+LAED7     JMP  LB277          ‘SYNTAX ERROR’ 
 LAEDA     PULS A,X,U          * RESTORE VALUES OF CURRENT LINE NUMBER AND 
-          STX  CURLIN         * BASICâ€™S INPUT POINTER FOR THIS SUBROUTINE 
+          STX  CURLIN         * BASIC’S INPUT POINTER FOR THIS SUBROUTINE 
           STU  CHARAD         * AND LOAD ACCA WITH SUB TOKEN ($A6) 
 ;                              
 ; DATA                         
@@ -1228,17 +1228,17 @@ DATA      BSR  LAEE8          MOVE INPUT POINTER TO END OF SUBLINE OR LINE
 ; REM, ELSE                      
 ELSE                           
 REM       BSR  LAEEB          MOVE INPUT POINTER TO END OF LINE 
-          STX  CHARAD         RESET BASICâ€™S INPUT POINTER 
+          STX  CHARAD         RESET BASIC’S INPUT POINTER 
 LAEE7     RTS                  
 ; ADVANCE INPUT POINTER TO END OF SUBLINE OR LINE                      
 LAEE8     LDB  #':            COLON = SUBLINE TERMINATOR CHARACTER 
 LAEEA     FCB  SKP1LD         SKPILD SKIP ONE BYTE; LDA #$5F 
-; ADVANCE BASICâ€™S INPUT POINTER TO END OF                      
+; ADVANCE BASIC’S INPUT POINTER TO END OF                      
 ; LINE - RETURN ADDRESS OF END OF LINE+1 IN X                      
 LAEEB     CLRB                0 = LINE TERMINATOR CHARACTER 
           STB  CHARAC         TEMP STORE PRIMARY TERMINATOR CHARACTER 
           CLRB                0 (END OF LINE) = ALTERNATE TERM. CHAR. 
-          LDX  CHARAD         LOAD X W/BASICâ€™S INPUT POINTER 
+          LDX  CHARAD         LOAD X W/BASIC’S INPUT POINTER 
 LAEF1     TFR  B,A            * CHANGE TERMINATOR CHARACTER 
           LDB  CHARAC         * FROM ACCB TO CHARAC - SAVE OLD TERMINATOR 
 ;         IN   CHARAC          
@@ -1257,32 +1257,32 @@ LAEF7     LDA  ,X             GET NEXT INPUT CHARACTER
 LAF0C     CMPA #TOK_IF+1      TOKEN FOR IF? 
           BNE  LAEF7          NO - GET ANOTHER INPUT CHARACTER 
           INC  IFCTR          INCREMENT IF COUNTER - KEEP TRACK OF HOW MANY 
-;                             â€˜IFâ€™ STATEMENTS ARE NESTED IN ONE LINE 
+;                             ‘IF’ STATEMENTS ARE NESTED IN ONE LINE 
           BRA  LAEF7          GET ANOTHER INPUT CHARACTER 
                                
 ; IF                           
 IF        JSR  LB141          EVALUATE NUMERIC EXPRESSION 
           JSR  GETCCH         GET CURRENT INPUT CHARACTER 
           CMPA #TOK_GO        TOKEN FOR GO 
-          BEQ  LAF22          TREAT â€˜GOâ€™ THE SAME AS â€˜THENâ€™ 
+          BEQ  LAF22          TREAT ‘GO’ THE SAME AS ‘THEN’ 
           LDB  #TOK_THEN      TOKEN FOR THEN 
           JSR  LB26F          DO A SYNTAX CHECK ON ACCB 
 LAF22     LDA  FP0EXP         CHECK FOR TRUE/FALSE - FALSE IF FPA0 EXPONENT = ZERO 
           BNE  LAF39          BRANCH IF CONDITION TRUE 
           CLR  IFCTR          CLEAR FLAG - KEEP TRACK OF WHICH NESTED ELSE STATEMENT 
-;                             TO SEARCH FOR IN NESTED â€˜IFâ€™ LOOPS 
-LAF28     BSR  DATA           MOVE BASICâ€™S POINTER TO END OF SUBLINE 
+;                             TO SEARCH FOR IN NESTED ‘IF’ LOOPS 
+LAF28     BSR  DATA           MOVE BASIC’S POINTER TO END OF SUBLINE 
           TSTA                * CHECK TO SEE IF END OF LINE OR SUBLINE 
           BEQ  LAEE7          * AND RETURN IF END OF LINE 
           JSR  GETNCH         GET AN INPUT CHARACTER FROM BASIC 
           CMPA #TOK_ELSE      TOKEN FOR ELSE 
-          BNE  LAF28          IGNORE ALL DATA EXCEPT â€˜ELSEâ€™ UNTIL 
+          BNE  LAF28          IGNORE ALL DATA EXCEPT ‘ELSE’ UNTIL 
 ;                             END OF LINE (ZERO BYTE) 
           DEC  IFCTR          CHECK TO SEE IF YOU MUST SEARCH ANOTHER SUBLINE 
-          BPL  LAF28          BRANCH TO SEARCH ANOTHER SUBLINE FOR â€˜ELSEâ€™ 
+          BPL  LAF28          BRANCH TO SEARCH ANOTHER SUBLINE FOR ‘ELSE’ 
           JSR  GETNCH         GET AN INPUT CHARACTER FROM BASIC 
 LAF39     JSR  GETCCH         GET CURRENT INPUT CHARACTER 
-          LBCS LAEA4          BRANCH TO â€˜GOTOâ€™ IF NUMERIC CHARACTER 
+          LBCS LAEA4          BRANCH TO ‘GOTO’ IF NUMERIC CHARACTER 
           JMP  LADC6          RETURN TO MAIN INTERPRETATION LOOP 
                                
 ; ON                           
@@ -1293,12 +1293,12 @@ ON        JSR  LB70B          EVALUATE EXPRESSION
           CMPA #TOK_SUB       TOKEN FOR SUB? 
           BEQ  LAF54          YES 
           CMPA #TOK_TO        TOKEN FOR TO? 
-LAF52     BNE  LAED7          â€˜SYNTAXâ€™ ERROR IF NOT â€˜SUBâ€™ OR â€˜TOâ€™ 
+LAF52     BNE  LAED7          ‘SYNTAX’ ERROR IF NOT ‘SUB’ OR ‘TO’ 
 LAF54     DEC  FPA0+3         DECREMENT IS BYTE OF MANTISSA OF FPA0 - THIS 
-;                             IS THE ARGUMENT OF THE â€˜ONâ€™ STATEMENT 
+;                             IS THE ARGUMENT OF THE ‘ON’ STATEMENT 
           BNE  LAF5D          BRANCH IF NOT AT THE PROPER GOTO OR GOSUB LINE NUMBER 
-          PULS B              GET BACK THE TOKEN FOLLOWING â€˜GOâ€™ 
-          JMP  LAE88          GO DO A â€˜GOTOâ€™ OR â€˜GOSUBâ€™ 
+          PULS B              GET BACK THE TOKEN FOLLOWING ‘GO’ 
+          JMP  LAE88          GO DO A ‘GOTO’ OR ‘GOSUB’ 
 LAF5D     JSR  GETNCH         GET A CHARACTER FROM BASIC 
           BSR  LAF67          CONVERT BASIC LINE NUMBER TO BINARY 
           CMPA #',            IS CHARACTER FOLLOWING LINE NUMBER A COMMA? 
@@ -1315,7 +1315,7 @@ LAF6B     BCC  LAFCE          RETURN IF NOT NUMERIC CHARACTER
           LDD  BINVAL         GET ACCUMULATED LINE NUMBER VALUE 
           CMPA #24            LARGEST LINE NUMBER IS $F9FF (63999) - 
 ;         (24*256+255)*10+9                 
-          BHI  LAF52          â€˜SYNTAXâ€™ ERROR IF TOO BIG 
+          BHI  LAF52          ‘SYNTAX’ ERROR IF TOO BIG 
 ; MULT ACCD X 10                      
           ASLB                * 
           ROLA                * TIMES 2 
@@ -1336,7 +1336,7 @@ LAF6B     BCC  LAFCE          RETURN IF NOT NUMERIC CHARACTER
 LET       JSR  LB357          FIND TARGET VARIABLE DESCRIPTOR 
           STX  VARDES         SAVE DESCRIPTOR ADDRESS OF 1ST EXPRESSION 
           LDB  #TOK_EQUALS    TOKEN FOR "=" 
-          JSR  LB26F          DO A SYNTAX CHECK FOR â€˜=â€˜ 
+          JSR  LB26F          DO A SYNTAX CHECK FOR ‘=‘ 
           LDA  VALTYP         * GET VARIABLE TYPE AND 
           PSHS A              * SAVE ON THE STACK 
           JSR  LB156          EVALUATE EXPRESSION 
@@ -1348,13 +1348,13 @@ LET       JSR  LB357          FIND TARGET VARIABLE DESCRIPTOR
 ; MOVE A STRING WHOSE DESCRIPTOR IS LOCATED AT                      
 ; FPA0+2 INTO THE STRING SPACE. TRANSFER THE                      
 ; DESCRIPTOR ADDRESS TO THE ADDRESS IN VARDES                      
-; DONâ€™T MOVE THE STRING IF IT IS ALREADY IN THE                      
+; DON’T MOVE THE STRING IF IT IS ALREADY IN THE                      
 ; STRING SPACE. REMOVE DESCRIPTOR FROM STRING                      
 ; STACK IF IT IS LAST ONE ON THE STACK                      
 LAFA4     LDX  FPA0+2         POINT X TO DESCRIPTOR OF REPLACEMENT STRING 
           LDD  FRETOP         LOAD ACCD WITH START OF STRING SPACE 
           CMPD 2,X            IS THE STRING IN STRING SPACE? 
-          BCC  LAFBE          BRANCH IF ITâ€™S NOT IN THE STRING SPACE 
+          BCC  LAFBE          BRANCH IF IT’S NOT IN THE STRING SPACE 
           CMPX VARTAB         COMPARE DESCRIPTOR ADDRESS TO START OF VARIABLES 
           BCS  LAFBE          BRANCH IF DESCRIPTOR ADDRESS NOT IN VARIABLES 
 LAFB1     LDB  ,X             GET LENGTH OF REPLACEMENT STRING 
@@ -1378,21 +1378,21 @@ LAFCF     FCC  "?REDO"        ?REDO MESSAGE
 LAFD6                          
 LAFDC     JMP  LAC46          JMP TO ERROR HANDLER 
 LAFDF     LDA  INPFLG         = GET THE INPUT FLAG AND BRANCH 
-          BEQ  LAFEA          = IF â€˜INPUTâ€™ 
+          BEQ  LAFEA          = IF ‘INPUT’ 
           LDX  DATTXT         * GET LINE NUMBER WHERE THE ERROR OCCURRED 
           STX  CURLIN         * AND USE IT AS THE CURRENT LINE NUMBER 
-          JMP  LB277          â€˜SYNTAX ERRORâ€™ 
-LAFEA     LDX  #LAFCF-1       * POINT X TO â€˜?REDOâ€™ AND PRINT 
+          JMP  LB277          ‘SYNTAX ERROR’ 
+LAFEA     LDX  #LAFCF-1       * POINT X TO ‘?REDO’ AND PRINT 
           JSR  LB99C          * IT ON THE SCREEN 
           LDX  TINPTR         = GET THE SAVED ABSOLUTE ADDRESS OF 
           STX  CHARAD         = INPUT POINTER AND RESTORE IT 
           RTS                  
 ;                              
 ; INPUT                        
-INPUT     LDB  #11*2          â€˜IDâ€™ ERROR 
+INPUT     LDB  #11*2          ‘ID’ ERROR 
           LDX  CURLIN         GET CURRENT LINE NUMBER 
           LEAX 1,X            ADD ONE 
-          BEQ  LAFDC          â€˜IDâ€™ ERROR BRANCH IF DIRECT MODE 
+          BEQ  LAFDC          ‘ID’ ERROR BRANCH IF DIRECT MODE 
           BSR  LB00F          GET SOME INPUT DATA - WAS LB002 
           RTS                  
 LB00F     CMPA #'"            CHECK FOR PROMPT STRING DELIMITER 
@@ -1401,43 +1401,43 @@ LB00F     CMPA #'"            CHECK FOR PROMPT STRING DELIMITER
           LDB  #';            * 
           JSR  LB26F          * DO A SYNTAX CHECK FOR SEMICOLON 
           JSR  LB99F          PRINT MESSAGE TO CONSOLE OUT 
-LB01E     LDX  #LINBUF        POINT TO BASICâ€™S LINE BUFFER 
+LB01E     LDX  #LINBUF        POINT TO BASIC’S LINE BUFFER 
           CLR  ,X             CLEAR 1ST BYTE - FLAG TO INDICATE NO DATA 
 ;              IN LINE BUFFER  
           BSR  LB02F          INPUT A STRING TO LINE BUFFER 
           LDB  #',            * INSERT A COMMA AT THE END 
           STB  ,X             * OF THE LINE INPUT BUFFER 
           BRA  LB049           
-; FILL BASICâ€™S LINE INPUT BUFFER CONSOLE IN                      
+; FILL BASIC’S LINE INPUT BUFFER CONSOLE IN                      
 LB02F     JSR  LB9AF          SEND A "?" TO CONSOLE OUT 
-          JSR  LB9AC          SEND A â€˜SPACEâ€™ TO CONSOLE OUT 
+          JSR  LB9AC          SEND A ‘SPACE’ TO CONSOLE OUT 
 LB035     JSR  LA390          GO READ IN A BASIC LINE 
           BCC  LB03F          BRANCH IF ENTER KEY ENDED ENTRY 
           LEAS 4,S            PURGE TWO RETURN ADDRESSES OFF THE STACK 
-          JMP  LAE11          GO DO A â€˜STOPâ€™ IF BREAK KEY ENDED LINE ENTRY 
-LB03F     LDB  #2*23          â€˜INPUT PAST END OF FILEâ€™ ERROR 
+          JMP  LAE11          GO DO A ‘STOP’ IF BREAK KEY ENDED LINE ENTRY 
+LB03F     LDB  #2*23          ‘INPUT PAST END OF FILE’ ERROR 
           RTS                  
 ;                              
 ; READ                         
-READ      LDX  DATPTR         GET â€˜READâ€™ START ADDRESS 
+READ      LDX  DATPTR         GET ‘READ’ START ADDRESS 
           FCB  SKP1LD         SKIP ONE BYTE - LDA #*$4F 
-LB049     CLRA                â€˜INPUTâ€™ ENTRY POINT: INPUT FLAG = 0 
+LB049     CLRA                ‘INPUT’ ENTRY POINT: INPUT FLAG = 0 
           STA  INPFLG         SET INPUT FLAG; 0 = INPUT: <> 0 = READ 
-          STX  DATTMP         SAVE â€˜READâ€™ START ADDRESS/â€™INPUTâ€™ BUFFER START 
+          STX  DATTMP         SAVE ‘READ’ START ADDRESS/’INPUT’ BUFFER START 
 LB04E     JSR  LB357          EVALUATE A VARIABLE 
           STX  VARDES         SAVE DESCRIPTOR ADDRESS 
-          LDX  CHARAD         * GET BASICâ€™S INPUT POINTER 
+          LDX  CHARAD         * GET BASIC’S INPUT POINTER 
           STX  BINVAL         * AND SAVE IT 
-          LDX  DATTMP         GET â€˜READâ€™ ADDRESS START/â€™INPUTâ€™ BUFFER POINTER 
+          LDX  DATTMP         GET ‘READ’ ADDRESS START/’INPUT’ BUFFER POINTER 
           LDA  ,X             GET A CHARACTER FROM THE BASIC PROGRAM 
           BNE  LB069          BRANCH IF NOT END OF LINE 
           LDA  INPFLG         * CHECK INPUT FLAG AND BRANCH 
           BNE  LB0B9          * IF LOOKING FOR DATA (READ) 
-; NO DATA IN â€˜INPUTâ€™ LINE BUFFER AND/OR INPUT                      
+; NO DATA IN ‘INPUT’ LINE BUFFER AND/OR INPUT                      
 ; NOT COMING FROM SCREEN                      
           JSR  LB9AF          SEND A '?' TO CONSOLE OUT 
           BSR  LB02F          FILL INPUT BUFFER FROM CONSOLE IN 
-LB069     STX  CHARAD         RESET BASICâ€™S INPUT POINTER 
+LB069     STX  CHARAD         RESET BASIC’S INPUT POINTER 
           JSR  GETNCH         GET A CHARACTER FROM BASIC 
           LDB  VALTYP         * CHECK VARIABLE TYPE AND 
           BEQ  LB098          * BRANCH IF NUMERIC 
@@ -1476,27 +1476,27 @@ LB0A8     LDX  CHARAD         * GET CURRENT INPUT
           BRA  LB04E          GET ANOTHER INPUT OR READ ITEM 
 ; SEARCH FROM ADDRESS IN X FOR                      
 ; 1ST OCCURENCE OF THE TOKEN FOR DATA                      
-LB0B9     STX  CHARAD         RESET BASICâ€™S INPUT POINTER 
+LB0B9     STX  CHARAD         RESET BASIC’S INPUT POINTER 
           JSR  LAEE8          SEARCH FOR END OF CURRENT LINE OR SUBLINE 
           LEAX 1,X            MOVE X ONE PAST END OF LINE 
           TSTA                CHECK FOR END OF LINE 
           BNE  LB0CD          BRANCH IF END OF SUBLINE 
-          LDB  #2*3           â€˜OUT OF DATAâ€™ ERROR 
+          LDB  #2*3           ‘OUT OF DATA’ ERROR 
           LDU  ,X++           GET NEXT 2 CHARACTERS 
-          BEQ  LB10A          â€˜ODâ€™ ERROR IF END OF PROGRAM 
+          BEQ  LB10A          ‘OD’ ERROR IF END OF PROGRAM 
           LDD  ,X++           GET BASIC LINE NUMBER AND 
           STD  DATTXT         SAVE IT IN DATTXT 
 LB0CD     LDA  ,X             GET AN INPUT CHARACTER 
           CMPA #TOK_DATA      DATA TOKEN? 
-          BNE  LB0B9          NO â€” KEEP LOOKING 
+          BNE  LB0B9          NO — KEEP LOOKING 
           BRA  LB069          YES 
 ; EXIT READ AND INPUT COMMANDS                      
 LB0D5     LDX  DATTMP         GET DATA POINTER 
           LDB  INPFLG         * CHECK INPUT FLAG 
           LBNE LADE8          * SAVE NEW DATA POINTER IF READ 
-          LDA  ,X             = CHECK NEXT CHARACTER IN â€˜INPUTâ€™ BUFFER 
+          LDA  ,X             = CHECK NEXT CHARACTER IN ‘INPUT’ BUFFER 
           BEQ  LB0E7          = 
-          LDX  #LB0E8-1       POINT X TO â€˜?EXTRA IGNOREDâ€™ 
+          LDX  #LB0E8-1       POINT X TO ‘?EXTRA IGNORED’ 
           JMP  LB99C          PRINT THE MESSAGE 
 LB0E7     RTS                  
                                
@@ -1511,11 +1511,11 @@ NEXT      BNE  LB0FE          BRANCH IF ARGUMENT GIVEN
           BRA  LB101           
 LB0FE     JSR  LB357          EVALUATE AN ALPHA EXPRESSION 
 LB101     STX  VARDES         SAVE VARIABLE DESCRIPTOR POINTER 
-          JSR  LABF9          GO SCAN FOR â€˜FOR/NEXTâ€™ DATA ON STACK 
+          JSR  LABF9          GO SCAN FOR ‘FOR/NEXT’ DATA ON STACK 
           BEQ  LB10C          BRANCH IF DATA FOUND 
-          LDB  #0             â€˜NEXT WITHOUT FORâ€™ ERROR (SHOULD BE CLRB) 
+          LDB  #0             ‘NEXT WITHOUT FOR’ ERROR (SHOULD BE CLRB) 
 LB10A     BRA  LB153          PROCESS ERROR 
-LB10C     TFR  X,S            POINT S TO START OF â€˜FOR/NEXTâ€™ DATA 
+LB10C     TFR  X,S            POINT S TO START OF ‘FOR/NEXT’ DATA 
           LEAX 3,X            POINT X TO FP VALUE OF STEP 
           JSR  LBC14          COPY A FP NUMBER FROM (X) TO FPA0 
           LDA  8,S            GET THE DIRECTION OF STEP 
@@ -1529,18 +1529,18 @@ LB10C     TFR  X,S            POINT S TO START OF â€˜FOR/NEXTâ€™ DATA
           SUBB 8,S            ACCB = 0 IF TERMINAL VALUE=CURRENT VALUE AND STEP=0 OR IF 
 ;                             STEP IS POSITIVE AND CURRENT VALUE>TERMINAL VALUE OR 
 ;                             STEP IS NEGATIVE AND CURRENT VALUE<TERMINAL VALUE 
-          BEQ  LB134          BRANCH IF â€˜FOR/NEXTâ€™ LOOP DONE 
+          BEQ  LB134          BRANCH IF ‘FOR/NEXT’ LOOP DONE 
           LDX  14,S           * GET LINE NUMBER AND 
           STX  CURLIN         * BASIC POINTER OF 
           LDX  16,S           * STATEMENT FOLLOWING THE 
           STX  CHARAD         * PROPER FOR STATEMENT 
 LB131     JMP  LAD9E          JUMP BACK TO COMMAND INTEPR. LOOP 
-LB134     LEAS 18,S           PULL THE â€˜FOR-NEXTâ€™ DATA OFF THE STACK 
+LB134     LEAS 18,S           PULL THE ‘FOR-NEXT’ DATA OFF THE STACK 
           JSR  GETCCH         GET CURRENT INPUT CHARACTER 
           CMPA #',            CHECK FOR ANOTHER ARGUMENT 
           BNE  LB131          RETURN IF NONE 
           JSR  GETNCH         GET NEXT CHARACTER FROM BASIC 
-          BSR  LB0FE          BSR SIMULATES A CALL TO â€˜NEXTâ€™ FROM COMMAND LOOP 
+          BSR  LB0FE          BSR SIMULATES A CALL TO ‘NEXT’ FROM COMMAND LOOP 
                                
                                
 LB141     BSR  LB156          EVALUATE EXPRESSION AND DO A TYPE CHECK FOR NUMERIC 
@@ -1557,9 +1557,9 @@ LB146     ORCC #1             SET CARRY
 LB148     TST  VALTYP         TEST TYPE FLAG; DO NOT CHANGE CARRY 
           BCS  LB14F          BRANCH IF STRING 
           BPL  LB0E7          RETURN ON PLUS 
-          FCB  SKP2           SKIP 2 BYTES - â€˜TMâ€™ ERROR 
+          FCB  SKP2           SKIP 2 BYTES - ‘TM’ ERROR 
 LB14F     BMI  LB0E7          RETURN ON MINUS 
-          LDB  #12*2          â€˜TYPE M1SMATCHâ€™ ERROR 
+          LDB  #12*2          ‘TYPE M1SMATCH’ ERROR 
 LB153     JMP  LAC46          PROCESS ERROR 
 ; EVALUATE EXPRESSION                      
 LB156     BSR  LB1C6          BACK UP INPUT POINTER 
@@ -1577,7 +1577,7 @@ LB16A     SUBA #TOK_GREATER   TOKEN FOR >
           BCS  LB181          BRANCH IF LESS THAN RELATIONAL OPERATORS 
           CMPA #3             * 
           BCC  LB181          * BRANCH IF GREATER THAN RELATIONAL OPERATORS 
-          CMPA #1             SET CARRY IF â€˜>â€˜ 
+          CMPA #1             SET CARRY IF ‘>‘ 
           ROLA                CARRY TO BIT 0 
           EORA TRELFL         * CARRY SET IF 
           CMPA TRELFL         * TRELFL = ACCA 
@@ -1592,7 +1592,7 @@ LB181     LDB  TRELFL         GET RELATIONAL OPERATOR FLAG
           ADDA #7             SEVEN ARITHMETIC/LOGICAL OPERATORS 
           BCC  LB1F4          BRANCH IF NOT ARITHMETIC/LOGICAL OPERATOR 
           ADCA VALTYP         ADD CARRY, NUMERIC FLAG AND MODIFIED TOKEN NUMBER 
-          LBEQ LB60F          BRANCH IF VALTYP = FF, AND ACCA = â€˜+â€˜ TOKEN - 
+          LBEQ LB60F          BRANCH IF VALTYP = FF, AND ACCA = ‘+‘ TOKEN - 
 ;                             CONCATENATE TWO STRINGS 
           ADCA #-1            RESTORE ARITHMETIC/LOGICAL OPERATOR NUMBER 
           PSHS A              * STORE OPERATOR NUMBER ON STACK; MULTIPLY IT BY 2 
@@ -1603,7 +1603,7 @@ LB181     LDB  TRELFL         GET RELATIONAL OPERATOR FLAG
 LB19F     PULS A              GET PRECEDENCE FLAG FROM STACK 
           CMPA ,X             COMPARE TO CURRENT OPERATOR 
           BCC  LB1FA          BRANCH IF STACK OPERATOR > CURRENT OPERATOR 
-          BSR  LB143          â€˜TMâ€™ ERROR IF VARIABLE TYPE = STRING 
+          BSR  LB143          ‘TM’ ERROR IF VARIABLE TYPE = STRING 
                                
 ; OPERATION BEING PROCESSED IS OF HIGHER PRECEDENCE THAN THE PREVIOUS OPERATION.                      
 LB1A7     PSHS A              SAVE PRECEDENCE FLAG 
@@ -1624,7 +1624,7 @@ LB1B8     ASL  VALTYP         BIT 7 OF TYPE FLAG TO CARRY
           CLR  VALTYP         SET VARIABLE TYPE TO NUMERIC 
           BRA  LB19F          PERFORM OPERATION OR SAVE ON STACK 
                                
-LB1C6     LDX  CHARAD         * GET BASICâ€™S INPUT POINTER AND 
+LB1C6     LDX  CHARAD         * GET BASIC’S INPUT POINTER AND 
           JMP  LAEBB          * MOVE IT BACK ONE 
 ; RELATIONAL COMPARISON JUMP TABLE                      
 LB1CB     FCB  $64            RELATIONAL COMPARISON FLAG 
@@ -1641,7 +1641,7 @@ LB1D4     LDD  1,X            GET ADDRESS OF OPERATOR ROUTINE
           BSR  LB1E2          PUSH FPA0 ONTO STACK 
           LDB  TRELFL         GET BACK RELATIONAL OPERATOR FLAG 
           LBRA LB15A          EVALUATE ANOTHER EXPRESSION 
-LB1DF     JMP  LB277          â€˜SYNTAX ERRORâ€™ 
+LB1DF     JMP  LB277          ‘SYNTAX ERROR’ 
 ; PUSH FPA0 ONTO THE STACK. ,S   = EXPONENT      
 ; 1-2,S =HIGH ORDER MANTISSA 3-4,S = LOW ORDER MANTISSA  
 ; 5,S = SIGN RETURN WITH PRECEDENCE CODE IN ACCA  
@@ -1655,17 +1655,17 @@ LB1EA     LDB  FP0EXP         * PUSH FPA0 ONTO THE STACK
           PSHS U,X,B          * 
           JMP  ,Y             JUMP TO ADDRESS IN Y 
                                
-; BRANCH HERE IF NON-OPERATOR CHARACTER FOUND - USUALLY â€˜)â€˜ OR END OF LINE                      
+; BRANCH HERE IF NON-OPERATOR CHARACTER FOUND - USUALLY ‘)‘ OR END OF LINE                      
 LB1F4     LDX  ZERO           POINT X TO DUMMY VALUE (ZERO) 
           LDA  ,S+            GET PRECEDENCE FLAG FROM STACK 
           BEQ  LB220          BRANCH IF END OF EXPRESSION 
 LB1FA     CMPA #$64           * CHECK FOR RELATIONAL COMPARISON FLAG 
           BEQ  LB201          * AND BRANCH IF RELATIONAL COMPARISON 
-          JSR  LB143          â€˜TMâ€™ ERROR IF VARIABLE TYPE = STRING 
+          JSR  LB143          ‘TM’ ERROR IF VARIABLE TYPE = STRING 
 LB201     STX  RELPTR         SAVE POINTER TO OPERATOR ROUTINE 
 LB203     PULS B              GET RELATIONAL OPERATOR FLAG FROM STACK 
-          CMPA #$5A           CHECK FOR â€˜NOTâ€™ OPERATOR 
-          BEQ  LB222          RETURN IF â€˜NOTâ€™ - NO RELATIONAL COMPARISON 
+          CMPA #$5A           CHECK FOR ‘NOT’ OPERATOR 
+          BEQ  LB222          RETURN IF ‘NOT’ - NO RELATIONAL COMPARISON 
           CMPA #$7D           CHECK FOR NEGATION (UNARY) FLAG 
           BEQ  LB222          RETURN IF NEGATION - NO RELATIONAL COMPARISON 
                                
@@ -1695,7 +1695,7 @@ LB22C     JMP  LBD12          CONVERT ASCII STRING TO FLOATING POINT -
 ; PROCESS A NON NUMERIC FIRST CHARACTER                      
 LB22F     JSR  LB3A2          SET CARRY IF NOT ALPHA 
           BCC  LB284          BRANCH IF ALPHA CHARACTER 
-          CMPA #'.            IS IT â€˜.â€˜ (DECIMAL POINT)? 
+          CMPA #'.            IS IT ‘.‘ (DECIMAL POINT)? 
           BEQ  LB22C          CONVERT ASCII STRING TO FLOATING POINT 
           CMPA #TOK_MINUS     MINUS TOKEN 
           BEQ  LB27C          YES - GO PROCESS THE MINUS OPERATOR 
@@ -1706,25 +1706,25 @@ LB22F     JSR  LB3A2          SET CARRY IF NOT ALPHA
 LB244     LDX  CHARAD         CURRENT BASIC POINTER TO X 
           JSR  LB518          SAVE STRING ON STRING STACK 
 LB249     LDX  COEFPT         * GET ADDRESS OF END OF STRING AND 
-          STX  CHARAD         * PUT BASICâ€™S INPUT POINTER THERE 
+          STX  CHARAD         * PUT BASIC’S INPUT POINTER THERE 
           RTS                  
 LB24E     CMPA #TOK_NOT       NOT TOKEN? 
           BNE  LB25F          NO 
 ; PROCESS THE NOT OPERATOR                      
-          LDA  #$5A           â€˜NOTâ€™ PRECEDENCE FLAG 
-          JSR  LB15A          PROCESS OPERATION FOLLOWING â€˜NOTâ€™ 
+          LDA  #$5A           ‘NOT’ PRECEDENCE FLAG 
+          JSR  LB15A          PROCESS OPERATION FOLLOWING ‘NOT’ 
           JSR  INTCNV         CONVERT FPA0 TO INTEGER IN ACCD 
-          COMA                * â€˜NOTâ€™ THE INTEGER 
+          COMA                * ‘NOT’ THE INTEGER 
           COMB                * 
           JMP  GIVABF         CONVERT ACCD TO FLOATING POINT (FPA0) 
 LB25F     INCA                CHECK FOR TOKENS PRECEEDED BY $FF 
           BEQ  LB290          IT WAS PRECEEDED BY $FF 
-LB262     BSR  LB26A          SYNTAX CHECK FOR A â€˜(â€˜ 
+LB262     BSR  LB26A          SYNTAX CHECK FOR A ‘(‘ 
           JSR  LB156          EVALUATE EXPRESSIONS WITHIN PARENTHESES AT 
 ;         HIGHEST PRECEDENCE      
-LB267     LDB  #')            SYNTAX CHECK FOR â€˜)â€˜ 
+LB267     LDB  #')            SYNTAX CHECK FOR ‘)‘ 
           FCB  SKP2           SKIP 2 BYTES 
-LB26A     LDB  #'(            SYNTAX CHECK FOR â€˜(â€˜ 
+LB26A     LDB  #'(            SYNTAX CHECK FOR ‘(‘ 
           FCB  SKP2           SKIP 2 BYTES 
 LB26D     LDB  #',            SYNTAX CHECK FOR COMMA 
 LB26F     CMPB [CHARAD]       * COMPARE ACCB TO CURRENT INPUT 
@@ -1735,7 +1735,7 @@ LB277     LDB  #2*1           SYNTAX ERROR
                                
 ; PROCESS THE MINUS (UNARY) OPERATOR                      
 LB27C     LDA  #$7D           MINUS (UNARY) PRECEDENCE FLAG 
-          JSR  LB15A          PROCESS OPERATION FOLLOWING â€˜UNARYâ€™ NEGATION 
+          JSR  LB15A          PROCESS OPERATION FOLLOWING ‘UNARY’ NEGATION 
           JMP  LBEE9          CHANGE SIGN OF FPA0 MANTISSA 
                                
 ; EVALUATE ALPHA EXPRESSION                      
@@ -1761,12 +1761,12 @@ LB29F     PSHS B              SAVE TOKEN OFFSET ON STACK
 ;          CMPB #TOK_INKEY-$80*2 *                               * original line
           CMPB #(TOK_INKEY-$80)*2 * 		                    ; fix for lwtools
           BCC  LB2C9          * DO SECONDARIES $92 (INKEY$) OR > 
-          BSR  LB26A          SYNTAX CHECK FOR A â€˜(â€˜ 
+          BSR  LB26A          SYNTAX CHECK FOR A ‘(‘ 
           LDA  ,S             GET TOKEN NUMBER 
 ; DO SECONDARIES (LEFT$, RIGHT$, MID$)                      
           JSR  LB156          EVALUATE FIRST STRING IN ARGUMENT 
           BSR  LB26D          SYNTAX CHECK FOR A COMMA 
-          JSR  LB146          â€˜TMâ€™ ERROR IF NUMERIC VARiABLE 
+          JSR  LB146          ‘TM’ ERROR IF NUMERIC VARiABLE 
           PULS A              GET TOKEN OFFSET FROM STACK 
           LDU  FPA0+2         POINT U TO STRING DESCRIPTOR 
           PSHS U,A            SAVE TOKEN OFFSET AND DESCRIPTOR ADDRESS 
@@ -1774,19 +1774,19 @@ LB29F     PSHS B              SAVE TOKEN OFFSET ON STACK
           PULS A              GET TOKEN OFFSET FROM STACK 
           PSHS B,A            SAVE TOKEN OFFSET AND NUMERIC ARGUMENT 
           FCB  $8E            OP CODE OF LDX# - SKlP 2 BYTES 
-LB2C7     BSR  LB262          SYNTAX CHECK FOR A â€˜(â€˜ 
+LB2C7     BSR  LB262          SYNTAX CHECK FOR A ‘(‘ 
 LB2C9     PULS B              GET TOKEN OFFSET 
           LDX  COMVEC+8       GET SECONDARY FUNCTION JUMP TABLE ADDRESS 
 LB2CE     ABX                 ADD IN COMMAND OFFSET 
 ;                              
 ; HERE IS WHERE WE BRANCH TO A SECONDARY FUNCTION                      
           JSR  [,X]           GO DO AN SECONDARY FUNCTION 
-          JMP  LB143          â€˜TMâ€™ ERROR IF VARIABLE TYPE = STRING 
+          JMP  LB143          ‘TM’ ERROR IF VARIABLE TYPE = STRING 
                                
-; LOGICAL OPERATOR â€˜ORâ€™ JUMPS HERE                      
-LB2D4     FCB  SKP1LD         SKIP ONE BYTE - â€˜ORâ€™ FLAG = $4F 
+; LOGICAL OPERATOR ‘OR’ JUMPS HERE                      
+LB2D4     FCB  SKP1LD         SKIP ONE BYTE - ‘OR’ FLAG = $4F 
                                
-; LOGICAL OPERATOR â€˜ANDâ€™ JUMPS HERE                      
+; LOGICAL OPERATOR ‘AND’ JUMPS HERE                      
 LB2D5     CLRA                AND FLAG = 0 
           STA  TMPLOC         AND/OR FLAG 
           JSR  INTCNV         CONVERT FPA0 INTO AN INTEGER IN ACCD 
@@ -1795,17 +1795,17 @@ LB2D5     CLRA                AND FLAG = 0
           JSR  INTCNV         CONVERT FPA0 INTO AN INTEGER IN ACCD 
           TST  TMPLOC         CHECK AND/OR FLAG 
           BNE  LB2ED          BRANCH IF OR 
-          ANDA CHARAC         * â€˜ANDâ€™ ACCD WITH FPA0 INTEGER 
+          ANDA CHARAC         * ‘AND’ ACCD WITH FPA0 INTEGER 
           ANDB ENDCHR         * STORED IN ENDCHR 
           BRA  LB2F1          CONVERT TO FP 
-LB2ED     ORA  CHARAC         * â€˜ORâ€™ ACCD WITH FPA0 INTEGER 
+LB2ED     ORA  CHARAC         * ‘OR’ ACCD WITH FPA0 INTEGER 
           ORB  ENDCHR         * STORED IN CHARAC 
 LB2F1     JMP  GIVABF         CONVERT THE VALUE IN ACCD INTO A FP NUMBER 
                                
 ; RELATIONAL COMPARISON PROCESS HANDLER                      
-LB2F4     JSR  LB148          â€˜TMâ€™ ERROR IF TYPE MISMATCH 
+LB2F4     JSR  LB148          ‘TM’ ERROR IF TYPE MISMATCH 
           BNE  LB309          BRANCH IF STRING VARIABLE 
-          LDA  FP1SGN         * â€˜PACKâ€™ THE MANTISSA 
+          LDA  FP1SGN         * ‘PACK’ THE MANTISSA 
           ORA  #$7F           * SIGN OF FPA1 INTO 
           ANDA FPA1           * BIT 7 OF THE 
           STA  FPA1           * MANTISSA MS BYTE 
@@ -1848,8 +1848,8 @@ LB334     LDA  ,X+            GET A BYTE FROM STRING A
                                
 ; DETERMINE TRUTH OF COMPARISON - RETURN RESULT IN FPA0                      
 LB33F     ADDB #1             CONVERT $FF,0,1 TO 0,1,2 
-          ROLB                NOW ITâ€™S 1,2,4 FOR > = < 
-          ANDB RELFLG         â€˜ANDâ€™ THE ACTUAL COMPARISON WITH THE DESIRED - 
+          ROLB                NOW IT’S 1,2,4 FOR > = < 
+          ANDB RELFLG         ‘AND’ THE ACTUAL COMPARISON WITH THE DESIRED - 
 COMPARISON                      
           BEQ  LB348          BRANCH IF FALSE (NO MATCHING BITS) 
           LDB  #$FF           TRUE FLAG 
@@ -1904,7 +1904,7 @@ LB37B     CMPA #'$            CHECK FOR A STRING VARIABLE
           JSR  GETNCH         GET AN INPUT CHARACTER 
 LB385     STB  VARNAM+1       SAVE 2ND CHARACTER IN VARNAM+1 
           ORA  ARYDIS         OR IN THE ARRAY DISABLE FLAG - IF = $80, 
-;              DONâ€™T SEARCH FOR VARIABLES IN THE ARRAYS  
+;              DON’T SEARCH FOR VARIABLES IN THE ARRAYS  
           SUBA #'(            IS THIS AN ARRAY VARIABLE? 
           LBEQ LB404          BRANCH IF IT IS 
           CLR  ARYDIS         RESET THE ARRAY DISABLE FLAG 
@@ -1918,7 +1918,7 @@ LB395     CMPX ARYTAB         COMPARE X TO THE END OF VARIABLES
           BRA  LB395          = KEEP LOOKING 
                                
 ; SET CARRY IF NOT UPPER CASE ALPHA                      
-LB3A2     CMPA #'A            * CARRY SET IF < â€˜Aâ€™ 
+LB3A2     CMPA #'A            * CARRY SET IF < ‘A’ 
           BCS  LB3AA          * 
           SUBA #'Z+1          = 
 ;         SUBA #-('Z+1)       = CARRY CLEAR IF <= 'Z' 
@@ -1927,7 +1927,7 @@ LB3AA     RTS
 ; PUT A NEW VARIABLE IN TABLE OF VARIABLES                      
 LB3AB     LDX  #ZERO          POINT X TO ZERO LOCATION 
           LDU  ,S             GET CURRENT RETURN ADDRESS 
-          CMPU #LB287         DID WE COME FROM â€˜EVALUATE ALPHA EXPRâ€™? 
+          CMPU #LB287         DID WE COME FROM ‘EVALUATE ALPHA EXPR’? 
           BEQ  LB3DE          YES - RETURN A ZERO VALUE 
           LDD  ARYEND         * GET END OF ARRAYS ADDRESS AND 
           STD  V43            * SAVE IT AT V43 
@@ -1958,16 +1958,16 @@ LB3DF     FCB  $90,$80,$00,$00,$00 * FLOATING POINT -32768
 LB3E4     JSR  GETNCH         GET AN INPUT CHARACTER FROM BASIC 
 LB3E6     JSR  LB141          GO EVALUATE NUMERIC EXPRESSION 
 LB3E9     LDA  FP0SGN         GET FPA0 MANTISSA SIGN 
-          BMI  LB44A          â€˜FCâ€™ ERROR IF NEGATIVE NUMBER 
+          BMI  LB44A          ‘FC’ ERROR IF NEGATIVE NUMBER 
                                
                                
-INTCNV    JSR  LB143          â€˜TMâ€™ ERROR IF STRING VARIABLE 
+INTCNV    JSR  LB143          ‘TM’ ERROR IF STRING VARIABLE 
           LDA  FP0EXP         GET FPA0 EXPONENT 
           CMPA #$90           * COMPARE TO 32768 - LARGEST INTEGER EXPONENT AND 
           BCS  LB3FE          * BRANCH IF FPA0 < 32768 
           LDX  #LB3DF         POINT X TO FP VALUE OF -32768 
           JSR  LBC96          COMPARE -32768 TO FPA0 
-          BNE  LB44A          â€˜FCâ€™ ERROR IF NOT = 
+          BNE  LB44A          ‘FC’ ERROR IF NOT = 
 LB3FE     JSR  LBCC8          CONVERT FPA0 TO A TWO BYTE INTEGER 
           LDD  FPA0+2         GET THE INTEGER 
           RTS                  
@@ -1989,7 +1989,7 @@ LB40A     LDX  VARNAM         GET VARIABLE NAME
           CMPA #',            CHECK FOR ANOTHER DIMENSION 
           BEQ  LB40A          BRANCH IF MORE 
           STB  TMPLOC         SAVE DIMENSION COUNTER 
-          JSR  LB267          SYNTAX CHECK FOR A â€˜)â€˜ 
+          JSR  LB267          SYNTAX CHECK FOR A ‘)‘ 
           PULS A,B            * RESTORE VARIABLE TYPE AND ARRAY 
           STD  DIMFLG         * FLAG - LEAVE DIMENSION LENGTH ON STACK 
           LDX  ARYTAB         GET START OF ARRAYS 
@@ -2001,25 +2001,25 @@ LB42A     CMPX ARYEND         COMPARE TO END OF ARRAYS
           LDD  2,X            GET OFFSET TO NEXT ARRAY VARIABLE 
           LEAX D,X            ADD TO CURRENT POINTER 
           BRA  LB42A          KEEP SEARCHING 
-LB43B     LDB  #2*9           â€˜REDIMENSIONED ARRAYâ€™ ERROR 
+LB43B     LDB  #2*9           ‘REDIMENSIONED ARRAY’ ERROR 
           LDA  DIMFLG         * TEST ARRAY FLAG - IF <>0 YOU ARE TRYING 
           BNE  LB44C          * TO REDIMENSION AN ARRAY 
           LDB  TMPLOC         GET NUMBER OF DIMENSIONS IN ARRAY 
           CMPB 4,X            COMPARE TO THIS ARRAYS DIMENSIONS 
           BEQ  LB4A0          BRANCH IF = 
-LB447     LDB  #8*2           â€˜BAD SUBSCRIPTâ€™ 
+LB447     LDB  #8*2           ‘BAD SUBSCRIPT’ 
           FCB  SKP2           SKIP TWO BYTES 
-LB44A     LDB  #4*2           â€˜ILLEGAL FUNCTION CALLâ€™ 
+LB44A     LDB  #4*2           ‘ILLEGAL FUNCTION CALL’ 
 LB44C     JMP  LAC46          JUMP TO ERROR SERVICING ROUTINE 
                                
 ; INSERT A NEW ARRAY INTO ARRAY VARIABLES                      
 ; EACH SET OF ARRAY VARIABLES IS PRECEEDED BY A DE-                      
 ; SCRIPTOR BLOCK COMPOSED OF 5+2*N BYTES WHERE N IS THE                      
 ; NUMBER OF DIMENSIONS IN THE ARRAY. THE BLOCK IS DEFINED                      
-; AS FOLLOWS: BYTES 0,1:VARIABLEâ€™S NAME; 2,3:TOTAL LENGTH                      
+; AS FOLLOWS: BYTES 0,1:VARIABLE’S NAME; 2,3:TOTAL LENGTH                      
 ; OF ARRAY ITEMS AND DESCRIPTOR BLOCK; 4:NUMBER OF DIMEN-                      
 ; ISIONS; 5,6:LENGTH OF DIMENSION 1; 7,8:LENGTH OF DIMEN-                      
-; SION 2;â€¦ 4+N,5+N:LENGTH OF DIMENSION N.                      
+; SION 2;… 4+N,5+N:LENGTH OF DIMENSION N.                      
                                
 LB44F     LDD  #5             * 5 BYTES/ARRAY ENTRY SAVE AT COEFPT 
           STD  COEFPT         * 
@@ -2044,7 +2044,7 @@ LB46D     STD  5,X            SAVE LENGTH OF ARRAY DIMENSION
           BNE  LB461          * NOT DONE WITH ALL DIMENSIONS 
           STX  TEMPTR         SAVE ADDRESS OF (END OF ARRAY DESCRIPTOR - 5) 
           ADDD TEMPTR         ADD TOTAL SIZE OF NEW ARRAY 
-          LBCS LAC44          â€˜OMâ€™ ERROR IF > $FFFF 
+          LBCS LAC44          ‘OM’ ERROR IF > $FFFF 
           TFR  D,X            SAVE END OF ARRAY IN X 
           JSR  LAC37          MAKE SURE THERE IS ENOUGH FREE RAM FOR ARRAY 
           SUBD #STKBUF-5      SUBTRACT OUT THE (STACK BUFFER - 5) 
@@ -2068,8 +2068,8 @@ LB4A0     LDB  4,X            GET THE NUMBER OF DIMENSIONS
 LB4A6     STD  COEFPT         SAVE ACCUMULATED POINTER 
           PULS A,B            * PULL DIMENSION ARGUMENT OFF THE 
           STD  FPA0+2         * STACK AND SAVE IT 
-          CMPD 5,X            COMPARE TO STORED â€˜DIMâ€™ ARGUMENT 
-          BCC  LB4EB          â€˜BSâ€™ ERROR IF > = "DIM" ARGUMENT 
+          CMPD 5,X            COMPARE TO STORED ‘DIM’ ARGUMENT 
+          BCC  LB4EB          ‘BS’ ERROR IF > = "DIM" ARGUMENT 
           LDU  COEFPT         * GET ACCUMULATED POINTER AND 
           BEQ  LB4B9          * BRANCH IF 1ST DIMENSION 
           BSR  LB4CE          = MULTIPLY ACCUMULATED POINTER AND DIMENSION 
@@ -2157,10 +2157,10 @@ LB526     INCB                INCREMENT CHARACTER COUNTER
           BEQ  LB537          BRANCH IF END OF LINE 
           CMPA CHARAC         * CHECK FOR TERMINATORS 
           BEQ  LB533          * IN CHARAC AND ENDCHR 
-          CMPA ENDCHR         * DONâ€™T MOVE POINTER BACK 
+          CMPA ENDCHR         * DON’T MOVE POINTER BACK 
           BNE  LB526          * ONE IF TERMINATOR IS "MATCHED" 
 LB533     CMPA #'"            = COMPARE CHARACTER TO STRING DELIMITER 
-          BEQ  LB539          = & DONâ€™T MOVE POINTER BACK IF SO 
+          BEQ  LB539          = & DON’T MOVE POINTER BACK IF SO 
 LB537     LEAX -1,X           MOVE POINTER BACK ONE 
 LB539     STX  COEFPT         SAVE END OF STRING ADDRESS 
           STB  STRDES         SAVE STRING LENGTH IN TEMP DESCRIPTOR 
@@ -2276,7 +2276,7 @@ LB5EF     LDX  V4B            GET ADDRESS OF THE DESCRIPTOR FOR THE
           DECB                SUBTRACT ONE 
           ADDD V47            ADD LENGTH OF STRING TO ITS STARTING ADDRESS 
           STD  V43            SAVE AS MOVE STARTING ADDRESS 
-          LDX  STRTAB         POINT X TO THE START OF STRING VARIABLES TABLE
+          LDX  STRTAB         POINT X TO THE START OF ORGANIZED STRING VARIABLES 
           STX  V41            SAVE AS MOVE ENDING ADDRESS 
           JSR  LAC20          MOVE STRING FROM CURRENT POSITION TO THE 
 ;              TOP OF UNORGANIZED STRING SPACE  
@@ -2379,7 +2379,7 @@ LB68F     LDB  #1             * RESERVE ONE BYTE IN
           JSR  LB56D          * THE STRING SPACE 
           LDA  FPA0+3         GET ASCII STRING VALUE 
           JSR  LB511          SAVE RESERVED STRING DESCRIPTOR IN TEMP DESCRIPTOR 
-          STA  ,X             SAVE THE STRING (ITâ€™S ONLY ONE BYTE) 
+          STA  ,X             SAVE THE STRING (IT’S ONLY ONE BYTE) 
 LB69B     LEAS 2,S            PURGE THE RETURN ADDRESS OFF OF THE STACK 
 LB69D     JMP  LB54C          PUT TEMP DESCRIPTOR DATA ONTO STRING STACK 
                                
@@ -2504,7 +2504,31 @@ POKE      BSR  LB734          EVALUATE 2 EXPRESSIONS
           LDX  BINVAL         GET THE ADDRESS TO BE 'POKE'ED 
           STB  ,X             STORE THE DATA IN THAT ADDRESS 
           RTS                  
-                           
+
+;
+; SBC6309 V1.3 IO page begins at $E000
+;
+; Put some text here in the ROM about the build. This
+; isn't reachable from the 6309 CPU, but does appear
+; in the ROM when burned, so can be used for ID and
+; version information.
+;
+          ORG  $E000
+          
+          FCN  "Extended MS BASIC with autostart ROM"
+          FCN  "This is a derived work from that of \ Searle."
+          FCN  "http://searle.hostei.com/grant/6809/Simple6809.html"
+          FCC  "I have used Grant's 6809 Extended BASIC with very "
+          FCC  "minimal adapations to port to hd6309 CPU or the "
+          FCN  "SBC hardware. Requires SBC6309 CPLD V1.3!"
+          FCN  "target toolchain: lwtools lwasm ver 4.10"
+          FCN  "tomcircuit@gmail.com 5/25/2014"
+
+;
+; skip over SBC6309 V1.3 expansion page!
+;
+          ORG  $E200
+                               
 ; LIST                         
 LIST      PSHS CC             SAVE ZERO FLAG ON STACK 
           JSR  LAF67          CONVERT DECIMAL LINE NUMBER TO BINARY 
@@ -2531,7 +2555,7 @@ LB78D     JSR  LB95C          MOVE CURSOR TO START OF A NEW LINE
           LDD  ,X             GET ADDRESS OF NEXT BASIC LINE 
           BNE  LB79F          BRANCH IF NOT END OF PROGRAM 
 LB797                          
-          JMP  LAC73          RETURN TO BASICâ€™S MAIN INPUT LOOP 
+          JMP  LAC73          RETURN TO BASIC’S MAIN INPUT LOOP 
 LB79F     STX  LSTTXT         SAVE NEW STARTING LINE ADDRESS 
           LDD  2,X            * GET THE LINE NUMBER OF THIS LINE AND 
           CMPD BINVAL         * COMPARE IT TO ENDING LINE NUMBER 
@@ -2547,19 +2571,19 @@ LB7B9     LDA  ,U+            GET A BYTE FROM THE BUFFER
           JSR  LB9B1          SEND CHARACTER TO CONSOLE OUT 
           BRA  LB7B9          GET ANOTHER CHARACTER 
                                
-; UNCRUNCH A LINE INTO BASICâ€™S LINE INPUT BUFFER                      
+; UNCRUNCH A LINE INTO BASIC’S LINE INPUT BUFFER                      
 LB7C2     LEAX 4,X            MOVE POINTER PAST ADDRESS OF NEXT LINE AND LINE NUMBER 
           LDY  #LINBUF+1      UNCRUNCH LINE INTO LINE INPUT BUFFER 
 LB7CB     LDA  ,X+            GET A CHARACTER 
           BEQ  LB820          BRANCH IF END OF LINE 
-          BMI  LB7E6          BRANCH IF ITâ€™S A TOKEN 
+          BMI  LB7E6          BRANCH IF IT’S A TOKEN 
           CMPA #':            CHECK FOR END OF SUB LINE 
           BNE  LB7E2          BRNCH IF NOT END OF SUB LINE 
           LDB  ,X             GET CHARACTER FOLLOWING COLON 
           CMPB #TOK_ELSE      TOKEN FOR ELSE? 
-          BEQ  LB7CB          YES - DONâ€™T PUT IT IN BUFFER 
+          BEQ  LB7CB          YES - DON’T PUT IT IN BUFFER 
           CMPB #TOK_SNGL_Q    TOKEN FOR REMARK? 
-          BEQ  LB7CB          YES - DONâ€™T PUT IT IN BUFFER 
+          BEQ  LB7CB          YES - DON’T PUT IT IN BUFFER 
           FCB  SKP2           SKIP TWO BYTES 
 LB7E0     LDA  #'!            EXCLAMATION POINT 
 LB7E2     BSR  LB814          PUT CHARACTER IN BUFFER 
@@ -2610,7 +2634,7 @@ LB82D     LDA  ,X+            GET INPUT CHAR
           BEQ  LB844          * PROCESSING AN ILLEGAL TOKEN 
           JSR  LB3A2          SET CARRY IF NOT UPPER CASE ALPHA 
           BCC  LB852          BRANCH IF UPPER CASE ALPHA 
-          CMPA #'0            * DONâ€™T CRUNCH ASCII NUMERIC CHARACTERS 
+          CMPA #'0            * DON’T CRUNCH ASCII NUMERIC CHARACTERS 
           BLO  LB842          * BRANCH IF NOT NUMERIC 
           CMPA #'9            * 
           BLS  LB852          * BRANCH IF NUMERIC 
@@ -2648,7 +2672,7 @@ LB87E     LDA  ,X+            SCAN TILL WE MATCH [V42]
           BEQ  LB852          BRANCH IF END OF LINE 
           CMPA V42            DELIMITER? 
           BEQ  LB852          BRANCH OUT IF SO 
-LB886     STA  ,U+            DONâ€™T CRUNCH REMARKS OR STRINGS 
+LB886     STA  ,U+            DON’T CRUNCH REMARKS OR STRINGS 
           BRA  LB87E          GO GET MORE STRING OR REMARK 
 LB88A     CMPA #'0            * LESS THAN ASCII ZERO? 
           BCS  LB892          * BRANCH IF SO 
@@ -3433,7 +3457,7 @@ LBDC5     LDX  #LABE8-1       POINT X TO " IN " MESSAGE
 ; CONVERT VALUE IN ACCD INTO A DECIMAL NUMBER                      
 ; AND PRINT IT TO CONSOLE OUT                      
 LBDCC     STD  FPA0           SAVE ACCD IN TOP HALF OF FPA0 
-          LDB  #$90           REQâ€™D EXPONENT IF TOP HALF OF ACCD = INTEGER 
+          LDB  #$90           REQ’D EXPONENT IF TOP HALF OF ACCD = INTEGER 
           COMA                SET CARRY FLAG - FORCE POSITIVE MANTISSA 
           JSR  LBC86          ZERO BOTTOM HALF AND SIGN OF FPA0, THEN 
 ;         SAVE EXPONENT AND NORMALIZE IT  
@@ -3482,7 +3506,7 @@ LBE1F     JSR  LB9B4          ADD .5 TO FPA0 (ROUND OFF)
           JSR  LBCC8          CONVERT FPA0 TO AN INTEGER 
           LDB  #1             DEFAULT DECIMAL POINT FLAG (FORCE IMMED DECIMAL PT) 
           LDA  V45            * GET BASE 10 EXPONENT AND ADD TEN TO IT 
-          ADDA #9+1           * (NUMBER â€˜NORMALIZEDâ€™ TO 9 PLACES & DECIMAL PT) 
+          ADDA #9+1           * (NUMBER ‘NORMALIZED’ TO 9 PLACES & DECIMAL PT) 
           BMI  LBE36          BRANCH IF NUMBER < 1.0 
           CMPA #9+2           NINE PLACES MAY BE DISPLAYED WITHOUT 
 ;         USING SCIENTIFIC NOTATION  
@@ -3529,7 +3553,7 @@ LBE50     LDA  FPA0+3         * ADD MANTISSA LS
           ROLB                *SET OVERFLOW FLAG AND BRANCH IF CARRY = 1 AND 
           BVC  LBE50          *POSITIVE MANTISSA OR CARRY = 0 AND NEG MANTISSA 
           BCC  LBE72          BRANCH IF NEGATIVE MANTISSA 
-          SUBB #10+1          * TAKE THE 9â€™S COMPLEMENT IF 
+          SUBB #10+1          * TAKE THE 9’S COMPLEMENT IF 
           NEGB                * ADDING MANTISSA 
 LBE72     ADDB #'0-1          ADD ASCII OFFSET TO DIGIT 
           LEAX 4,X            MOVE TO NEXT POWER OF 10 MANTISSA 
@@ -3558,14 +3582,14 @@ LBE98     LDA  #'+            ASCII PLUS SIGN
           LDA  #'-            ASCII MINUS SIGN 
           NEGB                NEGATE EXPONENT IF NEGATIVE 
 LBEA3     STA  2,U            STORE EXPONENT SIGN IN STRING 
-          LDA  #'E            * GET ASCII â€˜Eâ€™ (SCIENTIFIC NOTATION 
+          LDA  #'E            * GET ASCII ‘E’ (SCIENTIFIC NOTATION 
           STA  1,U            * FLAG) AND SAVE IT IN THE STRING 
           LDA  #'0-1          INITIALIZE ACCA TO ASCII ZERO 
                                
                                
-LBEAB     INCA                ADD ONE TO 10â€™S DIGIT OF EXPONENT 
+LBEAB     INCA                ADD ONE TO 10’S DIGIT OF EXPONENT 
           SUBB #10            SUBTRACT 10 FROM ACCB 
-          BCC  LBEAB          ADD 1 TO 10â€™S DIGIT IF NO CARRY 
+          BCC  LBEAB          ADD 1 TO 10’S DIGIT IF NO CARRY 
           ADDB #'9+1          CONVERT UNITS DIGIT TO ASCII 
           STD  3,U            SAVE EXPONENT IN STRING 
           CLR  5,U            CLEAR LAST BYTE (TERMINATOR) 
@@ -3611,7 +3635,7 @@ LBEFC     JMP  LBACA          MULTIPLY (X) BY FPA0
 ; NUMBER OF (COEFFICIENTS-1) FOLLOWED BY THAT NUMBER                      
 ; OF PACKED FLOATING POINT NUMBERS. THE                      
 ; POLYNOMIAL IS EVALUATED AS FOLLOWS: VALUE =                      
-; (((FPA0*Y0+Y1)*FPA0+Y2)*FPA0â€¦YN)                      
+; (((FPA0*Y0+Y1)*FPA0+Y2)*FPA0…YN)                      
 LBEFF     STX  COEFPT         SAVE COEFFICIENT TABLE POINTER 
 LBF01     JSR  LBC2A          MOVE FPA0 TO FPA4 
           LDX  COEFPT         GET THE COEFFICIENT POINTER 
@@ -3742,7 +3766,7 @@ TAN       JSR  LBC2F          PACK FPA0 AND MOVE IT TO FPA3
           LDA  RELFLG         GET THE QUADRANT FLAG - COS NEGATIVE IN QUADS 2,3 
           BSR  L83A6          CALCULATE VALUE OF COS(FPA0) 
           TST  FP0EXP         CHECK EXPONENT OF FPA0 
-          LBEQ LBA92          â€˜OVâ€™ ERROR IF COS(X)=0 
+          LBEQ LBA92          ‘OV’ ERROR IF COS(X)=0 
           LDX  #V4A           POINT X TO FPA5 
 L83A3     JMP  LBB8F          DIVIDE (X) BY FPA0 - SIN(X)/COS(X) 
 L83A6     PSHS A              SAVE SIGN FLAG ON STACK 
@@ -3823,7 +3847,7 @@ L8441     FCB  $80,$31,$72,$17,$F8 LN(2)
 ; THE TERMS OF THE LATTER EXPRESSION ARE CONSTANTS EXCEPT FOR THE                      
 ; LN(A*SQR(2)) TERM WHICH IS EVALUATED USING THE TAYLOR SERIES EXPANSION                      
 LOG       JSR  LBC6D          CHECK STATUS OF FPA0 
-          LBLE LB44A          â€˜FCâ€™ ERROR IF NEGATIVE OR ZERO 
+          LBLE LB44A          ‘FC’ ERROR IF NEGATIVE OR ZERO 
           LDX  #L8432         POINT (X) TO FP NUMBER (1/SQR(2)) 
           LDA  FP0EXP         *GET EXPONENT OF ARGUMENT 
           SUBA #$80           *SUBTRACT OFF THE BIAS AND 
@@ -3858,7 +3882,7 @@ L8489     BEQ  EXP            DO A NATURAL EXPONENTIATION IF EXPONENT = 0
           BNE  L8491          *AND BRANCH IF IT IS <> 0 
           JMP  LBA3A          FPA0=0 IF RAISING ZERO TO A POWER 
 L8491     LDX  #V4A           * PACK FPA0 AND SAVE 
-          JSR  LBC35          * IT IN FPA5 (ARGUMENTâ€™S EXPONENT) 
+          JSR  LBC35          * IT IN FPA5 (ARGUMENT’S EXPONENT) 
           CLRB                ACCB=DEFAULT RESULT SIGN FLAG; 0=POSITIVE 
           LDA  FP1SGN         *CHECK THE SIGN OF ARGUMENT 
           BPL  L84AC          *BRANCH IF POSITIVE 
@@ -3909,11 +3933,11 @@ EXP       LDX  #L84C4         POINT X TO THE CORRECTION FACTOR
           LDA  FP0EXP         *GET EXPONENT OF FPA0 AND 
           CMPA #$88           *COMPARE TO THE MAXIMUM VALUE 
           BLO  L8504          BRANCH IF FPA0 < 128 
-L8501     JMP  LBB5C          SET FPA0 = 0 OR â€˜OVâ€™ ERROR 
+L8501     JMP  LBB5C          SET FPA0 = 0 OR ‘OV’ ERROR 
 L8504     JSR  INT            CONVERT FPA0 TO INTEGER 
           LDA  CHARAC         GET LS BYTE OF INTEGER 
           ADDA #$81           * WAS THE ARGUMENT =127, IF SO 
-          BEQ  L8501          * THEN â€˜OVâ€™ ERROR; THIS WILL ALSO ADD THE $80 BIAS 
+          BEQ  L8501          * THEN ‘OV’ ERROR; THIS WILL ALSO ADD THE $80 BIAS 
 ;              * REQUIRED WHEN THE NEW EXPONENT IS CALCULATED BELOW  
           DECA                DECREMENT ONE FROM THE EXPONENT, BECAUSE $81, NOT $80 WAS USED ABOVE 
           PSHS A              SAVE EXPONENT OF INTEGER PORTION ON STACK 
@@ -3938,10 +3962,10 @@ L852C     COM  FP0SGN         TOGGLE SIGN OF FPA0 MANTISSA
 ; EDIT                         
 EDIT      JSR  L89AE          GET LINE NUMBER FROM BASIC 
           LEAS $02,S PURGE RETURN ADDRESS OFF OF THE STACK  
-L8538     LDA  #$01           â€˜LISTâ€™ FLAG 
+L8538     LDA  #$01           ‘LIST’ FLAG 
           STA  VD8            SET FLAG TO LIST LINE 
           JSR  LAD01          GO FIND THE LINE NUMBER IN PROGRAM 
-          LBCS LAED2 ERROR #7 â€˜UNDEFINED LINE #'  
+          LBCS LAED2 ERROR #7 ‘UNDEFINED LINE #'  
           JSR  LB7C2          GO UNCRUNCH LINE INTO BUFFER AT LINBUF+1 
           TFR  Y,D            PUT ABSOLUTE ADDRESS OF END OF LINE TO ACCD 
           SUBD #LINBUF+2 SUBTRACT OUT THE START OF LINE  
@@ -3963,7 +3987,7 @@ L855D     JSR  L8687          GET KEY STROKE
           ADDB ,S+            ADD DIGIT TO ACCUMULATED VALUE  
           BRA  L855D          CHECK FOR ANOTHER DIGIT 
 L8570     SUBB #$01           REPEAT PARAMETER IN ACCB; IF IT  
-          ADCB #$01           IS 0, THEN MAKE IT â€˜1â€™  
+          ADCB #$01           IS 0, THEN MAKE IT ‘1’  
           CMPA #'A'           ABORT?          
           BNE  L857D          NO 
           JSR  LB958          PRINT CARRIAGE RETURN TO SCREEN 
@@ -3971,7 +3995,7 @@ L8570     SUBB #$01           REPEAT PARAMETER IN ACCB; IF IT
 L857D     CMPA #'L'           LIST?           
           BNE  L858C          NO 
 L8581     BSR  L85B4          LIST THE LINE 
-          CLR  VD8            RESET THE LIST FLAG TO â€˜NO LISTâ€™ 
+          CLR  VD8            RESET THE LIST FLAG TO ‘NO LIST’ 
           JSR  LB958          PRINT CARRIAGE RETURN 
           BRA  L854D          GO INTERPRET ANOTHER EDIT COMMAND 
 L858A     LEAS $02,S          PURGE RETURN ADDRESS OFF OF THE STACK  
@@ -3979,7 +4003,7 @@ L858C     CMPA #CR            ENTER KEY?
           BNE  L859D          NO 
           BSR  L85B4          ECHO THE LINE TO THE SCREEN 
 L8592     JSR  LB958          PRINT CARRIAGE RETURN 
-          LDX  #LINBUF+1      * RESET BASICâ€™S INPUT POINTER 
+          LDX  #LINBUF+1      * RESET BASIC’S INPUT POINTER 
           STX  CHARAD         * TO THE LINE INPUT BUFFER 
           JMP  LACA8          GO PUT LINE BACK IN PROGRAM 
 L859D     CMPA #'E'           EXIT?           
@@ -3997,7 +4021,7 @@ L85B3     FCB  SKP2           SKIP TWO BYTES
 ;                              
 L85B4     LDB  #LBUFMX-1      250 BYTES MAX IN BUFFER 
 L85B6     LDA  ,X             GET A CHARACTER FROM BUFFER 
-          BEQ  L85C2          EXIT IF ITâ€™S A 0 
+          BEQ  L85C2          EXIT IF IT’S A 0 
           JSR  PUTCHR         SEND CHAR TO CONSOLE OUT 
           LEAX $01,X          MOVE POINTER UP ONE  
           DECB                DECREMENT CHARACTER COUNTER  
@@ -4034,7 +4058,7 @@ L85F5     JSR  L8687          GET A KEYSTROKE
           CMPA #CR            ENTER KEY?      
           BEQ  L858A          YES - INTERPRET ANOTHER COMMAND - PRINT LINE 
           CMPA #ESC           ESCAPE?         
-          BEQ  L8625          YES - RETURN TO COMMAND LEVEL - DONâ€™T PRINT LINE 
+          BEQ  L8625          YES - RETURN TO COMMAND LEVEL - DON’T PRINT LINE 
           CMPA #BS            BACK SPACE?     
           BNE  L8626          NO 
           CMPX #LINBUF+1      COMPARE POINTER TO START OF BUFFER  
@@ -4137,20 +4161,20 @@ LA5E8     SEX                 CONVERT ACCB TO 2 DIGIT SIGNED INTEGER
           JMP  GIVABF         CONVERT ACCD TO FLOATING POINT 
                                
 ; VARPTR                       
-VARPT     JSR  LB26A          SYNTAX CHECK FOR â€˜(â€˜ 
+VARPT     JSR  LB26A          SYNTAX CHECK FOR ‘(‘ 
           LDD  ARYEND         GET ADDR OF END OF ARRAYS 
           PSHS B,A            SAVE IT ON STACK 
           JSR  LB357          GET VARIABLE DESCRIPTOR 
-          JSR  LB267          SYNTAX CHECK FOR â€˜)â€˜ 
+          JSR  LB267          SYNTAX CHECK FOR ‘)‘ 
           PULS A,B            GET END OF ARRAYS ADDR BACK 
           EXG  X,D            SWAP END OF ARRAYS AND VARIABLE DESCRIPTOR 
           CMPX ARYEND         COMPARE TO NEW END OF ARRAYS 
-          BNE  L8724          â€˜FCâ€™ ERROR IF VARIABLE WAS NOT DEFINED PRIOR TO CALLING VARPTR 
+          BNE  L8724          ‘FC’ ERROR IF VARIABLE WAS NOT DEFINED PRIOR TO CALLING VARPTR 
           JMP  GIVABF         CONVERT VARIABLE DESCRIPTOR INTO A FP NUMBER 
                                
 ; MID$(OLDSTRING,POSITION,LENGTH)=REPLACEMENT                      
 L86D6     JSR  GETNCH         GET INPUT CHAR FROM BASIC 
-          JSR  LB26A          SYNTAX CHECK FOR â€˜(â€˜ 
+          JSR  LB26A          SYNTAX CHECK FOR ‘(‘ 
           JSR  LB357          * GET VARIABLE DESCRIPTOR ADDRESS AND 
           PSHS X              * SAVE IT ON THE STACK 
           LDD  $02,X          POINT ACCD TO START OF OLDSTRING 
@@ -4175,16 +4199,16 @@ L86FD     JSR  LB738          SYNTAX CHECK FOR COMMA AND EVALUATE LENGTH EXPRESS
           BEQ  L870E          * BRANCH IF AT END OF STATEMENT 
           JSR  LB738          SYNTAX CHECK FOR COMMA AND EVALUATE LENGTH EXPRESSION 
 L870E     PSHS B              SAVE LENGTH PARAMETER ON STACK 
-          JSR  LB267          SYNTAX CHECK FOR â€˜)â€˜ 
+          JSR  LB267          SYNTAX CHECK FOR ‘)‘ 
           LDB  #TOK_EQUALS    TOKEN FOR = 
-          JSR  LB26F          SYNTAX CHECK FOR â€œ=â€˜ 
+          JSR  LB26F          SYNTAX CHECK FOR “=‘ 
           BSR  L8748          EVALUATE REPLACEMENT STRING 
           TFR  X,U            SAVE REPLACEMENT STRING ADDRESS IN U 
           LDX  $02,S          POINT X TO OLOSTRING DESCRIPTOR ADDRESS 
           LDA  ,X             GET LENGTH OF OLDSTRING 
           SUBA $01,S          SUBTRACT POSITION PARAMETER 
           BCC  L8727          INSERT REPLACEMENT STRING INTO OLDSTRING 
-L8724     JMP  LB44A          â€˜FCâ€™ ERROR IF POSITION > LENGTH OF OLDSTRING 
+L8724     JMP  LB44A          ‘FC’ ERROR IF POSITION > LENGTH OF OLDSTRING 
 L8727     INCA                * NOW ACCA = NUMBER OF CHARACTERS TO THE RIGHT 
 ;                             * (INCLUSIVE) OF THE POSITION PARAMETER 
           CMPA ,S              
@@ -4193,7 +4217,7 @@ L8727     INCA                * NOW ACCA = NUMBER OF CHARACTERS TO THE RIGHT
 L872E     LDA  $01,S          GET POSITION PARAMETER 
           EXG  A,B            ACCA=LENGTH OF REPL STRING, ACCB=POSITION PARAMETER 
           LDX  $02,X          POINT X TO OLDSTRING ADDRESS 
-          DECB                * BASICâ€™S POSITION PARAMETER STARTS AT 1; THIS ROUTINE 
+          DECB                * BASIC’S POSITION PARAMETER STARTS AT 1; THIS ROUTINE 
 ;                             * WANTS IT TO START AT ZERO 
           ABX                 POINT X TO POSITION IN OLDSTRING WHERE THE REPLACEMENT WILL GO 
           TSTA                * IF THE LENGTH OF THE REPLACEMENT STRING IS ZERO 
@@ -4206,16 +4230,16 @@ L873F     TFR  A,B            SAVE NUMBER OF BYTES TO MOVE IN ACCB
           JSR  LA59A          MOVE (B) BYTES FROM (X) TO (U) 
 L8746     PULS A,B,X,PC        
 L8748     JSR  LB156          EVALUATE EXPRESSION 
-          JMP  LB654          *â€˜TMâ€™ ERROR IF NUMERIC; RETURN WITH X POINTING 
+          JMP  LB654          *‘TM’ ERROR IF NUMERIC; RETURN WITH X POINTING 
 ;                             *TO STRING, ACCB = LENGTH 
                                
 ; STRING                       
-STRING    JSR  LB26A          SYNTAX CHECK FOR â€˜(â€™ 
+STRING    JSR  LB26A          SYNTAX CHECK FOR ‘(’ 
           JSR  LB70B          EVALUATE EXPRESSION; ERROR IF > 255 
           PSHS B              SAVE LENGTH OF STRING 
           JSR  LB26D          SYNTAX CHECK FOR COMMA 
           JSR  LB156          EVALUATE EXPRESSION 
-          JSR  LB267          SYNTAX CHECK FOR â€˜)â€˜ 
+          JSR  LB267          SYNTAX CHECK FOR ‘)‘ 
           LDA  VALTYP         GET VARIABLE TYPE 
           BNE  L8768          BRANCH IF STRING 
           JSR  LB70E          CONVERT FPA0 INTO AN INTEGER IN ACCB 
@@ -4232,7 +4256,7 @@ L8776     STA  ,X+            SAVE A CHARACTER IN STRING SPACE
 L877B     JMP  LB69B          PUT STRING DESCRIPTOR ONTO STRING STACK 
                                
 ; INSTR                        
-INSTR     JSR  LB26A          SYNTAX CHECK FOR â€˜(â€˜ 
+INSTR     JSR  LB26A          SYNTAX CHECK FOR ‘(‘ 
           JSR  LB156          EVALUATE EXPRESSION 
           LDB  #$01           DEFAULT POSITION = 1 (SEARCH START) 
           PSHS B              SAVE START 
@@ -4243,7 +4267,7 @@ INSTR     JSR  LB26A          SYNTAX CHECK FOR â€˜(â€˜
           BEQ  L8724          BRANCH IF START SEARCH AT ZERO 
           JSR  LB26D          SYNTAX CHECK FOR COMMA 
           JSR  LB156          EVALUATE EXPRESSION - SEARCH STRING 
-          JSR  LB146          â€˜TMâ€™ ERROR IF NUMERIC 
+          JSR  LB146          ‘TM’ ERROR IF NUMERIC 
 L879C     LDX  FPA0+2         SEARCH STRING DESCRIPTOR ADDRESS 
           PSHS X              SAVE ON THE STACK 
           JSR  LB26D          SYNTAX CHECK FOR COMMA 
@@ -4271,7 +4295,7 @@ L87BE     LEAY ,X             POINT Y TO SEARCH POSITION
           SUBA $06,S          SUBTRACT SEARCH POSITION FROM SEARCH LENGTH 
           INCA                ADD ONE 
           CMPA $01,S          COMPARE TO TARGET LENGTH 
-          BLO  L87D9          RETURN 0 IF TARGET LENGTH > WHATâ€™S LEFT OF SEARCH STRING 
+          BLO  L87D9          RETURN 0 IF TARGET LENGTH > WHAT’S LEFT OF SEARCH STRING 
 L87CD     LDA  ,X+            GET A CHARACTER FROM SEARCH STRING 
           CMPA ,U+            COMPARE IT TO TARGET STRING 
           BNE  L87DF          BRANCH IF NO MATCH 
@@ -4290,7 +4314,7 @@ L87DF     INC  $06,S          INCREMENT SEARCH POSITION
 XVEC19    CMPA #'&'           * 
           BNE  L8845          * RETURN IF NOT HEX OR OCTAL VARIABLE 
           LEAS $02,S          PURGE RETURN ADDRESS FROM STACK 
-; PROCESS A VARIABLE PRECEEDED BY A â€˜&â€˜ (&H,&O)                      
+; PROCESS A VARIABLE PRECEEDED BY A ‘&‘ (&H,&O)                      
 L87EB     CLR  FPA0+2         * CLEAR BOTTOM TWO 
           CLR  FPA0+3         * BYTES OF FPA0 
           LDX  #FPA0+2        BYTES 2,3 OF FPA0 = (TEMPORARY ACCUMULATOR) 
@@ -4329,7 +4353,7 @@ L882E     LDB  #$04           BASE 16 DIGIT MULTIPLIER = 2**4
           BRA  L881F          KEEP EVALUATING VARIABLE 
 L8834     ASL  $01,X          * MULTIPLY TEMPORARY 
           ROL  ,X             * ACCUMULATOR BY TWO 
-          LBCS LBA92          â€˜OV' OVERFLOW ERROR 
+          LBCS LBA92          ‘OV' OVERFLOW ERROR 
           DECB                DECREMENT SHIFT COUNTER 
           BNE  L8834          MULTIPLY TEMPORARY ACCUMULATOR AGAIN 
           SUBA #'0'           MASK OFF ASCII 
@@ -4342,7 +4366,7 @@ XVEC15    PULS U              PULL RETURN ADDRESS AND SAVE IN U REGISTER
           LDX  CHARAD         CURRENT INPUT POINTER TO X 
           JSR  GETNCH         GET CHARACTER FROM BASIC 
           CMPA #'&'           HEX AND OCTAL VARIABLES ARE PRECEEDED BY & 
-          BEQ  L87EB          PROCESS A â€˜&â€˜ VARIABLE 
+          BEQ  L87EB          PROCESS A ‘&‘ VARIABLE 
           CMPA #TOK_FN        TOKEN FOR FN 
           BEQ  L88B4          PROCESS FN CALL 
           CMPA #$FF           CHECK FOR SECONDARY TOKEN 
@@ -4350,26 +4374,26 @@ XVEC15    PULS U              PULL RETURN ADDRESS AND SAVE IN U REGISTER
           JSR  GETNCH         GET CHARACTER FROM BASIC 
           CMPA #TOK_USR       TOKEN FOR USR 
           LBEQ L892C          PROCESS USR CALL 
-L8862     STX  CHARAD         RESTORE BASICâ€™S INPUT POINTER 
+L8862     STX  CHARAD         RESTORE BASIC’S INPUT POINTER 
           JMP  ,U             RETURN TO CALLING ROUTINE 
 L8866     LDX  CURLIN         GET CURRENT LINE NUMBER 
           LEAX $01,X          IN DIRECT MODE? 
           BNE  L8845          RETURN IF NOT IN DIRECT MODE 
-          LDB  #2*11          â€˜ILLEGAL DIRECT STATEMENTâ€™ ERROR 
+          LDB  #2*11          ‘ILLEGAL DIRECT STATEMENT’ ERROR 
 L886E     JMP  LAC46          PROCESS ERROR 
                                
 DEF       LDX  [CHARAD]       GET TWO INPUT CHARS 
           CMPX #TOK_FF_USR    TOKEN FOR USR 
           LBEQ L890F          BRANCH IF DEF USR 
           BSR  L88A1          GET DESCRIPTOR ADDRESS FOR FN VARIABLE NAME 
-          BSR  L8866          DONâ€™T ALLOW DEF FN IF IN DIRECT MODE 
-          JSR  LB26A          SYNTAX CHECK FOR â€˜(â€˜ 
+          BSR  L8866          DON’T ALLOW DEF FN IF IN DIRECT MODE 
+          JSR  LB26A          SYNTAX CHECK FOR ‘(‘ 
           LDB  #$80           * GET THE FLAG TO INDICATE ARRAY VARIABLE SEARCH DISABLE 
           STB  ARYDIS         * AND SAVE IT IN THE ARRAY DISABLE FLAG 
           JSR  LB357          GET VARIABLE DESCRIPTOR 
-          BSR  L88B1          â€˜TMâ€™ ERROR IF STRING 
-          JSR  LB267          SYNTAX CHECK FOR â€˜)â€˜ 
-          LDB  #TOK_EQUALS    TOKEN FOR â€˜=â€˜ 
+          BSR  L88B1          ‘TM’ ERROR IF STRING 
+          JSR  LB267          SYNTAX CHECK FOR ‘)‘ 
+          LDB  #TOK_EQUALS    TOKEN FOR ‘=‘ 
           JSR  LB26F          DO A SYNTAX CHECK FOR = 
           LDX  V4B            GET THE ADDRESS OF THE FN NAME DESCRIPTOR 
           LDD  CHARAD         * GET THE CURRENT INPUT POINTER ADDRESS AND 
@@ -4384,14 +4408,14 @@ L88A1     LDB  #TOK_FN        TOKEN FOR FN
           ORA  #$80           SET BIT 7 OF CURRENT INPUT CHARACTER TO INDICATE AN FN VARIABLE 
           JSR  LB35C          * GET THE DESCRIPTOR ADDRESS OF THIS 
           STX  V4B            * VARIABLE AND SAVE IT IN V4B 
-L88B1     JMP  LB143          â€˜TMâ€™ ERROR IF STRING VARIABLE 
+L88B1     JMP  LB143          ‘TM’ ERROR IF STRING VARIABLE 
 ; EVALUATE AN FN CALL                      
 L88B4     BSR  L88A1          * GET THE DESCRIPTOR OF THE FN NAME 
           PSHS X              * VARIABLE AND SAVE IT ON THE STACK 
-          JSR  LB262          SYNTAX CHECK FOR â€˜(â€˜ & EVALUATE EXPR 
-          BSR  L88B1          â€˜TMâ€™ ERROR IF STRING VARIABLE 
+          JSR  LB262          SYNTAX CHECK FOR ‘(‘ & EVALUATE EXPR 
+          BSR  L88B1          ‘TM’ ERROR IF STRING VARIABLE 
           PULS U              POINT U TO FN NAME DESCRIPTOR 
-          LDB  #2*25          â€˜UNDEFINED FUNCTION CALLâ€™ ERROR 
+          LDB  #2*25          ‘UNDEFINED FUNCTION CALL’ ERROR 
           LDX  $02,U          POINT X TO ARGUMENT VARIABLE DESCRIPTOR 
           BEQ  L886E          BRANCH TO ERROR HANDLER 
           LDY  CHARAD         SAVE CURRENT INPUT POINTER IN Y 
@@ -4410,7 +4434,7 @@ L88D9     JSR  LB141          EVALUATE FN EXPRESSION
           PULS A              * VARIABLE OFF OF THE 
           STA  $04,X          * STACK AND RE-SAVE IT 
           JSR  GETCCH         GET FINAL CHARACTER OF THE FN FORMULA 
-          LBNE LB277          â€˜SYNTAXâ€™ ERROR IF NOT END OF LINE 
+          LBNE LB277          ‘SYNTAX’ ERROR IF NOT END OF LINE 
           STY  CHARAD         RESTORE INPUT POINTER 
 L88EF     RTS                  
                                
@@ -4438,7 +4462,7 @@ L8927     LDX  USRADR         GET ADDRESS OF STORAGE LOCs FOR USR ADDRESS
 L892C     BSR  L891C          GET STORAGE LOC OF EXEC ADDRESS FOR USR N 
           LDX  ,X             * GET EXEC ADDRESS AND 
           PSHS X              * PUSH IT ONTO STACK 
-          JSR  LB262          SYNTAX CHECK FOR â€˜(â€˜ & EVALUATE EXPR 
+          JSR  LB262          SYNTAX CHECK FOR ‘(‘ & EVALUATE EXPR 
           LDX  #FP0EXP        POINT X TO FPA0 
           LDA  VALTYP         GET VARIABLE TYPE 
           BEQ  L8943          BRANCH IF NUMERIC, STRING IF <> 0 
@@ -4446,11 +4470,11 @@ L892C     BSR  L891C          GET STORAGE LOC OF EXEC ADDRESS FOR USR N
           LDX  FPA0+2         GET POINTER TO STRING DESCRIPTOR 
           LDA  VALTYP         GET VARIABLE TYPE 
 L8943     RTS                 JUMP TO USR ROUTINE (PSHS X ABOVE) 
-L8944     LDB  #TOK_EQUALS    TOKEN FOR â€˜=â€˜ 
+L8944     LDB  #TOK_EQUALS    TOKEN FOR ‘=‘ 
           JSR  LB26F          DO A SYNTAX CHECK FOR = 
           JMP  LB73D          EVALUATE EXPRESSION, RETURN VALUE IN X 
 ; DEL                          
-DEL       LBEQ LB44A          FCâ€™ ERROR IF NO ARGUMENT 
+DEL       LBEQ LB44A          FC’ ERROR IF NO ARGUMENT 
           JSR  LAF67          CONVERT A DECIMAL BASIC NUMBER TO BINARY 
           JSR  LAD01          FIND RAM ADDRESS OF START OF A BASIC LINE 
           STX  VD3            SAVE RAM ADDRESS OF STARTING LINE NUMBER 
@@ -4469,17 +4493,17 @@ L8992     FCB  SKP2           SKIP TWO BYTES
 L8993     LDU  ,U             POINT U TO START OF NEXT LINE 
           LDD  ,U             CHECK FOR END OF PROGRAM 
           BEQ  L899F          BRANCH IF END OF PROGRAM 
-          LDD  $02,U          LOAD ACCD WITH THIS LINEâ€™S NUMBER 
+          LDD  $02,U          LOAD ACCD WITH THIS LINE’S NUMBER 
           SUBD BINVAL         SUBTRACT ENDING LINE NUMBER ADDRESS 
           BLS  L8993          BRANCH IF = < ENDING LINE NUMBER 
 L899F     LDX  VD3            GET STARTING LINE NUMBER 
           BSR  L89B8          MOVE (U) TO (X) UNTIL END OF PROGRAM 
-          JSR  LAD21          RESET BASICâ€™S INPUT POINTER AND ERASE VARIABLES 
+          JSR  LAD21          RESET BASIC’S INPUT POINTER AND ERASE VARIABLES 
           LDX  VD3            GET STARTING LINE NUMBER ADDRESS 
           JSR  LACF1          RECOMPUTE START OF NEXT LINE ADDRESSES 
-          JMP  LAC73          JUMP TO BASICâ€™S MAIN COMMAND LOOP 
+          JMP  LAC73          JUMP TO BASIC’S MAIN COMMAND LOOP 
 L89AE     JSR  LAF67          GO GET LINE NUMBER CONVERTED TO BINARY 
-          JMP  LA5C7          MAKE SURE THEREâ€™S NO MORE ON THIS LINE 
+          JMP  LA5C7          MAKE SURE THERE’S NO MORE ON THIS LINE 
 L89B4     LDA  ,U+            GET A BYTE FROM (U) 
           STA  ,X+            MOVE THE BYTE TO (X) 
 L89B8     CMPU VARTAB         COMPARE TO END OF BASIC 
@@ -4488,7 +4512,7 @@ L89B8     CMPU VARTAB         COMPARE TO END OF BASIC
 L89BF     RTS                  
                                
                                
-L89C0     JSR  L8866          â€˜BSâ€™ ERROR IF IN DIRECT MODE 
+L89C0     JSR  L8866          ‘BS’ ERROR IF IN DIRECT MODE 
           JSR  GETNCH         GET A CHAR FROM BASIC 
 L89D2     CMPA #'"'           CHECK FOR PROMPT STRING 
           BNE  L89E1          BRANCH IF NO PROMPT STRING 
@@ -4501,7 +4525,7 @@ L89E1     LEAS $-02,S         RESERVE TWO STORAGE SLOTS ON STACK
           LEAS $02,S          CLEAN UP THE STACK 
           JSR  LB357          SEARCH FOR A VARIABLE 
           STX  VARDES         SAVE POINTER TO VARIABLE DESCRIPTOR 
-          JSR  LB146          â€˜TMâ€™ ERROR IF VARIABLE TYPE = NUMERIC 
+          JSR  LB146          ‘TM’ ERROR IF VARIABLE TYPE = NUMERIC 
           LDX  #LINBUF        POINT X TO THE STRING BUFFER WHERE THE INPUT STRING WAS STORED 
           CLRA                TERMINATOR CHARACTER 0 (END OF LINE) 
           JSR  LB51A          PARSE THE INPUT STRING AND STORE IT IN THE STRING SPACE 
@@ -4536,16 +4560,16 @@ L8A2D     BEQ  L8A3D          BRANCH IF END OF LINE
           BCC  L8A3A          BRANCH IF NEXT CHARACTER NOT NUMERIC 
           BSR  L89FC          CONVERT DECIMAL NUMBER IN BASIC PROGRAM TO BINARY 
           STX  VCF            SAVE NEW INTERVAL 
-          BEQ  L8A83          â€˜FC' ERROR 
-L8A3A     JSR  LA5C7          CHECK FOR MORE CHARACTERS ON LINE - â€˜SYNTAXâ€™ ERROR IF ANY 
+          BEQ  L8A83          ‘FC' ERROR 
+L8A3A     JSR  LA5C7          CHECK FOR MORE CHARACTERS ON LINE - ‘SYNTAX’ ERROR IF ANY 
 L8A3D     BSR  L8A02          GO GET ADDRESS OF OLD NUMBER BEING RENUMBERED 
           STX  VD3            SAVE ADDRESS 
           LDX  VD5            GET NEXT RENUMBERED LINE NUMBER TO USE 
           BSR  L8A04          FIND THE LINE NUMBER IN THE BASIC PROGRAM 
           CMPX VD3            COMPARE TO ADDRESS OF OLD LINE NUMBER 
-          BLO  L8A83          â€˜FCâ€™ ERROR IF NEW ADDRESS < OLD ADDRESS 
+          BLO  L8A83          ‘FC’ ERROR IF NEW ADDRESS < OLD ADDRESS 
           BSR  L8A67          MAKE SURE RENUMBERED LINE NUMBERS WILL BE IN RANGE 
-          JSR  L8ADD          CONVERT ASCII LINE NUMBERS TO â€˜EXPANDEDâ€™ BINARY 
+          JSR  L8ADD          CONVERT ASCII LINE NUMBERS TO ‘EXPANDED’ BINARY 
           JSR  LACEF          RECALCULATE NEXT LINE RAM ADDRESSES 
           BSR  L8A02          GET RAM ADDRESS OF FIRST LINE TO BE RENUMBERED 
           STX  VD3            SAVE IT 
@@ -4555,7 +4579,7 @@ L8A3D     BSR  L8A02          GO GET ADDRESS OF OLD NUMBER BEING RENUMBERED
           JSR  L8B7B          CONVERT PACKED BINARY LINE NUMBERS TO ASCII 
           JSR  LAD26          ERASE VARIABLES 
           JSR  LACEF          RECALCULATE NEXT LINE RAM ADDRESS 
-          JMP  LAC73          GO BACK TO BASICâ€™S MAIN LOOP 
+          JMP  LAC73          GO BACK TO BASIC’S MAIN LOOP 
 L8A67     FCB  SKP1LD         SKIP ONE BYTE - LDA #$4F 
 L8A68     CLRA                NEW LINE NUMBER FLAG - 0; INSERT NEW LINE NUMBERS 
           STA  VD8            SAVE NEW LINE NUMBER FLAG; 0 = INSERT NEW NUMBERS 
@@ -4568,10 +4592,10 @@ L8A71     TST  VD8            CHECK NEW LINE NUMBER FLAG
 L8A77     LDX  ,X             POINT X TO THE NEXT LINE IN BASIC 
           BSR  L8A86          RETURN IF END OF PROGRAM 
           ADDD VCF            ADD INTERVAL TO CURRENT RENUMBERED LINE NUMBER 
-          BLO  L8A83          â€˜FCâ€™ ERROR IF LINE NUMBER > $FFFF 
+          BLO  L8A83          ‘FC’ ERROR IF LINE NUMBER > $FFFF 
           CMPA #MAXLIN        LARGEST LINE NUMBER = $F9FF 
           BLO  L8A71          BRANCH IF LEGAL LINE NUMBER 
-L8A83     JMP  LB44A          â€˜FCâ€™ ERROR IF LINE NUMBER MS BYTE > $F9 
+L8A83     JMP  LB44A          ‘FC’ ERROR IF LINE NUMBER MS BYTE > $F9 
 ; TEST THE TWO BYTES POINTED TO BY (X).                      
 ; NORMAL RETURN IF <> 0. IF = 0 (END OF                      
 ; PROGRAM) RETURN IS PULLED OFF STACK AND                      
@@ -4598,7 +4622,7 @@ L8A9B     LEAX $01,X          MOVE POINTER TO NEXT CHARACTER
           DECA                = 
           BNE  L8A9B          =MOVE TO NEXT CHARACTER IF > 3 
 L8AAC     LDA  #$03           * SET 1ST BYTE = 3 TO INDICATE LINE 
-          STA  ,X+            * NUMBER DOESNâ€™T CURRENTLY EXIST 
+          STA  ,X+            * NUMBER DOESN’T CURRENTLY EXIST 
           BRA  L8A99          GO GET ANOTHER CHARACTER 
 L8AB2     LDD  $01,X          GET MS BYTE OF LINE NUMBER 
           DEC  $02,X          DECREMENT ZERO CHECK BYTE 
@@ -4719,12 +4743,12 @@ L8B8C     LDA  ,X             GET CURRENT CHARACTER
           SUBA #$02           INPUT CHARACTER 3? - UL LINE NUMBER 
           BNE  L8B8A          NO 
           PSHS X              SAVE CURRENT POSITION OF INPUT POINTER 
-          LDX  #L8BD9-1       POINT X TO â€˜ULâ€™ MESSAGE 
+          LDX  #L8BD9-1       POINT X TO ‘UL’ MESSAGE 
           JSR  LB99C          PRINT STRING TO THE SCREEN 
           LDX  ,S             GET INPUT POINTER 
           LDD  $01,X          GET THE UNDEFINED LINE NUMBER 
           JSR  LBDCC          CONVERT NUMBER IN ACCD TO DECIMAL AND DISPLAY IT 
-          JSR  LBDC5          PRINT â€˜IN XXXXâ€™ XXXX = CURRENT LINE NUMBER 
+          JSR  LBDC5          PRINT ‘IN XXXX’ XXXX = CURRENT LINE NUMBER 
           JSR  LB958          SEND A CR TO CONSOLE OUT 
           PULS X              GET INPUT POINTER BACK 
 L8BAE     PSHS X              SAVE CURRENT POSITION OF INPUT POINTER 
@@ -4793,7 +4817,7 @@ L8E3B     DECB                DECREMENT FORMAT STRING LENGTH COUNTER
           LBEQ L8ED8          EXIT PRINT USING IF END OF LINE 
           STB  VD3            SAVE REMAINDER FORMAT STRING LENGTH 
           JSR  LB156          EVALUATE EXPRESSION 
-          JSR  LB146          â€˜TMâ€™ ERROR IF NUMERIC VARIABLE 
+          JSR  LB146          ‘TM’ ERROR IF NUMERIC VARIABLE 
           LDX  FPA0+2         * GET ITEM - LIST DESCRIPTOR ADDRESS 
           STX  V4D            * AND SAVE IT IN V4D 
           LDB  VD9            GET SPACES COUNTER 
@@ -4823,7 +4847,7 @@ L8E71     LDA  ,X             GET A CHARACTER FROM FORMAT STRING
           BNE  L8E71          BRANCH IF NOT END OF FORMAT STRING 
 L8E82     LDX  TEMPTR         * RESTORE CURRENT FORMAT STRING COUNTER 
           LDB  VD3            * AND POINTER TO POSITION BEFORE SPACES COMMAND 
-          LDA  #'%'           SEND A â€˜%â€™ TO CONSOLE OUT AS A DEBUGGING AID 
+          LDA  #'%'           SEND A ‘%’ TO CONSOLE OUT AS A DEBUGGING AID 
 ; ERROR PROCESSOR - ILLEGAL CHARACTER OR BAD SYNTAX IN FORMAT STRING                      
 L8E88     JSR  L8FD8          SEND A '+' TO CONSOLE OUT IF VDA <> 0 
           JSR  PUTCHR         SEND CHARACTER TO CONSOLE OUT 
@@ -4840,19 +4864,19 @@ XVEC9     CMPA #TOK_USING     USING TOKEN
 ; BIT 3 = PRE SIGN FORCE; BIT 2 = POST SIGN FORCE; BIT 0 = EXPONENTIAL FORCE                      
 L8E95     LEAS $02,S          PURGE RETURN ADDRESS OFF THE STACK 
           JSR  LB158          EVALUATE FORMAT STRING 
-          JSR  LB146          â€˜TMâ€™ ERROR IF VARIABLE TYPE = NUMERIC 
+          JSR  LB146          ‘TM’ ERROR IF VARIABLE TYPE = NUMERIC 
           LDB  #';'           CHECK FOR ITEM LIST SEPARATOR 
           JSR  LB26F          SYNTAX CHECK FOR ; 
           LDX  FPA0+2         * GET FORMAT STRING DESCRIPTOR ADDRESS 
           STX  VD5            * AND SAVE IT IN VD5 
           BRA  L8EAE          GO PROCESS FORMAT STRING 
 L8EA8     LDA  VD7            *CHECK NEXT PRINT ITEM FLAG AND 
-          BEQ  L8EB4          *â€˜FCâ€™ ERROR IF NO FURTHER PRINT ITEMS 
+          BEQ  L8EB4          *‘FC’ ERROR IF NO FURTHER PRINT ITEMS 
           LDX  VD5            RESET FORMAT STRING POINTER TO START OF STRING 
 L8EAE     CLR  VD7            RESET NEXT PRINT ITEM FLAG 
           LDB  ,X             GET LENGTH OF FORMAT STRING 
           BNE  L8EB7          INTERPRET FORMAT STRING IF LENGTH > 0 
-L8EB4     JMP  LB44A          â€˜FCâ€™ ERROR IF FORMAT STRING = NULL 
+L8EB4     JMP  LB44A          ‘FC’ ERROR IF FORMAT STRING = NULL 
 L8EB7     LDX  $02,X          POINT X TO START OF FORMAT STRING 
 ; INTERPRET THE FORMAT STRING                      
 L8EB9     CLR  VDA            CLEAR THE STATUS BYTE 
@@ -4864,7 +4888,7 @@ L8EBB     CLR  VD9            CLEAR LEFT DIGIT COUNTER
           BEQ  L8F24          YES - NUMERIC TYPE FORMAT 
           DECB                DECREMENT FORMAT STRING LENGTH 
           BNE  L8EE2          BRANCH IF NOT DONE 
-          JSR  L8FD8          SEND A â€˜+â€˜ TO CONSOLE OUT IF VDA <> 0 
+          JSR  L8FD8          SEND A ‘+‘ TO CONSOLE OUT IF VDA <> 0 
           JSR  PUTCHR         SEND CHARACTER TO CONSOLE OUT 
 L8ED2     JSR  GETCCH         GET CURRENT CHARACTER FROM BASIC 
           BNE  L8EA8          BRANCH IF NOT END OF LINE 
@@ -4873,9 +4897,9 @@ L8ED8     BNE  L8EDD          BRANCH IF MORE PRINT ITEMS
           JSR  LB958          SEND A CARRIAGE RETURN TO CONSOLE OUT 
 L8EDD     LDX  VD5            POINT X TO FORMAT STRING DESCRIPTOR 
           JMP  LB659          RETURN ADDRESS AND LENGTH OF FORMAT STRING - EXIT PRINT USING 
-L8EE2     CMPA #'+'           CHECK FOR â€˜+â€˜ (PRE-SIGN FORCE) 
+L8EE2     CMPA #'+'           CHECK FOR ‘+‘ (PRE-SIGN FORCE) 
           BNE  L8EEF          NO PLUS 
-          JSR  L8FD8          SEND A â€˜+' TO CONSOLE OUT IF VDA <> 0 
+          JSR  L8FD8          SEND A ‘+' TO CONSOLE OUT IF VDA <> 0 
           LDA  #$08           * LOAD THE STATUS BYTE WITH 8; 
           STA  VDA            * PRE-SIGN FORCE FLAG 
           BRA  L8EBB          INTERPRET THE REST OF THE FORMAT STRING 
@@ -4959,7 +4983,7 @@ L8F74     LEAX $-01,X         MOVE POINTER BACK ONE
           LDA  VDA            * PRE-SIGN 
           BITA #$08           * FORCE AND 
           BNE  L8F96          * BRANCH IF SET 
-          DEC  VD9            DECREMENT LEFT DIGIT â€” NO PRE-SIGN FORCE 
+          DEC  VD9            DECREMENT LEFT DIGIT — NO PRE-SIGN FORCE 
           TSTB * CHECK LENGTH COUNTER AND BRANCH  
           BEQ  L8F96          * IF END OF FORMAT STRING 
           LDA  ,X             GET NEXT FORMAT STRING CHARACTER 
@@ -4968,8 +4992,8 @@ L8F74     LEAX $-01,X         MOVE POINTER BACK ONE
           CMPA #$FE           * WAS CMPA #('+')-('-') 
           BNE  L8F96          BRANCH IF NO PLUS SIGN 
           LDA  #$08           GET THE PRE-SIGN FORCE FLAG 
-L8F8F     ORA  #$04           â€˜ORâ€™ IN POST-SIGN FORCE FLAG 
-          ORA  VDA            â€˜ORâ€™ IN THE STATUS BYTE 
+L8F8F     ORA  #$04           ‘OR’ IN POST-SIGN FORCE FLAG 
+          ORA  VDA            ‘OR’ IN THE STATUS BYTE 
           STA  VDA            SAVE THE STATUS BYTE 
           DECB                DECREMENT FORMAT STRING LENGTH 
                                
@@ -4981,7 +5005,7 @@ L8F96     JSR  GETCCH         GET CURRENT CHARACTER
           LDA  VD9            GET THE LEFT DIGIT COUNTER 
           ADDA VD8            ADD IT TO THE RIGHT DIGIT COUNTER 
           CMPA #17            * 
-          LBHI LB44A          *â€˜FCâ€™ ERROR IF MORE THAN 16 DIGITS AND DECIMAL POiNT 
+          LBHI LB44A          *‘FC’ ERROR IF MORE THAN 16 DIGITS AND DECIMAL POiNT 
           JSR  L8FE5          CONVERT ITEM-LIST TO FORMATTED ASCII STRING 
           LEAX $-01,X         MOVE BUFFER POINTER BACK ONE 
           JSR  LB99C          DISPLAY THE FORMATTED STRING TO CONSOLE OUT 
@@ -5004,7 +5028,7 @@ L8FC6     LDX  VD5            GET FORMAT STRING DESCRIPTOR ADDRESS
           JMP  L8ED2          REINTERPRET FORMAT STRING FROM THE START IF ENTIRELY 
 ;         USED ON LAST PRINT ITEM  
                                
-; PRINT A â€˜+â€˜ TO CONSOLE OUT IF THE STATUS BYTE <> 0                      
+; PRINT A ‘+‘ TO CONSOLE OUT IF THE STATUS BYTE <> 0                      
 L8FD8     PSHS A              RESTORE ACCA AND RETURN 
           LDA  #'+'           GET ASCII PLUS SIGN 
           TST  VDA            * CHECK THE STATUS BYTE AND 
@@ -5234,7 +5258,7 @@ L9167     LDA  #'+'           PLUS SIGN
           LDA  #'-'           MINUS SIGN 
           NEGB                CONVERT EXPONENT TO POSITIVE NUMBER 
 L916F     STA  $01,U          PUT SIGN OF EXPONENT IN STRING BUFFER 
-          LDA  #'E'           * PUT AN â€˜Eâ€™ (EXPONENTIATION FLAG) IN 
+          LDA  #'E'           * PUT AN ‘E’ (EXPONENTIATION FLAG) IN 
           STA  ,U++           * BUFFER AND SKIP OVER THE SIGN 
           LDA  #$2F           * WAS LDA #'0'-1 
 ;CONVERT BINARY EXPONENT IN ACCB TO ASCII VALUE IN ACCA                      
@@ -5263,14 +5287,14 @@ L919E     PSHS B              SAVE FIRST CHARACTER ON STACK
 L91A0     STA  ,X+            STORE PAD CHARACTER IN BUFFER 
           LDB  ,X             GET NEXT CHARACTER IN BUFFER 
           BEQ  L91B6          INSERT A ZERO IF END OF BUFFER 
-          CMPB #'E'           * CHECK FOR AN â€˜Eâ€™ AND 
+          CMPB #'E'           * CHECK FOR AN ‘E’ AND 
           BEQ  L91B6          * PUT A ZERO BEFORE IT 
           CMPB #'0'           * REPLACE LEADING ZEROES WITH 
           BEQ  L91A0          * PAD CHARACTERS 
           CMPB #','           * REPLACE LEADING COMMAS 
           BEQ  L91A0          * WITH PAD CHARACTERS 
           CMPB #'.'           * CHECK FOR DECIMAL POINT 
-          BNE  L91BA          * AND DONâ€™T PUT A ZERO BEFORE IT 
+          BNE  L91BA          * AND DON’T PUT A ZERO BEFORE IT 
 L91B6     LDA  #'0'           * REPLACE PREVIOUS CHARACTER 
           STA  ,-X            * WITH A ZERO 
 L91BA     LDA  VDA            * GET STATUS BYTE, CHECK 
@@ -5323,11 +5347,11 @@ L9202     PSHS U              SAVE BUFFER POINTER
           LDX  #LBEC5         POINT X TO UNNORMALIZED POWERS OF 10 
           LDB  #$80           INITIALIZE DIGIT COUNTER TO 0 + $80. 
 ; BIT 7 SET IS USED TO INDICATE THAT THE POWER OF 10 MANTISSA                      
-; IS NEGATIVE. WHEN YOU â€˜ADDâ€™ A NEGATIVE MANTISSA, IT IS                      
+; IS NEGATIVE. WHEN YOU ‘ADD’ A NEGATIVE MANTISSA, IT IS                      
 ; THE SAME AS SUBTRACTING A POSITIVE ONE AND BIT 7 OF ACCB                      
-; IS HOW THIS ROUTINE KNOWS THAT A â€˜SUBTRACTIONâ€™ IS OCCURRING.                      
+; IS HOW THIS ROUTINE KNOWS THAT A ‘SUBTRACTION’ IS OCCURRING.                      
 L9211     BSR  L9249          CHECK FOR COMMA INSERTION 
-L9213     LDA  FPA0+3         * â€˜ADDâ€™ A POWER OF 10 MANTISSA TO FPA0. 
+L9213     LDA  FPA0+3         * ‘ADD’ A POWER OF 10 MANTISSA TO FPA0. 
           ADDA $03,X          * IF THE MANTISSA IS NEGATIVE, A SUBTRACTION 
           STA  FPA0+3         * WILL BE WHAT REALLY TAKES PLACE. 
           LDA  FPA0+2         * 
@@ -5376,7 +5400,7 @@ L9262     RTS
                                
 ; INITIALIZE DECIMAL POINT AND COMMA COUNTERS                      
 L9263     LDA  V47            GET THE BASE 10 EXPONENT OFFSET 
-          ADDA #10            * ADD 10 (FPA0 WAS â€˜NORMALIZEDâ€™ TO 9 PLACES LEFT 
+          ADDA #10            * ADD 10 (FPA0 WAS ‘NORMALIZED’ TO 9 PLACES LEFT 
           STA  V45            * OF DECIMAL POINT) - SAVE IN DECIMAL POINT COUNTER 
           INCA                ADD ONE FOR THE DECIMAL POINT 
 L926A     SUBA #$03           * DIVIDE DECIMAL POINT COUNTER BY 3; LEAVE 
@@ -5409,16 +5433,46 @@ L928E     RTS
 ;
                                
 ; LINE                         
-LINE      CMPA #TOK_INPUT     â€˜INPUTâ€™ TOKEN 
-          LBEQ L89C0          GO DO â€˜LINE INPUTâ€™ COMMAND 
-          JMP  LB277          â€˜SYNTAX ERRORâ€™ IF NOT "LINE INPUT" 
+LINE      CMPA #TOK_INPUT     ‘INPUT’ TOKEN 
+          LBEQ L89C0          GO DO ‘LINE INPUT’ COMMAND 
+          JMP  LB277          ‘SYNTAX ERROR’ IF NOT "LINE INPUT" 
+		
+; Init SCC channel A for 115.2kbps using external clock, polled
+SCCA_INIT:
+          LDA  ZSCCAC         ; reset the register pointer
+          LDX  #SCCA_TBL      ; init table pointer
+T0?       LDA  ,X+            ; load address from table
+          BPL  T1?            ; if positive, save register data
+          RTS
+T1?       STA  ZSCCAC         ; write the register pointer to WR0
+          LDA  ,X+            ; get data byte from table
+          STA  ZSCCAC         ; write to SCC ch A command
+          BRA  T0?
+
+;Initialization table for SCC Channel A in ASYNC mode, external 16x clock
+; thanks to John Monahan (S100Computers.com)!
+SCCA_TBL: FCB  $09,$80        ; Point to WR9; Reset Ch A
+          FCB  $09,$00        ; Point to WR9; un-reset CH A
+          FCB  $04,$44        ; Point to WR4; X16 clock,1 Stop,NP
+          FCB  $03,$C1        ; Point to WR3; Enable receiver, No Auto Enable (Hardware CTS), Receive 8 bits
+          FCB  $05,$EA        ; Point to WR5; Enable, Transmit 8 bits RTS,DTR, Enable
+          FCB  $0B,$05        ; Point to WR11; RX clock = TX clock = RTXC pin; TRXC pin = xmit clock
+          FCB  $0F,$00        ; Point to WR15; no INT from hardware CTS/RTS
+          FCB  $FF,$FF        ; EOT marker
 
 ; Information about build
           FCB  0
-          FCC  "MICROSOFT BASIC FOR PUGPUTER-6309 BUILT DEC 11 2022"
+          FCC  "MICROSOFT BASIC FOR HD6309 SBC V1.3. BUILT MAY 20, 2014"
           FCB  0
-
-; END OF EXTENDED BASIC. The bootloader owns IO space and interrupt vectors.
-
-
-
+                             
+; END OF EXTENDED BASIC                      
+; INTERRUPT VECTORS                      
+          ORG  $FFF0           
+LBFF0     FDB  RESVEC         ; Divide by zero / illegal opcode trap
+LBFF2     FDB  SW3VEC         ; SWI3 
+LBFF4     FDB  SW2VEC         ; SWI2 
+LBFF6     FDB  FRQVEC         ; FIRQ 
+LBFF8     FDB  IRQVEC         ; IRQ 
+LBFFA     FDB  SWIVEC         ; SWI 
+LBFFC     FDB  NMIVEC         ; NMI 
+LBFFE     FDB  RESVEC         ; RESET 

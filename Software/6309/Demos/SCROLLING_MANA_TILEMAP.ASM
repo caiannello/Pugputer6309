@@ -18,6 +18,8 @@
     INCLUDE BIOS_FUNC_TAB.D     ; BIOS FCN JUMP TABLE AND CONSTANTS
     INCLUDE DEFINES.D
 ;------------------------------------------------------------------------------
+JT_FIRQ EQU  $0023
+
             ORG     $1000   ; VARS
 ; -----------------------------------------------------------------------------
 ; PROGRAM ENTRYPOINT

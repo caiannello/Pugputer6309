@@ -1,0 +1,433 @@
+                      (jingle_bisqwit.as):00001         ;------------------------------------------------------------------------------
+                      (jingle_bisqwit.as):00002         ; PROJECT: VGM PLAYER
+                      (jingle_bisqwit.as):00003         ; VERSION: 0.0.1
+                      (jingle_bisqwit.as):00004         ;    FILE: BISQWIT.ASM
+                      (jingle_bisqwit.as):00005         ;  AUTHOR: CRAIG IANNELLO, PUGBUTT.COM
+                      (jingle_bisqwit.as):00006         ;
+                      (jingle_bisqwit.as):00007         ; DESCRIPTION: 
+                      (jingle_bisqwit.as):00008         ;
+                      (jingle_bisqwit.as):00009         ;   PLAYS THE PUGPUTER STARTUP JINGLE (BY BISQWIT)
+                      (jingle_bisqwit.as):00010         ;
+                      (jingle_bisqwit.as):00011         ;------------------------------------------------------------------------------
+     FFE0             (jingle_bisqwit.as):00012         OPL3_BASE       EQU  $FFE0      ; FFE0 - FFE3: MUSIC CHIP YMF262 (OPL3)
+                      (jingle_bisqwit.as):00013         ;------------------------------------------------------------------------------
+                      (jingle_bisqwit.as):00014             INCLUDE BIOS_FUNC_TAB.D     ; BIOS FCN JUMP TABLE AND CONSTANTS
+                      (  BIOS_FUNC_TAB.D):00001         ;------------------------------------------------------------------------------
+                      (  BIOS_FUNC_TAB.D):00002         ; BIOS BIOS FUNCTION JUMP TABLE ADDRESSES
+                      (  BIOS_FUNC_TAB.D):00003         ;------------------------------------------------------------------------------
+     FEA0             (  BIOS_FUNC_TAB.D):00004         FUNC_BASE       EQU  $FEA0          ; SEE 6309/BOOT/MAIN.ASM FOR DEFS
+                      (  BIOS_FUNC_TAB.D):00005         ;------------------------------------------------------------------------------
+     FEA0             (  BIOS_FUNC_TAB.D):00006         BF_V_RESET      EQU  FUNC_BASE+0
+     FEA3             (  BIOS_FUNC_TAB.D):00007         BF_UT_GETC      EQU  FUNC_BASE+3
+     FEA6             (  BIOS_FUNC_TAB.D):00008         BF_UT_GETS      EQU  FUNC_BASE+6
+     FEA9             (  BIOS_FUNC_TAB.D):00009         BF_UT_PUTC      EQU  FUNC_BASE+9    ;
+     FEAC             (  BIOS_FUNC_TAB.D):00010         BF_UT_PUTS      EQU  FUNC_BASE+12
+     FEAF             (  BIOS_FUNC_TAB.D):00011         BF_UT_WAITTX    EQU  FUNC_BASE+15
+     FEB2             (  BIOS_FUNC_TAB.D):00012         BF_UT_CLRSCR    EQU  FUNC_BASE+18
+     FEB5             (  BIOS_FUNC_TAB.D):00013         BF_S_HEXA       EQU  FUNC_BASE+21   ; CONVERT REG A TO HEX OCTET AT X, X+=2
+     FEB8             (  BIOS_FUNC_TAB.D):00014         BF_S_EOL        EQU  FUNC_BASE+24   ; PUT CR, LF, $00 AT X, X+=3
+     FEBB             (  BIOS_FUNC_TAB.D):00015         BF_S_LEN        EQU  FUNC_BASE+27   ; PUT LEN OF STRING AT X INTO REG B
+     FEBE             (  BIOS_FUNC_TAB.D):00016         BF_S_CPY        EQU  FUNC_BASE+30   ; COPY STRING AT Y TO MEM AT X. X+=?
+     FEC1             (  BIOS_FUNC_TAB.D):00017         BF_RTC_GETTIX   EQU  FUNC_BASE+33   ; GET CURRENT SYSTEM TICKS TO I64 AT X.
+     FEC4             (  BIOS_FUNC_TAB.D):00018         BF_S_TOUPPER    EQU  FUNC_BASE+36   ; MAKE A UPPERCASE IF IT IS LOWERCASE
+     FEC7             (  BIOS_FUNC_TAB.D):00019         BF_S_INTD       EQU  FUNC_BASE+39   ; CONVERT REG D TO STRING AT X, X+=?
+     FECA             (  BIOS_FUNC_TAB.D):00020         BF_RTC_SETTIX   EQU  FUNC_BASE+42   ; SET CURRENT SYSTEM TICKS FROM I64 AT X.
+                      (  BIOS_FUNC_TAB.D):00021         ;------------------------------------------------------------------------------
+                      (  BIOS_FUNC_TAB.D):00022         ; EOF
+                      (  BIOS_FUNC_TAB.D):00023         ;------------------------------------------------------------------------------
+                      (jingle_bisqwit.as):00015         ;------------------------------------------------------------------------------
+                      (jingle_bisqwit.as):00016             ORG     $1000               ; BEGIN CODE & VARS
+                      (jingle_bisqwit.as):00017         ; -----------------------------------------------------------------------------
+                      (jingle_bisqwit.as):00018         ; PROGRAM ENTRYPOINT
+                      (jingle_bisqwit.as):00019         ; -----------------------------------------------------------------------------
+1000 8600             (jingle_bisqwit.as):00020         ENTRYPOINT  LDA  #$00
+1002 C600             (jingle_bisqwit.as):00021                     LDB  #$00
+1004 118600           (jingle_bisqwit.as):00022                     LDE  #$00
+1007 BD10FF           (jingle_bisqwit.as):00023                     JSR  OPL_WRITE
+100A 8608             (jingle_bisqwit.as):00024                     LDA  #$08
+100C C640             (jingle_bisqwit.as):00025                     LDB  #$40
+100E 118600           (jingle_bisqwit.as):00026                     LDE  #$00
+1011 BD10FF           (jingle_bisqwit.as):00027                     JSR  OPL_WRITE
+1014 86BD             (jingle_bisqwit.as):00028                     LDA  #$BD
+1016 C600             (jingle_bisqwit.as):00029                     LDB  #$00
+1018 118600           (jingle_bisqwit.as):00030                     LDE  #$00
+101B BD10FF           (jingle_bisqwit.as):00031                     JSR  OPL_WRITE
+101E 8600             (jingle_bisqwit.as):00032                     LDA  #$00
+1020 C600             (jingle_bisqwit.as):00033                     LDB  #$00
+1022 118601           (jingle_bisqwit.as):00034                     LDE  #$01
+1025 BD10FF           (jingle_bisqwit.as):00035                     JSR  OPL_WRITE
+1028 8608             (jingle_bisqwit.as):00036                     LDA  #$08
+102A C640             (jingle_bisqwit.as):00037                     LDB  #$40
+102C 118601           (jingle_bisqwit.as):00038                     LDE  #$01
+102F BD10FF           (jingle_bisqwit.as):00039                     JSR  OPL_WRITE
+1032 86BD             (jingle_bisqwit.as):00040                     LDA  #$BD
+1034 C600             (jingle_bisqwit.as):00041                     LDB  #$00
+1036 118601           (jingle_bisqwit.as):00042                     LDE  #$01
+1039 BD10FF           (jingle_bisqwit.as):00043                     JSR  OPL_WRITE
+103C 8E1130           (jingle_bisqwit.as):00044                     LDX  #SONG
+103F A680             (jingle_bisqwit.as):00045         SONGLOOP    LDA  ,X+
+1041 815A             (jingle_bisqwit.as):00046                     CMPA #$5A
+1043 2765             (jingle_bisqwit.as):00047                     BEQ  WR_BANK0
+1045 815E             (jingle_bisqwit.as):00048                     CMPA #$5E
+1047 2761             (jingle_bisqwit.as):00049                     BEQ  WR_BANK0
+1049 815F             (jingle_bisqwit.as):00050                     CMPA #$5F
+104B 2750             (jingle_bisqwit.as):00051                     BEQ  WR_BANK1
+104D 8161             (jingle_bisqwit.as):00052                     CMPA #$61
+104F 273D             (jingle_bisqwit.as):00053                     BEQ  DLY_VAR0
+1051 8162             (jingle_bisqwit.as):00054                     CMPA #$62
+1053 272F             (jingle_bisqwit.as):00055                     BEQ  DLY_F0
+1055 8163             (jingle_bisqwit.as):00056                     CMPA #$63
+1057 2721             (jingle_bisqwit.as):00057                     BEQ  DLY_F1
+1059 8180             (jingle_bisqwit.as):00058                     CMPA #$80
+105B 2713             (jingle_bisqwit.as):00059                     BEQ  DLY_F2
+105D 8170             (jingle_bisqwit.as):00060                     CMPA #$70
+105F 2D53             (jingle_bisqwit.as):00061                     BLT  LOOPEND
+1061 8180             (jingle_bisqwit.as):00062                     CMPA #$80
+1063 2C4F             (jingle_bisqwit.as):00063                     BGE  LOOPEND
+1065 840F             (jingle_bisqwit.as):00064         DLY_VAR1    ANDA #$0F     ; DELAY Y = (A & 0XF)+1
+1067 4C               (jingle_bisqwit.as):00065                     INCA
+1068 1F82             (jingle_bisqwit.as):00066                     TFR  A,Y
+106A BD1126           (jingle_bisqwit.as):00067                     JSR  DELAY
+106D 7E10B4           (jingle_bisqwit.as):00068                     JMP  LOOPEND                             
+1070 108E002D         (jingle_bisqwit.as):00069         DLY_F2      LDY  #45
+1074 BD1126           (jingle_bisqwit.as):00070                     JSR  DELAY
+1077 7E10B4           (jingle_bisqwit.as):00071                     JMP  LOOPEND                        
+107A 108E0372         (jingle_bisqwit.as):00072         DLY_F1      LDY  #882
+107E BD1126           (jingle_bisqwit.as):00073                     JSR  DELAY
+1081 7E10B4           (jingle_bisqwit.as):00074                     JMP  LOOPEND                        
+1084 108E02DF         (jingle_bisqwit.as):00075         DLY_F0      LDY  #735
+1088 BD1126           (jingle_bisqwit.as):00076                     JSR  DELAY
+108B 7E10B4           (jingle_bisqwit.as):00077                     JMP  LOOPEND                        
+108E 10AE81           (jingle_bisqwit.as):00078         DLY_VAR0    LDY  ,X++
+1091 1F20             (jingle_bisqwit.as):00079                     TFR  Y,D    ; SWAP DUMB LITTLE-ENDIAN WORD TO BIG-ENDIAN
+1093 1E89             (jingle_bisqwit.as):00080                     EXG  A,B    ; (AS NATURE INTENDED.)
+1095 1F02             (jingle_bisqwit.as):00081                     TFR  D,Y
+1097 BD1126           (jingle_bisqwit.as):00082                     JSR  DELAY
+109A 7E10B4           (jingle_bisqwit.as):00083                     JMP  LOOPEND
+109D A680             (jingle_bisqwit.as):00084         WR_BANK1    LDA  ,X+
+109F E680             (jingle_bisqwit.as):00085                     LDB  ,X+
+10A1 118601           (jingle_bisqwit.as):00086                     LDE  #1
+10A4 BD10FF           (jingle_bisqwit.as):00087                     JSR  OPL_WRITE
+10A7 7E10B4           (jingle_bisqwit.as):00088                     JMP  LOOPEND
+10AA A680             (jingle_bisqwit.as):00089         WR_BANK0    LDA  ,X+
+10AC E680             (jingle_bisqwit.as):00090                     LDB  ,X+
+10AE 118600           (jingle_bisqwit.as):00091                     LDE  #0
+10B1 BD10FF           (jingle_bisqwit.as):00092                     JSR  OPL_WRITE
+10B4 BDFEA3           (jingle_bisqwit.as):00093         LOOPEND     JSR  BF_UT_GETC
+10B7 811B             (jingle_bisqwit.as):00094                     CMPA #$1B
+10B9 2707             (jingle_bisqwit.as):00095                     BEQ  ENDLOOP
+10BB 8C16DF           (jingle_bisqwit.as):00096                     CMPX #ENDSONG
+10BE 1026FF7D         (jingle_bisqwit.as):00097                     LBNE SONGLOOP
+10C2 8600             (jingle_bisqwit.as):00098         ENDLOOP     LDA  #$00
+10C4 C600             (jingle_bisqwit.as):00099                     LDB  #$00
+10C6 118600           (jingle_bisqwit.as):00100                     LDE  #$00
+10C9 BD10FF           (jingle_bisqwit.as):00101                     JSR  OPL_WRITE
+10CC 8608             (jingle_bisqwit.as):00102                     LDA  #$08
+10CE C640             (jingle_bisqwit.as):00103                     LDB  #$40
+10D0 118600           (jingle_bisqwit.as):00104                     LDE  #$00
+10D3 BD10FF           (jingle_bisqwit.as):00105                     JSR  OPL_WRITE
+10D6 86BD             (jingle_bisqwit.as):00106                     LDA  #$BD
+10D8 C600             (jingle_bisqwit.as):00107                     LDB  #$00
+10DA 118600           (jingle_bisqwit.as):00108                     LDE  #$00
+10DD BD10FF           (jingle_bisqwit.as):00109                     JSR  OPL_WRITE
+10E0 8600             (jingle_bisqwit.as):00110                     LDA  #$00
+10E2 C600             (jingle_bisqwit.as):00111                     LDB  #$00
+10E4 118601           (jingle_bisqwit.as):00112                     LDE  #$01
+10E7 BD10FF           (jingle_bisqwit.as):00113                     JSR  OPL_WRITE
+10EA 8608             (jingle_bisqwit.as):00114                     LDA  #$08
+10EC C640             (jingle_bisqwit.as):00115                     LDB  #$40
+10EE 118601           (jingle_bisqwit.as):00116                     LDE  #$01
+10F1 BD10FF           (jingle_bisqwit.as):00117                     JSR  OPL_WRITE
+10F4 86BD             (jingle_bisqwit.as):00118                     LDA  #$BD
+10F6 C600             (jingle_bisqwit.as):00119                     LDB  #$00
+10F8 118601           (jingle_bisqwit.as):00120                     LDE  #$01
+10FB BD10FF           (jingle_bisqwit.as):00121                     JSR  OPL_WRITE            
+10FE 39               (jingle_bisqwit.as):00122                     RTS             ; ALL DONE.
+                      (jingle_bisqwit.as):00123         ; -----------------------------------------------------------------------------
+                      (jingle_bisqwit.as):00124         ; A = REG NUM, B = VALUE, E = OPL3 BANK NUMBER (0,1)           
+                      (jingle_bisqwit.as):00125         ; -----------------------------------------------------------------------------
+10FF 118100           (jingle_bisqwit.as):00126         OPL_WRITE   CMPE #00
+1102 2711             (jingle_bisqwit.as):00127                     BEQ  BANK0
+1104 B7FFE2           (jingle_bisqwit.as):00128         BANK1       STA  OPL3_BASE+2
+1107 12               (jingle_bisqwit.as):00129                     NOP
+1108 12               (jingle_bisqwit.as):00130                     NOP
+1109 12               (jingle_bisqwit.as):00131                     NOP
+110A 12               (jingle_bisqwit.as):00132                     NOP
+110B 12               (jingle_bisqwit.as):00133                     NOP
+110C F7FFE3           (jingle_bisqwit.as):00134                     STB  OPL3_BASE+3
+110F 12               (jingle_bisqwit.as):00135                     NOP
+1110 12               (jingle_bisqwit.as):00136                     NOP
+1111 12               (jingle_bisqwit.as):00137                     NOP
+1112 12               (jingle_bisqwit.as):00138                     NOP
+1113 12               (jingle_bisqwit.as):00139                     NOP
+1114 39               (jingle_bisqwit.as):00140                     RTS
+1115 B7FFE0           (jingle_bisqwit.as):00141         BANK0       STA  OPL3_BASE+0
+1118 12               (jingle_bisqwit.as):00142                     NOP
+1119 12               (jingle_bisqwit.as):00143                     NOP
+111A 12               (jingle_bisqwit.as):00144                     NOP
+111B 12               (jingle_bisqwit.as):00145                     NOP
+111C 12               (jingle_bisqwit.as):00146                     NOP
+111D F7FFE1           (jingle_bisqwit.as):00147                     STB  OPL3_BASE+1
+1120 12               (jingle_bisqwit.as):00148                     NOP
+1121 12               (jingle_bisqwit.as):00149                     NOP
+1122 12               (jingle_bisqwit.as):00150                     NOP
+1123 12               (jingle_bisqwit.as):00151                     NOP
+1124 12               (jingle_bisqwit.as):00152                     NOP
+1125 39               (jingle_bisqwit.as):00153                     RTS
+                      (jingle_bisqwit.as):00154         ; -----------------------------------------------------------------------------
+                      (jingle_bisqwit.as):00155         ; WAIT THE NUMBER OF SAMPLE PERIODS GIVEN IN Y. THE SAMPLE RATE IS 44100 HZ
+                      (jingle_bisqwit.as):00156         ; -----------------------------------------------------------------------------
+1126 C611             (jingle_bisqwit.as):00157         DELAY       LDB  #17
+1128 5A               (jingle_bisqwit.as):00158         DLOOP       DECB
+1129 26FD             (jingle_bisqwit.as):00159                     BNE  DLOOP
+112B 313F             (jingle_bisqwit.as):00160                     LEAY -1,Y
+112D 26F7             (jingle_bisqwit.as):00161                     BNE  DELAY
+112F 39               (jingle_bisqwit.as):00162                     RTS
+                      (jingle_bisqwit.as):00163         ; -----------------------------------------------------------------------------
+1130                  (jingle_bisqwit.as):00164         SONG:  ; VGM DATA
+1130 5AB0005AB1005AB2 (jingle_bisqwit.as):00165             FCB $5A,$B0,$00,$5A,$B1,$00,$5A,$B2,$00,$5A,$B3,$00,$5A,$B4,$00,$5A,$B5,$00
+     005AB3005AB4005A
+     B500
+1142 5AB6005AB7005AB8 (jingle_bisqwit.as):00166             FCB $5A,$B6,$00,$5A,$B7,$00,$5A,$B8,$00,$5F,$B0,$00,$5F,$B1,$00,$5F,$B2,$00
+     005FB0005FB1005F
+     B200
+1154 5FB3005FB4005FB5 (jingle_bisqwit.as):00167             FCB $5F,$B3,$00,$5F,$B4,$00,$5F,$B5,$00,$5F,$B6,$00,$5F,$B7,$00,$5F,$B8,$00
+     005FB6005FB7005F
+     B800
+1166 5A04605A04805F05 (jingle_bisqwit.as):00168             FCB $5A,$04,$60,$5A,$04,$80,$5F,$05,$00,$5F,$05,$01,$5F,$05,$00,$5A,$01,$20
+     005F05015F05005A
+     0120
+1178 5F05015ABDC05F04 (jingle_bisqwit.as):00169             FCB $5F,$05,$01,$5A,$BD,$C0,$5F,$04,$3F,$5A,$20,$21,$5A,$21,$30,$5A,$22,$30
+     3F5A20215A21305A
+     2230
+118A 5A23615A24A05A25 (jingle_bisqwit.as):00170             FCB $5A,$23,$61,$5A,$24,$A0,$5A,$25,$A0,$5A,$28,$A1,$5A,$29,$61,$5A,$2A,$61
+     A05A28A15A29615A
+     2A61
+119C 5A2B215A2C215A2D (jingle_bisqwit.as):00171             FCB $5A,$2B,$21,$5A,$2C,$21,$5A,$2D,$21,$5A,$30,$31,$5A,$31,$31,$5A,$32,$31
+     215A30315A31315A
+     3231
+11AE 5A33315A34345A35 (jingle_bisqwit.as):00172             FCB $5A,$33,$31,$5A,$34,$34,$5A,$35,$34,$5A,$40,$16,$5A,$41,$98,$5A,$42,$98
+     345A40165A41985A
+     4298
+11C0 5A43095A44085A45 (jingle_bisqwit.as):00173             FCB $5A,$43,$09,$5A,$44,$08,$5A,$45,$08,$5A,$48,$8A,$5A,$49,$92,$5A,$4A,$92
+     085A488A5A49925A
+     4A92
+11D2 5A4B005A4C065A4D (jingle_bisqwit.as):00174             FCB $5A,$4B,$00,$5A,$4C,$06,$5A,$4D,$06,$5A,$50,$8D,$5A,$51,$0A,$5A,$52,$0A
+     065A508D5A510A5A
+     520A
+11E4 5A53005A54055A55 (jingle_bisqwit.as):00175             FCB $5A,$53,$00,$5A,$54,$05,$5A,$55,$0A,$5A,$60,$C2,$5A,$61,$61,$5A,$62,$61
+     0A5A60C25A61615A
+     6261
+11F6 5A63CF5A64645A65 (jingle_bisqwit.as):00176             FCB $5A,$63,$CF,$5A,$64,$64,$5A,$65,$64,$5A,$68,$74,$5A,$69,$65,$5A,$6A,$65
+     645A68745A69655A
+     6A65
+1208 5A6B7F5A6C655A6D (jingle_bisqwit.as):00177             FCB $5A,$6B,$7F,$5A,$6C,$65,$5A,$6D,$65,$5A,$70,$F1,$5A,$71,$A8,$5A,$72,$A8
+     655A70F15A71A85A
+     72A8
+121A 5A73F15A74D25A75 (jingle_bisqwit.as):00178             FCB $5A,$73,$F1,$5A,$74,$D2,$5A,$75,$D2,$5A,$80,$35,$5A,$81,$03,$5A,$82,$03
+     D25A80355A81035A
+     8203
+122C 5A830A5A84175A85 (jingle_bisqwit.as):00179             FCB $5A,$83,$0A,$5A,$84,$17,$5A,$85,$17,$5A,$88,$45,$5A,$89,$17,$5A,$8A,$17
+     175A88455A89175A
+     8A17
+123E 5A8B085A8C175A8D (jingle_bisqwit.as):00180             FCB $5A,$8B,$08,$5A,$8C,$17,$5A,$8D,$17,$5A,$90,$E8,$5A,$91,$10,$5A,$92,$10
+     175A90E85A91105A
+     9210
+1250 5A93785A94B95A95 (jingle_bisqwit.as):00181             FCB $5A,$93,$78,$5A,$94,$B9,$5A,$95,$B9,$5A,$A0,$58,$5A,$A1,$B0,$5A,$A2,$03
+     B95AA0585AA1B05A
+     A203
+1262 5AA3585AA4B05AA5 (jingle_bisqwit.as):00182             FCB $5A,$A3,$58,$5A,$A4,$B0,$5A,$A5,$03,$5A,$A6,$B0,$5A,$A7,$03,$5A,$A8,$B8
+     035AA6B05AA7035A
+     A8B8
+1274 5AB0215AB12E5AB2 (jingle_bisqwit.as):00183             FCB $5A,$B0,$21,$5A,$B1,$2E,$5A,$B2,$2E,$5A,$B3,$21,$5A,$B4,$2E,$5A,$B5,$2E
+     2E5AB3215AB42E5A
+     B52E
+1286 5AB6225AB73A5AB8 (jingle_bisqwit.as):00184             FCB $5A,$B6,$22,$5A,$B7,$3A,$5A,$B8,$32,$5A,$C0,$3E,$5A,$C1,$3E,$5A,$C2,$2E
+     325AC03E5AC13E5A
+     C22E
+1298 5AC33F5AC43F5AC5 (jingle_bisqwit.as):00185             FCB $5A,$C3,$3F,$5A,$C4,$3F,$5A,$C5,$2F,$5A,$C6,$3A,$5A,$C7,$36,$5A,$C8,$36
+     2F5AC63A5AC7365A
+     C836
+12AA 5AE0005AE1025AE2 (jingle_bisqwit.as):00186             FCB $5A,$E0,$00,$5A,$E1,$02,$5A,$E2,$02,$5A,$E3,$00,$5A,$E4,$02,$5A,$E5,$02
+     025AE3005AE4025A
+     E502
+12BC 5AE8005AE9015AEA (jingle_bisqwit.as):00187             FCB $5A,$E8,$00,$5A,$E9,$01,$5A,$EA,$01,$5A,$EB,$00,$5A,$EC,$00,$5A,$ED,$00
+     015AEB005AEC005A
+     ED00
+12CE 5AF0005AF1005AF2 (jingle_bisqwit.as):00188             FCB $5A,$F0,$00,$5A,$F1,$00,$5A,$F2,$00,$5A,$F3,$00,$5A,$F4,$01,$5A,$F5,$01
+     005AF3005AF4015A
+     F501
+12E0 5F300E5F33005F40 (jingle_bisqwit.as):00189             FCB $5F,$30,$0E,$5F,$33,$00,$5F,$40,$BF,$5F,$41,$BF,$5F,$42,$BF,$5F,$43,$9E
+     BF5F41BF5F42BF5F
+     439E
+12F2 5F449E5F459E5F48 (jingle_bisqwit.as):00190             FCB $5F,$44,$9E,$5F,$45,$9E,$5F,$48,$BF,$5F,$49,$BF,$5F,$4A,$BF,$5F,$4B,$BF
+     BF5F49BF5F4ABF5F
+     4BBF
+1304 5F4CBF5F4DBF5F50 (jingle_bisqwit.as):00191             FCB $5F,$4C,$BF,$5F,$4D,$BF,$5F,$50,$00,$5F,$51,$BF,$5F,$52,$BF,$5F,$53,$00
+     005F51BF5F52BF5F
+     5300
+1316 5F54BF5F55BF5F70 (jingle_bisqwit.as):00192             FCB $5F,$54,$BF,$5F,$55,$BF,$5F,$70,$1E,$5F,$73,$18,$5F,$90,$00,$5F,$93,$FE
+     1E5F73185F90005F
+     93FE
+1328 5FA6635FB6335FC6 (jingle_bisqwit.as):00193             FCB $5F,$A6,$63,$5F,$B6,$33,$5F,$C6,$3E,$5F,$F0,$00,$5F,$F3,$03,$61,$E7,$23
+     3E5FF0005FF30361
+     E723
+133A 5F31315F510A5F71 (jingle_bisqwit.as):00194             FCB $5F,$31,$31,$5F,$51,$0A,$5F,$71,$A8,$5F,$91,$10,$5F,$F1,$00,$5F,$34,$34
+     A85F91105FF1005F
+     3434
+134C 5F54055F74D25F94 (jingle_bisqwit.as):00195             FCB $5F,$54,$05,$5F,$74,$D2,$5F,$94,$B9,$5F,$F4,$01,$5F,$A7,$63,$5F,$B7,$37
+     B95FF4015FA7635F
+     B737
+135E 5FC73661601D5AB7 (jingle_bisqwit.as):00196             FCB $5F,$C7,$36,$61,$60,$1D,$5A,$B7,$1A,$61,$44,$03,$5F,$20,$21,$5F,$40,$16
+     1A6144035F20215F
+     4016
+1370 5F60C25F80355FA0 (jingle_bisqwit.as):00197             FCB $5F,$60,$C2,$5F,$80,$35,$5F,$A0,$63,$5F,$B0,$27,$5F,$C0,$3E,$5F,$E0,$00
+     635FB0275FC03E5F
+     E000
+1382 5F23615F32315F43 (jingle_bisqwit.as):00198             FCB $5F,$23,$61,$5F,$32,$31,$5F,$43,$10,$5F,$52,$0A,$5F,$63,$CF,$5F,$72,$A8
+     105F520A5F63CF5F
+     72A8
+1394 5F830A5F92105FA3 (jingle_bisqwit.as):00199             FCB $5F,$83,$0A,$5F,$92,$10,$5F,$A3,$63,$5F,$B3,$27,$5F,$C3,$3F,$5F,$E3,$00
+     635FB3275FC33F5F
+     E300
+13A6 5FF2005A44055A54 (jingle_bisqwit.as):00200             FCB $5F,$F2,$00,$5A,$44,$05,$5A,$54,$0A,$5F,$35,$34,$5A,$45,$05,$5F,$55,$05
+     0A5F35345A45055F
+     5505
+13B8 5F75D25F95B95FF5 (jingle_bisqwit.as):00201             FCB $5F,$75,$D2,$5F,$95,$B9,$5F,$F5,$01,$5A,$A7,$B8,$5A,$B7,$36,$5A,$B8,$12
+     015AA7B85AB7365A
+     B812
+13CA 5F28A15F488A5F68 (jingle_bisqwit.as):00202             FCB $5F,$28,$A1,$5F,$48,$8A,$5F,$68,$74,$5F,$88,$45,$5F,$A8,$B0,$5F,$B8,$3A
+     745F88455FA8B05F
+     B83A
+13DC 5FC8365FE8005F2B (jingle_bisqwit.as):00203             FCB $5F,$C8,$36,$5F,$E8,$00,$5F,$2B,$21,$5F,$4B,$09,$5F,$6B,$7F,$5F,$8B,$08
+     215F4B095F6B7F5F
+     8B08
+13EE 5FEB005A4C035A4D (jingle_bisqwit.as):00204             FCB $5F,$EB,$00,$5A,$4C,$03,$5A,$4D,$03,$61,$D9,$16,$5A,$52,$8D,$5A,$72,$F1
+     0361D9165A528D5A
+     72F1
+1400 5A92E85A35315A55 (jingle_bisqwit.as):00205             FCB $5A,$92,$E8,$5A,$35,$31,$5A,$55,$00,$5A,$75,$F1,$5A,$95,$78,$5A,$F5,$00
+     005A75F15A95785A
+     F500
+1412 5AB6025AA8B05AB8 (jingle_bisqwit.as):00206             FCB $5A,$B6,$02,$5A,$A8,$B0,$5A,$B8,$26,$5A,$C8,$3A,$61,$CB,$09,$5F,$B6,$13
+     265AC83A61CB095F
+     B613
+1424 6187065FB7176144 (jingle_bisqwit.as):00207             FCB $61,$87,$06,$5F,$B7,$17,$61,$44,$03,$5A,$B7,$16,$5F,$B8,$1A,$61,$95,$13
+     035AB7165FB81A61
+     9513
+1436 5F518D5F71F15F91 (jingle_bisqwit.as):00208             FCB $5F,$51,$8D,$5F,$71,$F1,$5F,$91,$E8,$5F,$43,$09,$5A,$44,$03,$5F,$34,$31
+     E85F43095A44035F
+     3431
+1448 5A45035F54005F74 (jingle_bisqwit.as):00209             FCB $5A,$45,$03,$5F,$54,$00,$5F,$74,$F1,$5F,$94,$78,$5F,$F4,$00,$5F,$A7,$B0
+     F15F94785FF4005F
+     A7B0
+145A 5FB7225FC73A5AB8 (jingle_bisqwit.as):00210             FCB $5F,$B7,$22,$5F,$C7,$3A,$5A,$B8,$06,$5F,$4B,$00,$5A,$4C,$01,$5A,$4D,$01
+     065F4B005A4C015A
+     4D01
+146C 61CE475A54055F55 (jingle_bisqwit.as):00211             FCB $61,$CE,$47,$5A,$54,$05,$5F,$55,$0A,$5A,$A7,$65,$5A,$B7,$36,$5F,$A8,$6D
+     0A5AA7655AB7365F
+     A86D
+147E 5FB8335A4C005A4D (jingle_bisqwit.as):00212             FCB $5F,$B8,$33,$5A,$4C,$00,$5A,$4D,$00,$61,$95,$13,$5A,$B6,$26,$5F,$B7,$02
+     006195135AB6265F
+     B702
+1490 61CB095A520A5A72 (jingle_bisqwit.as):00213             FCB $61,$CB,$09,$5A,$52,$0A,$5A,$72,$A8,$5A,$92,$10,$5A,$35,$34,$5A,$55,$05
+     A85A92105A35345A
+     5505
+14A2 5A75D25A95B95AF5 (jingle_bisqwit.as):00214             FCB $5A,$75,$D2,$5A,$95,$B9,$5A,$F5,$01,$5A,$A8,$43,$5A,$B8,$36,$5A,$C8,$36
+     015AA8435AB8365A
+     C836
+14B4 61E7235AA0325AB0 (jingle_bisqwit.as):00215             FCB $61,$E7,$23,$5A,$A0,$32,$5A,$B0,$27,$5F,$21,$21,$5F,$41,$16,$5A,$51,$8D
+     275F21215F41165A
+     518D
+14C6 5F510A5F61C25A71 (jingle_bisqwit.as):00216             FCB $5F,$51,$0A,$5F,$61,$C2,$5A,$71,$F1,$5F,$71,$A8,$5F,$81,$35,$5A,$91,$E8
+     F15F71A85F81355A
+     91E8
+14D8 5F91105FA16C5AB1 (jingle_bisqwit.as):00217             FCB $5F,$91,$10,$5F,$A1,$6C,$5A,$B1,$0E,$5F,$B0,$07,$5F,$B1,$21,$5F,$C1,$3E
+     0E5FB0075FB1215F
+     C13E
+14EA 5FE1005AB20E5F22 (jingle_bisqwit.as):00218             FCB $5F,$E1,$00,$5A,$B2,$0E,$5F,$22,$30,$5F,$42,$98,$5F,$62,$61,$5F,$82,$03
+     305F42985F62615F
+     8203
+14FC 5FA2045AA3325AB3 (jingle_bisqwit.as):00219             FCB $5F,$A2,$04,$5A,$A3,$32,$5A,$B3,$27,$5F,$B3,$07,$5F,$B2,$2F,$5F,$C2,$3E
+     275FB3075FB22F5F
+     C23E
+150E 5FE2025A34315A54 (jingle_bisqwit.as):00220             FCB $5F,$E2,$02,$5A,$34,$31,$5A,$54,$00,$5A,$74,$F1,$5A,$94,$78,$5A,$B4,$0E
+     005A74F15A94785A
+     B40E
+1520 5AF4005F24615F25 (jingle_bisqwit.as):00221             FCB $5A,$F4,$00,$5F,$24,$61,$5F,$25,$A0,$5F,$34,$34,$5F,$44,$09,$5F,$45,$1F
+     A05F34345F44095F
+     451F
+1532 5F54055F64CF5F65 (jingle_bisqwit.as):00222             FCB $5F,$54,$05,$5F,$64,$CF,$5F,$65,$64,$5F,$74,$D2,$5F,$84,$0A,$5F,$85,$17
+     645F74D25F840A5F
+     8517
+1544 5F94B95FA46C5FA5 (jingle_bisqwit.as):00223             FCB $5F,$94,$B9,$5F,$A4,$6C,$5F,$A5,$04,$5A,$B5,$0E,$5F,$B4,$21,$5F,$B5,$2F
+     045AB50E5FB4215F
+     B52F
+1556 5FC43F5FC53F5FE4 (jingle_bisqwit.as):00224             FCB $5F,$C4,$3F,$5F,$C5,$3F,$5F,$E4,$00,$5F,$E5,$02,$5F,$F4,$01,$5A,$B6,$06
+     005FE5025FF4015A
+     B606
+1568 5AA7045FA7045AB7 (jingle_bisqwit.as):00225             FCB $5A,$A7,$04,$5F,$A7,$04,$5A,$B7,$23,$5F,$B7,$37,$5A,$C7,$3A,$5F,$C7,$36
+     235FB7375AC73A5F
+     C736
+157A 5AA8045AB8375F29 (jingle_bisqwit.as):00226             FCB $5A,$A8,$04,$5A,$B8,$37,$5F,$29,$A1,$5F,$49,$8A,$5F,$69,$74,$5F,$89,$45
+     A15F498A5F69745F
+     8945
+158C 5FE9005F2A615F4A (jingle_bisqwit.as):00227             FCB $5F,$E9,$00,$5F,$2A,$61,$5F,$4A,$92,$5F,$6A,$65,$5F,$8A,$17,$5F,$EA,$01
+     925F6A655F8A175F
+     EA01
+159E 5F2C215F2D215F4C (jingle_bisqwit.as):00228             FCB $5F,$2C,$21,$5F,$2D,$21,$5F,$4C,$00,$5F,$4D,$1E,$5F,$6C,$7F,$5F,$6D,$65
+     005F4D1E5F6C7F5F
+     6D65
+15B0 5F8C085F8D175FEC (jingle_bisqwit.as):00229             FCB $5F,$8C,$08,$5F,$8D,$17,$5F,$EC,$00,$5F,$ED,$00,$61,$87,$06,$5F,$B8,$13
+     005FED006187065F
+     B813
+15C2 611C1A5FA8D85FB8 (jingle_bisqwit.as):00230             FCB $61,$1C,$1A,$5F,$A8,$D8,$5F,$B8,$33,$61,$E7,$23,$5A,$B0,$07,$5A,$21,$21
+     3361E7235AB0075A
+     2121
+15D4 5A41165A61C25A81 (jingle_bisqwit.as):00231             FCB $5A,$41,$16,$5A,$61,$C2,$5A,$81,$35,$5F,$A0,$82,$5A,$A1,$04,$5F,$B1,$01
+     355FA0825AA1045F
+     B101
+15E6 5FB0215AB1275AE1 (jingle_bisqwit.as):00232             FCB $5F,$B0,$21,$5A,$B1,$27,$5A,$E1,$00,$5F,$A3,$82,$5A,$B3,$07,$5F,$B3,$21
+     005FA3825AB3075F
+     B321
+15F8 5A24615A44095A64 (jingle_bisqwit.as):00233             FCB $5A,$24,$61,$5A,$44,$09,$5A,$64,$CF,$5A,$84,$0A,$5A,$A4,$04,$5A,$B4,$27
+     CF5A840A5AA4045A
+     B427
+160A 5AE4005F45125FB4 (jingle_bisqwit.as):00234             FCB $5A,$E4,$00,$5F,$45,$12,$5F,$B4,$01,$5A,$A8,$43,$5A,$B8,$3A,$5A,$29,$A1
+     015AA8435AB83A5A
+     29A1
+161C 5A498A5A69745A89 (jingle_bisqwit.as):00235             FCB $5A,$49,$8A,$5A,$69,$74,$5A,$89,$45,$5F,$A8,$0D,$5F,$B8,$2B,$5A,$E9,$00
+     455FA80D5FB82B5A
+     E900
+162E 5A6C7F5A8C085F4D (jingle_bisqwit.as):00236             FCB $5A,$6C,$7F,$5A,$8C,$08,$5F,$4D,$10,$61,$52,$10,$5F,$B7,$17,$61,$52,$10
+     106152105FB71761
+     5210
+1640 5FB73B61D9165AB8 (jingle_bisqwit.as):00237             FCB $5F,$B7,$3B,$61,$D9,$16,$5A,$B8,$1A,$61,$CB,$09,$5F,$45,$07,$5F,$4D,$05
+     1A61CB095F45075F
+     4D05
+1652 6187065FB71B6100 (jingle_bisqwit.as):00238             FCB $61,$87,$06,$5F,$B7,$1B,$61,$00,$00,$5F,$45,$11,$5F,$4D,$0F,$61,$D9,$16
+     005F45115F4D0F61
+     D916
+1664 5FB0015A22215A42 (jingle_bisqwit.as):00239             FCB $5F,$B0,$01,$5A,$22,$21,$5A,$42,$16,$5A,$62,$C2,$5A,$82,$35,$5A,$B2,$26
+     165A62C25A82355A
+     B226
+1676 5AC23E5AE2005FB3 (jingle_bisqwit.as):00240             FCB $5A,$C2,$3E,$5A,$E2,$00,$5F,$B3,$01,$5A,$25,$61,$5A,$45,$1B,$5A,$65,$CF
+     015A25615A451B5A
+     65CF
+1688 5A850A5AB5265AC5 (jingle_bisqwit.as):00241             FCB $5A,$85,$0A,$5A,$B5,$26,$5A,$C5,$3F,$5A,$E5,$00,$5A,$2A,$A1,$5A,$4A,$8A
+     3F5AE5005A2AA15A
+     4A8A
+169A 5A6A745A8A455AEA (jingle_bisqwit.as):00242             FCB $5A,$6A,$74,$5A,$8A,$45,$5A,$EA,$00,$5A,$4D,$16,$5A,$6D,$7F,$5A,$8D,$08
+     005A4D165A6D7F5A
+     8D08
+16AC 61B22D5FB20F5A45 (jingle_bisqwit.as):00243             FCB $61,$B2,$2D,$5F,$B2,$0F,$5A,$45,$09,$5F,$B5,$0F,$5A,$4D,$00,$61,$CE,$47
+     095FB50F5A4D0061
+     CE47
+16BE 5AB2065A440B5AB5 (jingle_bisqwit.as):00244             FCB $5A,$B2,$06,$5A,$44,$0B,$5A,$B5,$06,$5A,$4C,$03,$61,$8A,$44,$5A,$B1,$07
+     065A4C03618A445A
+     B107
+16D0 5AB40761C03A5FB8 (jingle_bisqwit.as):00245             FCB $5A,$B4,$07,$61,$C0,$3A,$5F,$B8,$0B,$61,$CB,$09,$5A,$B7,$03
+     0B61CB095AB703
+16DF                  (jingle_bisqwit.as):00246         ENDSONG
+                      (jingle_bisqwit.as):00247         ;------------------------------------------------------------------------------
+                      (jingle_bisqwit.as):00248         ; EOF
+                      (jingle_bisqwit.as):00249         ;------------------------------------------------------------------------------

@@ -8,12 +8,13 @@
 ;   Experiments with realtime clock and 64-bit integers
 ;
 ;------------------------------------------------------------------------------
+    INCLUDE DEFINES.D           ; COMMON DEFINITIONS
     INCLUDE bios_func_tab.d     ; BIOS functions jump table
 ;------------------------------------------------------------------------------
 TICKS_PER_MINUTE    equ  $3C0       ; 960
 TICKS_PER_SECOND    equ  $10        ; 16
 ; -----------------------------------------------------------------------------
-    ORG     $2000               ; Begin CODE & VARS
+    ORG     $1000               ; Begin CODE & VARS
 ; -----------------------------------------------------------------------------
 ; PROGRAM ENTRYPOINT
 ; -----------------------------------------------------------------------------

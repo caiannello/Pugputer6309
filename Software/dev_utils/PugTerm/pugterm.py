@@ -24,7 +24,7 @@ pygame.init()
 # -----------------------------------------------------------------------------
 NORMAL_CAPTION = "PugTerm - Ver. 0.0.1"
 UPLOADING_CAPTION = "PugTerm - Ver. 0.0.1 - UPLOADING"
-SER_CONFIG = (19200,'com5')
+SER_CONFIG = (19200,'com7')
 TEXT_COLOR = (255, 200, 16)
 BKGD_COLOR = (32, 16, 0)
 g_thread_run = True

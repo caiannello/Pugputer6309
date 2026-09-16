@@ -1,55 +1,35 @@
-; -----------------------------------------------------------------------------
-; Microsoft Extended BASIC for 6809, 1982 release
+;------------------------------------------------------------------------------
+; PROJECT: TIME TEST
+; VERSION: 0.0.1
+;    FILE: time_test.asm
+;  AUTHOR: CRAIG IANNELLO, PUGBUTT.COM
 ;
-; Transcribed and stripped of Color-Computer specific stuff by Grant Searle, 
-; working from the book "Extended BASIC Unravelled", by Walter K. Zydhek.
+; DESCRIPTION: 
+;   Experiments with realtime clock and 64-bit integers
 ;
-; In 2014, it was adapted by Tom Circuit to compile under lwtools 4.10.
-;
-; In 2022-2023 this version has been expanded by Craig Iannello to support
-; the following additional hardware:
-; 
-; Rockwell  R65C51P2         Serial UART
-; Yamaha    V9958            Video Display Processor
-; Pugbutt   Mega-Multipass   Sound / SD Card / IO Card
-;
-; target toolchain: lwtools lwasm ver 4.10 
-;
-; Authors' sites:
-;
-; http://searle.x10host.com/6809/Simple6809.html
-; https://github.com/tomcircuit/hd6309sbc
-; https://github.com/caiannello/pugputer
-; https://youtube.com/appliedcryogenics
-;
-; -----------------------------------------------------------------------------
+;------------------------------------------------------------------------------
     INCLUDE DEFINES.D           ; COMMON DEFINITIONS
-    INCLUDE BIOS_FUNC_TAB.D     ; BIOS FCN JUMP TABLE AND CONSTANTS
-; -----------------------------------------------------------------------------
-
-; CONSTANTS AND DEFINES
-
-BS        EQU  8              BACKSPACE 
-;LF        EQU  $A             LINEFEED
-;CR        EQU  $D             ENTER KEY 
-;ESC       EQU  $1B            ESCAPE CODE 
-;SPACE     EQU  $20            SPACE (BLANK) 
+    INCLUDE bios_func_tab.d     ; BIOS functions jump table
+;------------------------------------------------------------------------------
+; BASIC defines
+;------------------------------------------------------------------------------
 STKBUF    EQU  58             STACK BUFFER ROOM 
 LBUFMX    EQU  250            MAX NUMBER OF CHARS IN A BASIC LINE 
 MAXLIN    EQU  $FA            MAXIMUM MS BYTE OF LINE NUMBER 
-
-; PSEUDO OPS                      
+                            ; PSEUDO OPS                      
 SKP1      EQU  $21            OP CODE OF BRN — SKIP ONE BYTE 
 SKP2      EQU  $8C            OP CODE OF CMPX # - SKIP TWO BYTES 
 SKP1LD    EQU  $86            OP CODE OF LDA # - SKIP THE NEXT BYTE 
-;                             AND LOAD THE VALUE OF THAT BYTE INTO ACCA — THIS 
-;                             IS USUALLY USED TO LOAD ACCA WITH A NON ZERO VALUE 
-BASIC_CODE   EQU  $1000       ; Bootloader loads and enters applications here
-BASIC_STATE  EQU  $4000       ; BASIC state is outside the bootloader RAM area
-RAM_TOP      EQU  $F000       ; Exclusive end of the default 64K RAM mapping
-          ORG  BASIC_STATE
-          SETDP $40
-
+; -----------------------------------------------------------------------------
+; PROGRAM ENTRYPOINT
+; -----------------------------------------------------------------------------
+    ORG     $1000               ; Begin BASIC entrypoint, state & VARS
+; -----------------------------------------------------------------------------
+ENTRYPOINT  
+    JMP  RESVEC
+; -----------------------------------------------------------------------------
+; BASIC STATE VARS
+; -----------------------------------------------------------------------------
 ENDFLG    RMB  1              STOP/END FLAG: POSITIVE=STOP, NEG=END 
 CHARAC    RMB  1              TERMINATOR FLAG 1 
 ENDCHR    RMB  1              TERMINATOR FLAG 2 
@@ -132,7 +112,7 @@ ZERO      RMB  2              *PV DUMMY - THESE TWO BYTES ARE ALWAYS ZERO
 ; THE FOLLOWING BYTES ARE MOVED DOWN FROM ROM                      
 LPTCFW    RMB  1              16 
 LPTLCF    RMB  1              112 
-LPTWID    RMB  1              80 
+LPTWID    RMB  1              132 
 LPTPOS    RMB  1              0 
 EXECJP    RMB  2              LB4AA 
                                
@@ -164,6 +144,12 @@ VD7       RMB  1
 VD8       RMB  1               
 VD9       RMB  1               
 VDA       RMB  1               
+SW3VEC    RMB  3               
+SW2VEC    RMB  3               
+SWIVEC    RMB  3               
+NMIVEC    RMB  3               
+IRQVEC    RMB  3               
+FRQVEC    RMB  3               
 USRJMP    RMB  3              JUMP ADDRESS FOR BASIC'S USR FUNCTION 
 RVSEED    RMB  1              * FLOATING POINT RANDOM NUMBER SEED EXPONENT 
           RMB  4              * MANTISSA: INITIALLY SET TO $804FC75259 
@@ -184,52 +170,119 @@ STRSTK    RMB  8*5            STRING DESCRIPTOR STACK
 LINHDR    RMB  2              LINE INPUT BUFFER HEADER 
 LINBUF    RMB  LBUFMX+1       BASIC LINE INPUT BUFFER 
 STRBUF    RMB  41             STRING BUFFER 
-DUMP_ADRS RMB  2              ADDRESS USED BY HEXDUMP ROUTINE
-
+                               
 PROGST    RMB  1              START OF PROGRAM SPACE 
-  
-          ORG  BASIC_CODE    ; RELOCATABLE CODE -----------------------
-
+;------------------------------------------------------------------------------
+; BEGIN PROGRAM CODE
+;------------------------------------------------------------------------------
+          ORG  $9000           
+;------------------------------------------------------------------------------
+; SERIAL ROUTINES
+;------------------------------------------------------------------------------                               
+; Wait for a keystroke from the console.
+KEYWAIT   BSR  KEYIN          ; GET A CHARACTER FROM CONSOLE IN 
+          BEQ  KEYWAIT        ; LOOP IF NO KEY DOWN 
+          RTS                  
+                               
+; THIS ROUTINE GETS A KEYSTROKE FROM THE KEYBOARD IF A KEY                      
+; IS DOWN. IT RETURNS ZERO TRUE IF THERE WAS NO KEY DOWN.                      
+KEYIN     JSR  BF_UT_GETC
+          ANDA #$7F            
+          RTS                  
+                               
+; CONSOLE OUT                      
+PUTCHR    JSR  BF_UT_WAITTX
+          PSHS A               
+          CMPA #CR            IS IT CARRIAGE RETURN? 
+          BEQ  NEWLINE        YES 
+          JSR  BF_UT_PUTC
+          INC  LPTPOS         INCREMENT CHARACTER COUNTER 
+          LDA  LPTPOS         CHECK FOR END OF LINE PRINTER LINE 
+          CMPA LPTWID         AT END OF LINE PRINTER LINE? 
+          BLO  PUTEND         NO 
+NEWLINE   CLR  LPTPOS         RESET CHARACTER COUNTER 
+          JSR  BF_UT_WAITTX
+          LDA  #CR
+          JSR  BF_UT_PUTC
+          JSR  BF_UT_WAITTX
+          LDA  #LF            DO LINEFEED AFTER CR 
+          JSR  BF_UT_PUTC
+PUTEND    PULS A               
+          RTS                  
+;------------------------------------------------------------------------------
+; BASIC COLD-ENTRY
+;------------------------------------------------------------------------------
 RESVEC:
-LA00E     LDS  #LINBUF+LBUFMX+1 SET STACK TO TOP OF LINE INPUT BUFFER
-          LDMD #$01           ; switch to 6309 native mode
-          LDA  #$40           ; BASIC state variables live on direct page $40
-          TFR  A,DP
-          ; JSR  UART_INIT      ;initialize SERIAL PORT  (already done by bios)
+LA00E     ;LDS  #LINBUF+LBUFMX+1 SET STACK TO TOP OF LINE INPUT BUFFER
           LDA  RSTFLG         GET WARM START FLAG 
           CMPA #$55           IS IT A WARM START? 
-          BNE  BACDST         NO - DO A COLD START          
+          BNE  BACDST         NO - D0 A COLD START          
           LDX  RSTVEC         WARM START VECTOR 
           LDA  ,X             GET FIRST BYTE OF WARM START ADDR 
           CMPA #$12           IS IT NOP? 
           BNE  BACDST         NO - DO A COLD START 
           JMP  ,X             YES, G0 THERE 
-		
+        
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; COLD START ENTRY
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
-BACDST    LDX  #BASIC_STATE    CLEAR BASIC STATE RAM, NOT BOOT RAM
-LA077     CLR  ,X+             CLEAR ONE BASIC STATE BYTE
-          CMPX #PROGST         KEEP GOING THROUGH THE STATE AREA
-          BNE  LA077
-
+BACDST    LDX  #ENDFLG        ; clear state vars space
+LA077     CLR  ,X+           
+          CMPX #PROGST
+          BNE  LA077 
           LDX  #PROGST        SET TO START OF PROGRAM SPACE 
           CLR  ,X+            CLEAR 1ST BYTE OF BASIC PROGRAM 
           STX  TXTTAB         BEGINNING OF BASIC PROGRAM 
-LA093     LDX  #RAM_TOP        CODE MARKS THE TOP OF BASIC RAM
-          STX  TOPRAM         SAVE ABSOLUTE TOP OF BASIC RAM
+LA084     ;LDA  2,X            LOOK FOR END OF MEMORY 
+          ;COMA                * COMPLEMENT IT AND PUT IT BACK 
+          ;STA  2,X            * INTO SYSTEM MEMORY 
+          ;CMPA 2,X            IS IT RAM? 
+          ;BNE  LA093          BRANCH IF NOT (ROM, BAD RAM OR NO RAM) 
+          ;LEAX 1,X            MOVE POINTER UP ONE 
+          ;COM  1,X            RE-COMPLEMENT TO RESTORE BYTE 
+          ;BRA  LA084          KEEP LOOKING FOR END OF RAM 
+          LDX  #KEYWAIT       ; hard-coded end of ram
+LA093     STX  TOPRAM         SAVE ABSOLUTE TOP OF RAM 
           STX  MEMSIZ         SAVE TOP OF STRING SPACE 
           STX  STRTAB         SAVE START OF STRING VARIABLES 
           LEAX -200,X         CLEAR 200 - DEFAULT STRING SPACE TO 200 BYTES 
           STX  FRETOP         SAVE START OF STRING SPACE 
-          ;TFR  X,S            PUT STACK THERE 
+          ;TFR  X,S           ; PUT STACK THERE 
+
+          PSHS A
+          LDA  #'0'
+          JSR  BF_UT_PUTC
+          PULS A
+
+
           LDX  #LA10D         POINT X TO ROM SOURCE DATA 
           LDU  #LPTCFW        POINT U TO RAM DESTINATION 
           LDB  #18            MOVE 18 BYTES 
           JSR  LA59A          MOVE 18 BYTES FROM ROM TO RAM 
+
+          PSHS A
+          LDA  #'1'
+          JSR  BF_UT_PUTC
+          PULS A
+
+          ;LDU  #IRQVEC        POINT U TO NEXT RAM DESTINATION 
+          ;LDB  #4             MOVE 4 MORE BYTES 
+          ;JSR  LA59A          MOVE 4 BYTES FROM ROM TO RAM 
+
+          PSHS A
+          LDA  #'2'
+          JSR  BF_UT_PUTC
+          PULS A
+
           LDA  #$39            
           STA  LINHDR-1       PUT RTS IN LINHDR-1 
           JSR  LAD19          G0 DO A ‘NEW’ 
+
+          PSHS A
+          LDA  #'3'
+          JSR  BF_UT_PUTC
+          PULS A
+
 ; EXTENDED BASIC INITIALISATION                      
           LDX  #USR0          INITIALIZE ADDRESS OF START OF 
           STX  USRADR         USR JUMP TABLE 
@@ -239,13 +292,29 @@ LA093     LDX  #RAM_TOP        CODE MARKS THE TOP OF BASIC RAM
 L8031     STU  ,X++           STORE ‘FC’ ERROR AT USR ADDRESSES 
           DECB                FINISHED ALL 10? 
           BNE  L8031          NO 
-		
-; wait for two characters to come in from keyboard after powerup
-; before showing th startup banner
-;L8032     JSR  KEYIN
-;          BEQ  L8032
-;L8033     JSR  KEYIN
-;          BEQ  L8033
+        
+          PSHS A
+          LDA  #'4'
+          JSR  BF_UT_PUTC
+          PULS A
+
+; HD6309 SBC can be USB powered, which means that
+; power is applied before USB bridge enumerates.
+; Therefore, to ensure that communications are
+; established, wait for TWO characters to come in 
+; from the SCC. This ensures that the copyright 
+; banner is visible, also.
+L8032     ;JSR  KEYIN
+          ;BEQ  L8032
+L8033     ;JSR  KEYIN
+          ;BEQ  L8033
+          JSR  KEYWAIT
+
+          PSHS A
+          LDA  #'5'
+          JSR  BF_UT_PUTC
+          PULS A
+
 ; OUTPUT THE WELCOME BANNER AT COLDSTART
           LDX  #LA147-1       POINT X TO COLOR BASIC COPYRIGHT MESSAGE 
           JSR  LB99C          PRINT ‘COLOR BASIC’ 
@@ -253,75 +322,8 @@ L8031     STU  ,X++           STORE ‘FC’ ERROR AT USR ADDRESSES
           STX  RSTVEC         SAVE IT 
           LDA  #$55           WARM START FLAG 
           STA  RSTFLG         SAVE IT 
-          JMP  LA0F3          GO TO BASIC’S MAIN LOOP 
-
-HEXDUMP: ; DUMPS 16 BYTES OF MEMORY POINTED BY DUMP_ADRS TO SCREEN
-        LDX  #LINBUF
-        LDA  #'>            PUT '>' BEFORE ADDRESS
-        STA  ,X+            TWICE BECAUSE BASIC LINEPRINT IS WEIRD
-        STA  ,X+
-        LDA  DUMP_ADRS      THEN 4-CHAR HEX ADDRESS
-        BSR  HEXBYTE
-        LDA  DUMP_ADRS+1
-        BSR  HEXBYTE
-        LDA  #32            THEN A SPACE,
-        STA  ,X+
-        LDY  DUMP_ADRS      GET STARTING ADDRESS IN Y
-        LDE  #16            FOR 16 ITERATIONS
-        LDU  #(LINBUF+2+5+16*3)  POINT U AT ASCII PART AFTER HEX CHARS
-        LDA  #$A8               WHICH BEGINS WITH A DELIMITER
-        STA  ,U+
-        LDF  #'.
-HEXLOOP:
-        LDA  ,Y+
-        CMPA #$22
-        BNE  NOTQUOTE       BASIC LINE PRINTER DOESNT LIKE QUOTES
-        STF  ,U+
-        BRA DONEASCII        
-NOTQUOTE:
-        CMPA #32
-        BGE  ASCIIOK
-        STF  ,U+
-        BRA DONEASCII
-ASCIIOK:
-        STA  ,U+            ADD ASCII CHAR TO U POS
-DONEASCII:
-        BSR  HEXBYTE        2-CHAR MEMORY BYTE TO X POS
-        LDA  #32            THEN A SPACE,
-        STA  ,X+
-        DECE
-        BNE  HEXLOOP
-        STY  DUMP_ADRS      UPDATE DUMP POSITION TO NEXT ROW
-        LDA  #$A8           END DELIMITER TO ASCII PART
-        STA  ,U+              
-        LDA  #CR            THEN A CR
-        STA  ,U+
-        CLR  ,U             MAKE LAST BYTE IN INPUT BUFFER = 0
-        LDX  #LINBUF
-        JSR  LB99C          PRINT HEXDUMP LINE
-        RTS
-
-HEXBYTE: ; CONVERTS VAL IN A TO A 2-BYTE HEXSTRING AND PUTS IN BUF AT X
-        TFR  A,B            SAVE ORIGINAL BINARY VALUE
-        LSRA                MOVE HIGH DIGIT TO LOW DIGIT
-        LSRA
-        LSRA
-        LSRA
-        CMPA #9
-        BLS  AD30           BRANCH IF HIGH DIGIT IS DECIMAL
-        ADDA #7             ELSE ADD 7 SO AFTER ADDING 'O' THE
-                            ; CHARACTER WILL BE IN ‘'A'..'F'
-AD30:   ADDA #'0            ADD ASCII O TO MAKE A CHARACTER
-        ANDB #$0F           MASK OFF LOW DIGIT
-        CMPB #9
-        BLS AD3OLD          BRANCH IF LOW DIGIT IS DECIMAL
-        ADDB #7             ELSE ADD 7 SO AFTER ADDING 'O! THE
-                            ; CHARACTER WILL BE IN '‘A'..'F!
-AD3OLD: ADDB #'0            ADD ASCII O TO MAKE A CHARACTER
-        STA ,X+             ; INSERT HEX BYTES INTO DEST STRING AT X
-        STB ,X+             ; AND NCREMENT X
-        RTS 
-
+          BRA  LA0F3          GO TO BASIC’S MAIN LOOP 
+        
 ;;;;;;;;;;;;;;;;;;;;;;;;;;                               
 ; WARM START ENTRY
 ;;;;;;;;;;;;;;;;;;;;;;;;;;                               
@@ -329,6 +331,9 @@ BAWMST    NOP                 NOP REQ’D FOR WARM START
           JSR  LAD33          DO PART OF A NEW 
 LA0F3     JMP  LAC73          GO TO MAIN LOOP OF BASIC 
 ;                              
+; FIRQ SERVICE ROUTINE                      
+BFRQSV                         
+          RTI                  
 ;                              
 ; THESE BYTES ARE MOVED TO ADDRESSES $76 - $85 THE DIRECT PAGE                      
 LA10D     FCB  16             TAB FIELD WIDTH 
@@ -343,7 +348,9 @@ LA10D     FCB  16             TAB FIELD WIDTH
 LA123     LDA  >0000           
           JMP  BROMHK          
 ;                              
-; The bootloader owns hardware interrupt dispatch and Ctrl-C handling.
+; THESE BYTES ARE MOVED TO ADDRESSES $A7-$B1                      
+          JMP  BIRQSV         IRQ SERVICE 
+          JMP  BFRQSV         FIRQ SERVICE 
           JMP  LB44A          USR ADDRESS FOR 8K BASIC (INITIALIZED TO ‘FC’ ERROR) 
           FCB  $80            *RANDOM SEED 
           FDB  $4FC7          *RANDON SEED OF MANTISSA 
@@ -385,7 +392,7 @@ LA38D
 LA390     CLR  IKEYIM         RESET BREAK CHECK KEY TEMP KEY STORAGE 
           LDX  #LINBUF+1      INPUT LINE BUFFER 
           LDB  #1             ACCB CHAR COUNTER: SET TO 1 TO ALLOW A 
-						;  BACKSPACE AS FIRST CHARACTER  
+                        ;  BACKSPACE AS FIRST CHARACTER  
 LA39A     JSR  KEYWAIT        GO GET A CHARACTER FROM CONSOLE IN 
           CMPA #BS            BACKSPACE 
           BNE  LA3B4          NO 
@@ -460,6 +467,10 @@ LA5C4     RTS
 LA5C7     JSR  GETCCH         GET CURRENT INPUT CHAR FROM BASIC LINE 
 LA5C9     BEQ  LA5C4          RETURN IF END OF LINE 
           JMP  LB277          SYNTAX ERROR IF ANY MORE CHARACTERS 
+; IRQ SERVICE                      
+BIRQSV                         
+LA9C5     RTI  RETURN FROM INTERRUPT  
+                               
 ; SET CARRY IF NUMERIC - RETURN WITH                      
 ; ZERO FLAG SET IF ACCA = 0 OR 3A(:) - END                      
 ; OF BASIC LINE OR SUB LINE                      
@@ -886,7 +897,7 @@ LAC7C     JSR  LA390          GO GET AN INPUT LINE
 ;                              
 LACA0     LDA  ,X+            GET A CHARACTER 
           JMP  LB9B1          SEND TO CONSOLE OUT 
-		
+        
 ; TAKE A LINE FROM THE LINE INPUT BUFFER                      
 ; AND INSERT IT INTO THE BASIC PROGRAM                      
 LACA5     JSR  LAF67          CONVERT LINE NUMBER TO BINARY 
@@ -1044,7 +1055,7 @@ LADB4     LDA  ,X++           GET MS BYTE OF ADDRESS OF NEXT BASIC LINE
           STA  ENDFLG         SAVE IN STOP/END FLAG - CAUSE A STOP IF 
 ;                             NEXT LINE ADDRESS IS < $8000; CAUSE 
 ;                             AN END IF ADDRESS > $8000 
-          BEQ  LAE15          BRANCH TO ‘STOP’ - END OF PROGRAM 
+          LBEQ  LAE15         ; BRANCH TO ‘STOP’ - END OF PROGRAM 
           LDD  ,X+            GET CURRENT LINE NUMBER 
           STD  CURLIN         SAVE IN CURLIN 
           STX  CHARAD         SAVE ADDRESS OF FIRST BYTE OF LINE 
@@ -1176,7 +1187,7 @@ LAE88     JSR  GETNCH         GET A CHARACTER FROM BASIC
           CMPB #TOK_TO        ‘TO’ TOKEN 
           BEQ  LAEA4          BRANCH IF GOTO 
           CMPB #TOK_SUB       ‘SUB’ TOKEN 
-          BNE  LAED7          ‘SYNTAX ERROR’ IF NEITHER 
+          LBNE  LAED7         ;‘SYNTAX ERROR’ IF NEITHER 
           LDB  #3             =ROOM FOR 6 
           JSR  LAC33          =BYTES ON STACK? 
           LDU  CHARAD         * SAVE CURRENT BASIC INPUT POINTER, LINE 
@@ -1293,7 +1304,7 @@ ON        JSR  LB70B          EVALUATE EXPRESSION
           CMPA #TOK_SUB       TOKEN FOR SUB? 
           BEQ  LAF54          YES 
           CMPA #TOK_TO        TOKEN FOR TO? 
-LAF52     BNE  LAED7          ‘SYNTAX’ ERROR IF NOT ‘SUB’ OR ‘TO’ 
+LAF52     LBNE  LAED7         ;‘SYNTAX’ ERROR IF NOT ‘SUB’ OR ‘TO’ 
 LAF54     DEC  FPA0+3         DECREMENT IS BYTE OF MANTISSA OF FPA0 - THIS 
 ;                             IS THE ARGUMENT OF THE ‘ON’ STATEMENT 
           BNE  LAF5D          BRANCH IF NOT AT THE PROPER GOTO OR GOSUB LINE NUMBER 
@@ -1750,8 +1761,8 @@ LB290     JSR  GETNCH         GET AN INPUT CHARACTER (SECONDARY TOKEN)
           TFR  A,B            SAVE IT IN ACCB 
           ASLB                X2 & BET RID OF BIT 7 
           JSR  GETNCH         GET ANOTHER INPUT CHARACTER 
-;          CMPB #NUM_SEC_FNS-1*2 29 SECONDARY FUNCTIONS - 1 	* original line
-          CMPB #(NUM_SEC_FNS-1)*2 	* 29 SECONDARY FUNCTIONS - 1  ; fix for lwtools
+;          CMPB #NUM_SEC_FNS-1*2 29 SECONDARY FUNCTIONS - 1     * original line
+          CMPB #(NUM_SEC_FNS-1)*2   * 29 SECONDARY FUNCTIONS - 1  ; fix for lwtools
           BLS  LB29F          BRANCH IF COLOR BASIC TOKEN 
           JMP  LB277          SYNTAX ERROR 
 LB29F     PSHS B              SAVE TOKEN OFFSET ON STACK 
@@ -1759,7 +1770,7 @@ LB29F     PSHS B              SAVE TOKEN OFFSET ON STACK
           CMPB #(TOK_LEFT-$80)*2 CHECK FOR TOKEN WITH AN ARGUMENT ; fix for lwtools
           BCS  LB2C7          DO SECONDARIES STRING$ OR LESS 
 ;          CMPB #TOK_INKEY-$80*2 *                               * original line
-          CMPB #(TOK_INKEY-$80)*2 * 		                    ; fix for lwtools
+          CMPB #(TOK_INKEY-$80)*2 *                             ; fix for lwtools
           BCC  LB2C9          * DO SECONDARIES $92 (INKEY$) OR > 
           BSR  LB26A          SYNTAX CHECK FOR A ‘(‘ 
           LDA  ,S             GET TOKEN NUMBER 
@@ -2276,7 +2287,7 @@ LB5EF     LDX  V4B            GET ADDRESS OF THE DESCRIPTOR FOR THE
           DECB                SUBTRACT ONE 
           ADDD V47            ADD LENGTH OF STRING TO ITS STARTING ADDRESS 
           STD  V43            SAVE AS MOVE STARTING ADDRESS 
-          LDX  STRTAB         POINT X TO THE START OF STRING VARIABLES TABLE
+          LDX  STRTAB         POINT X TO THE START OF ORGANIZED STRING VARIABLES 
           STX  V41            SAVE AS MOVE ENDING ADDRESS 
           JSR  LAC20          MOVE STRING FROM CURRENT POSITION TO THE 
 ;              TOP OF UNORGANIZED STRING SPACE  
@@ -2504,7 +2515,31 @@ POKE      BSR  LB734          EVALUATE 2 EXPRESSIONS
           LDX  BINVAL         GET THE ADDRESS TO BE 'POKE'ED 
           STB  ,X             STORE THE DATA IN THAT ADDRESS 
           RTS                  
-                           
+
+;
+; SBC6309 V1.3 IO page begins at $E000
+;
+; Put some text here in the ROM about the build. This
+; isn't reachable from the 6309 CPU, but does appear
+; in the ROM when burned, so can be used for ID and
+; version information.
+;
+          ORG  $E000
+          
+          FCN  "Extended MS BASIC with autostart ROM"
+          FCN  "This is a derived work from that of \ Searle."
+          FCN  "http://searle.hostei.com/grant/6809/Simple6809.html"
+          FCC  "I have used Grant's 6809 Extended BASIC with very "
+          FCC  "minimal adapations to port to hd6309 CPU or the "
+          FCN  "SBC hardware. Requires SBC6309 CPLD V1.3!"
+          FCN  "target toolchain: lwtools lwasm ver 4.10"
+          FCN  "tomcircuit@gmail.com 5/25/2014"
+
+;
+; skip over SBC6309 V1.3 expansion page!
+;
+          ORG  $E200
+                               
 ; LIST                         
 LIST      PSHS CC             SAVE ZERO FLAG ON STACK 
           JSR  LAF67          CONVERT DECIMAL LINE NUMBER TO BINARY 
@@ -2627,7 +2662,7 @@ LB852     STA  ,U+            SAVE CHARACTER IN BUFFER
           BEQ  LB85C          BRANCH IF END OF LINE 
           CMPA #':            * CHECK FOR END OF SUBLINE 
           BEQ  LB829          * AND RESET FLAGS IF END OF SUBLINE 
-LB85A     BRA  LB82D          GO GET ANOTHER CHARACTER 
+LB85A     LBRA  LB82D         ; GO GET ANOTHER CHARACTER 
 LB85C     CLR  ,U+            * DOUBLE ZERO AT END OF LINE 
           CLR  ,U+            * 
           TFR  U,D            SAVE ADDRESS OF END OF LINE IN ACCD 
@@ -2689,7 +2724,7 @@ LB8C6     STB  ,U+            SAVE THIS TOKEN
           INC  V44            SET DATA FLAG 
 LB8CE     CMPB #TOK_REM       REM TOKEN? 
           BEQ  LB87C          YES 
-LB8D2     BRA  LB85A          GO PROCESS MORE INPUT CHARACTERS 
+LB8D2     LBRA  LB85A         ;GO PROCESS MORE INPUT CHARACTERS 
 ; CHECK FOR A SECONDARY TOKEN                      
 LB8D4     LDU  #COMVEC-5      NOW DO SECONDARY FUNCTIONS 
           COM  V41            TOGGLE THE TOKEN FLAG 
@@ -2821,9 +2856,9 @@ LB9C5     TSTB                CHECK EXPONENT OF FPA0
           LDX  #FP1EXP        POINT X TO FPA1 
 LB9CD     TFR  A,B            PUT EXPONENT OF FPA1 INTO ACCB 
           TSTB                CHECK EXPONENT 
-          BEQ  LBA3E          RETURN IF EXPONENT = 0 (ADDING 0 TO FPA0) 
+          LBEQ  LBA3E         ; RETURN IF EXPONENT = 0 (ADDING 0 TO FPA0) 
           SUBB FP0EXP         SUBTRACT EXPONENT OF FPA0 FROM EXPONENT OF FPA1 
-          BEQ  LBA3F          BRANCH IF EXPONENTS ARE EQUAL 
+          LBEQ  LBA3F         ; BRANCH IF EXPONENTS ARE EQUAL 
           BCS  LB9E2          BRANCH IF EXPONENT FPA0 > FPA1 
           STA  FP0EXP         REPLACE FPA0 EXPONENT WITH FPA1 EXPONENT 
           LDA  FP1SGN         * REPLACE FPA0 MANTISSA SIGN 
@@ -2884,7 +2919,7 @@ LBA39     CLRA                A ZERO EXPONENT = 0 FLOATING POINT
 LBA3A     STA  FP0EXP         ZERO OUT THE EXPONENT 
           STA  FP0SGN         ZERO OUT THE MANTISSA SIGN 
 LBA3E     RTS                  
-LBA3F     BSR  LBAAE          SHIFT FPA0 MANTISSA TO RIGHT 
+LBA3F     LBSR  LBAAE         ; SHIFT FPA0 MANTISSA TO RIGHT 
           CLRB                CLEAR CARRY FLAG 
           BRA  LB9EC           
 ; SHIFT FPA0 LEFT ONE BIT UNTIL BIT 7                      
@@ -2972,9 +3007,9 @@ LBAC5     FCB  $81,$00,$00,$00,$00 FLOATING POINT CONSTANT 1.0
                                
 ; ARITHMETIC OPERATION (*) JUMPS HERE - MULTIPLY                      
 ; FPA0 BY (X) - RETURN PRODUCT IN FPA0                      
-LBACA     BSR  LBB2F          MOVE PACKED FPA FROM (X) TO FPA1 
-LBACC     BEQ  LBB2E          BRANCH IF EXPONENT OF FPA0 = 0 
-          BSR  LBB48          CALCULATE EXPONENT OF PRODUCT 
+LBACA     LBSR  LBB2F         MOVE PACKED FPA FROM (X) TO FPA1 
+LBACC     LBEQ  LBB2E         ; BRANCH IF EXPONENT OF FPA0 = 0 
+          LBSR  LBB48         ; CALCULATE EXPONENT OF PRODUCT 
 ; MULTIPLY FPA0 MANTISSA BY FPA1. NORMALIZE                      
 ; HIGH ORDER BYTES OF PRODUCT IN FPA0. THE                      
 ; LOW ORDER FOUR BYTES OF THE PRODUCT WILL                      
@@ -3002,7 +3037,7 @@ LBAD0     LDA  #0             * ZERO OUT MANTISSA OF FPA2
           STB  VAB            * 
           JSR  LBC0B          COPY MANTISSA FROM FPA2 TO FPA0 
           JMP  LBA1C          NORMALIZE FPA0 
-LBB00     BEQ  LBA97          SHIFT FPA2 ONE BYTE TO RIGHT 
+LBB00     LBEQ  LBA97         ; SHIFT FPA2 ONE BYTE TO RIGHT 
 LBB02     COMA                SET CARRY FLAG 
 ; MULTIPLY FPA1 MANTISSA BY ACCB AND                      
 ; ADD PRODUCT TO FPA2 MANTISSA                      
@@ -3094,7 +3129,7 @@ LBB8F     BSR  LBB2F          GET FP NUMBER FROM (X) TO FPA1
 ; EXPONENT OF FPA1 IN ACCA AND FLAGS SET BY TSTA)                      
                                
 ; DIVIDE FPA1 BY FPA0                      
-LBB91     BEQ  LBC06          /0' DIVIDE BY ZERO ERROR 
+LBB91     LBEQ  LBC06         ; /0' DIVIDE BY ZERO ERROR 
           NEG  FP0EXP         GET EXPONENT OF RECIPROCAL OF DIVISOR 
           BSR  LBB48          CALCULATE EXPONENT OF QUOTIENT 
           INC  FP0EXP         INCREMENT EXPONENT 
@@ -3393,7 +3428,7 @@ LBD78     JSR  LBB6A          MULTIPLY FPA0 BY 10
           DEC  V47            DECREMENT EXPONENT COUNTER (DIVIDE BY 10) 
           BNE  LBD78          KEEP MULTIPLYING 
 LBD7F     LDA  COEFCT         GET THE SIGN FLAG 
-          BPL  LBD11          RETURN IF POSITIVE 
+          LBPL  LBD11         ; RETURN IF POSITIVE 
           JMP  LBEE9          TOGGLE MANTISSA SIGN OF FPA0, IF NEGATIVE 
 ;MULTIPLY FPA0 BY TEN AND ADD ACCA TO THE RESULT                      
 LBD86     LDB  V45            *GET THE RIGHT DECIMAL COUNTER AND SUBTRACT 
@@ -5413,12 +5448,6 @@ LINE      CMPA #TOK_INPUT     ‘INPUT’ TOKEN
           LBEQ L89C0          GO DO ‘LINE INPUT’ COMMAND 
           JMP  LB277          ‘SYNTAX ERROR’ IF NOT "LINE INPUT" 
 
-; Information about build
-          FCB  0
-          FCC  "MICROSOFT BASIC FOR PUGPUTER-6309 BUILT DEC 11 2022"
-          FCB  0
-
-; END OF EXTENDED BASIC. The bootloader owns IO space and interrupt vectors.
-
-
-
+;------------------------------------------------------------------------------
+; EOF
+;------------------------------------------------------------------------------

@@ -1,0 +1,681 @@
+                      (tiny_pug_with_jin):00001         ;------------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00002         ; PROJECT: PUGPUTER 6309 
+                      (tiny_pug_with_jin):00003         ; VERSION: 0.0.1
+                      (tiny_pug_with_jin):00004         ;    FILE: TINY_PUG_WITH_JINGLE.ASM
+                      (tiny_pug_with_jin):00005         ;  AUTHOR: CRAIG IANNELLO, PUGBUTT.COM
+                      (tiny_pug_with_jin):00006         ;
+                      (tiny_pug_with_jin):00007         ; DESCRIPTION: 
+                      (tiny_pug_with_jin):00008         ;
+                      (tiny_pug_with_jin):00009         ; POSSIBLE PUGPUTER SPLASH SCREEN. FADES-IN A TINY B&W PUG ON A WHITE
+                      (tiny_pug_with_jin):00010         ; BACKGROUND AND PLAYS THE JINGLE BY BISQWIT. 
+                      (tiny_pug_with_jin):00011         ;
+                      (tiny_pug_with_jin):00012         ;------------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00013             INCLUDE DEFINES.D           ; COMMON DEFINITIONS
+                      (        DEFINES.D):00001         ; -----------------------------------------------------------------------------
+                      (        DEFINES.D):00002         ; IO DEVICE BASE ADDRESSES
+                      (        DEFINES.D):00003         ; -----------------------------------------------------------------------------
+                      (        DEFINES.D):00004         
+     FFEC             (        DEFINES.D):00005         BANK_BASE   EQU  $FFEC      : FFEC - FFEF: MEMORY BANK REGS 0...3 (BUILT-IN)
+     FFE8             (        DEFINES.D):00006         ACIA_BASE   EQU  $FFE8      ; FFE8 - FFEB: SERIAL UART R65C51P2 (BUILT-IN)
+     FFE4             (        DEFINES.D):00007         VDP_BASE    EQU  $FFE4      ; FFE4 - FFE7: VIDEO CHIP V9958
+     FFE0             (        DEFINES.D):00008         OPL3_BASE   EQU  $FFE0      ; FFE0 - FFE3: MUSIC CHIP YMF262 (OPL3)
+     FFB0             (        DEFINES.D):00009         VIA_BASE    EQU  $FFB0      ; FFB0 - FFBF: W65C22 VIA (SD CARD, SPI, KB, GPIO)
+                      (        DEFINES.D):00010         
+                      (        DEFINES.D):00011         ; V9958 VDP REGISTERS
+     FFE4             (        DEFINES.D):00012         VDAT        EQU  VDP_BASE+0 ; PORT 0: VRAM DATA (R/W)
+     FFE5             (        DEFINES.D):00013         VREG        EQU  VDP_BASE+1 ; PORT 1: STATUS REG (R), REGISTER/SETUP (W), VRAM ADDR (W)
+     FFE6             (        DEFINES.D):00014         VPAL        EQU  VDP_BASE+2 ; PORT 2: PALETTE REGISTERS (W)
+     FFE7             (        DEFINES.D):00015         VIND        EQU  VDP_BASE+3 ; PORT 3: REGISTER-INDIRECT ADDRESSING (W)
+                      (        DEFINES.D):00016         
+                      (        DEFINES.D):00017         ; MEMORY BANK REGISTERS 0..3 (BASE ADDRESS IN DEFINES.D)
+                      (        DEFINES.D):00018         ; THESE ARE WRITE-ONLY, SO WE KEEP COPIES OF 1 THROUGH 3 IN 
+                      (        DEFINES.D):00019         ; VARS IN MAIN.ASM: SBANK_1...SBANK_3
+                      (        DEFINES.D):00020         
+     FFEC             (        DEFINES.D):00021         MBANK_0     EQU  BANK_BASE+0
+     FFED             (        DEFINES.D):00022         MBANK_1     EQU  BANK_BASE+1
+     FFEE             (        DEFINES.D):00023         MBANK_2     EQU  BANK_BASE+2
+     FFEF             (        DEFINES.D):00024         MBANK_3     EQU  BANK_BASE+3
+                      (        DEFINES.D):00025         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00026         ; COMMON DEFINITIONS
+                      (        DEFINES.D):00027         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00028         ; ASCII CODES
+     001B             (        DEFINES.D):00029         ESC         EQU  $1B    ; ESCAPE
+     000A             (        DEFINES.D):00030         LF          EQU  $0A    ; LINE FEED
+     000D             (        DEFINES.D):00031         CR          EQU  $0D    ; CARRIAGE RETURN
+     0000             (        DEFINES.D):00032         NUL         EQU  $00    ; NULL
+     0020             (        DEFINES.D):00033         SPACE       EQU  $20
+     007E             (        DEFINES.D):00034         TILDE       EQU  $7E
+                      (        DEFINES.D):00035         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00036         _DATE       STRUCT
+0000s                 (        DEFINES.D):00037         YEAR        RMB  2      ; DATE AS INTEGERS
+0002s                 (        DEFINES.D):00038         DAYYR       RMB  2
+0004s                 (        DEFINES.D):00039         MON         RMB  1
+0005s                 (        DEFINES.D):00040         DAYMON      RMB  1
+0006s                 (        DEFINES.D):00041         HOUR        RMB  1
+0007s                 (        DEFINES.D):00042         MIN         RMB  1
+0008s                 (        DEFINES.D):00043         SEC         RMB  1
+0009s                 (        DEFINES.D):00044         HUND        RMB  1
+000As                 (        DEFINES.D):00045         YEARBCD     RMB  2      ; DATE AS BCD
+000Cs                 (        DEFINES.D):00046         DAYYRBCD    RMB  2
+000Es                 (        DEFINES.D):00047         MONBCD      RMB  1
+000Fs                 (        DEFINES.D):00048         DAYMONBCD   RMB  1
+0010s                 (        DEFINES.D):00049         HOURBCD     RMB  1
+0011s                 (        DEFINES.D):00050         MINBCD      RMB  1
+0012s                 (        DEFINES.D):00051         SECBCD      RMB  1
+0013s                 (        DEFINES.D):00052         HUNDBCD     RMB  1
+0014s                 (        DEFINES.D):00053                     ENDS
+                      (        DEFINES.D):00054         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00055         ; EOF
+                      (        DEFINES.D):00056         ;------------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00014             INCLUDE BIOS_FUNC_TAB.D     ; BIOS FCN JUMP TABLE AND CONSTANTS
+                      (  BIOS_FUNC_TAB.D):00001         ;------------------------------------------------------------------------------
+                      (  BIOS_FUNC_TAB.D):00002         ; BIOS BIOS FUNCTION JUMP TABLE ADDRESSES
+                      (  BIOS_FUNC_TAB.D):00003         ;------------------------------------------------------------------------------
+     FEA0             (  BIOS_FUNC_TAB.D):00004         FUNC_BASE       EQU  $FEA0          ; SEE 6309/BOOT/MAIN.ASM FOR DEFS
+                      (  BIOS_FUNC_TAB.D):00005         ;------------------------------------------------------------------------------
+     FEA0             (  BIOS_FUNC_TAB.D):00006         BF_V_RESET      EQU  FUNC_BASE+0
+     FEA3             (  BIOS_FUNC_TAB.D):00007         BF_UT_GETC      EQU  FUNC_BASE+3
+     FEA6             (  BIOS_FUNC_TAB.D):00008         BF_UT_GETS      EQU  FUNC_BASE+6
+     FEA9             (  BIOS_FUNC_TAB.D):00009         BF_UT_PUTC      EQU  FUNC_BASE+9    ;
+     FEAC             (  BIOS_FUNC_TAB.D):00010         BF_UT_PUTS      EQU  FUNC_BASE+12
+     FEAF             (  BIOS_FUNC_TAB.D):00011         BF_UT_WAITTX    EQU  FUNC_BASE+15
+     FEB2             (  BIOS_FUNC_TAB.D):00012         BF_UT_CLRSCR    EQU  FUNC_BASE+18
+     FEB5             (  BIOS_FUNC_TAB.D):00013         BF_S_HEXA       EQU  FUNC_BASE+21   ; CONVERT REG A TO HEX OCTET AT X, X+=2
+     FEB8             (  BIOS_FUNC_TAB.D):00014         BF_S_EOL        EQU  FUNC_BASE+24   ; PUT CR, LF, $00 AT X, X+=3
+     FEBB             (  BIOS_FUNC_TAB.D):00015         BF_S_LEN        EQU  FUNC_BASE+27   ; PUT LEN OF STRING AT X INTO REG B
+     FEBE             (  BIOS_FUNC_TAB.D):00016         BF_S_CPY        EQU  FUNC_BASE+30   ; COPY STRING AT Y TO MEM AT X. X+=?
+     FEC1             (  BIOS_FUNC_TAB.D):00017         BF_RTC_GETTIX   EQU  FUNC_BASE+33   ; GET CURRENT SYSTEM TICKS TO I64 AT X.
+     FEC4             (  BIOS_FUNC_TAB.D):00018         BF_S_TOUPPER    EQU  FUNC_BASE+36   ; MAKE A UPPERCASE IF IT IS LOWERCASE
+     FEC7             (  BIOS_FUNC_TAB.D):00019         BF_S_INTD       EQU  FUNC_BASE+39   ; CONVERT REG D TO STRING AT X, X+=?
+     FECA             (  BIOS_FUNC_TAB.D):00020         BF_RTC_SETTIX   EQU  FUNC_BASE+42   ; SET CURRENT SYSTEM TICKS FROM I64 AT X.
+                      (  BIOS_FUNC_TAB.D):00021         ;------------------------------------------------------------------------------
+                      (  BIOS_FUNC_TAB.D):00022         ; EOF
+                      (  BIOS_FUNC_TAB.D):00023         ;------------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00015         ;------------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00016             ORG     $1000   ; VARS
+                      (tiny_pug_with_jin):00017         ; -----------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00018         ; PROGRAM ENTRYPOINT
+                      (tiny_pug_with_jin):00019         ; -----------------------------------------------------------------------------
+1000                  (tiny_pug_with_jin):00020         ENTRYPOINT  
+1000 BD102B           (tiny_pug_with_jin):00021             JSR  DRAW_STARTUP_IMAGE
+1003 8600             (tiny_pug_with_jin):00022             LDA  #0
+1005 B71193           (tiny_pug_with_jin):00023             STA  LASTVAL
+1008 8E11C6           (tiny_pug_with_jin):00024             LDX  #FADEPALETTE
+100B BF1191           (tiny_pug_with_jin):00025             STX  FADEPOS
+100E BD10CA           (tiny_pug_with_jin):00026             JSR  PLAY_STARTUP_SOUND
+1011 39               (tiny_pug_with_jin):00027             RTS
+                      (tiny_pug_with_jin):00028         ; -----------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00029         ; SETS VDP COLOR PALETTE FROM U16 ARRAY AT X, COLOR COUNT IN E
+                      (tiny_pug_with_jin):00030         ; -----------------------------------------------------------------------------
+1012                  (tiny_pug_with_jin):00031         SET_PALETTE     
+1012 8600             (tiny_pug_with_jin):00032             LDA  #0
+1014 B7FFE5           (tiny_pug_with_jin):00033             STA  VREG
+1017 8690             (tiny_pug_with_jin):00034             LDA  #$90
+1019 B7FFE5           (tiny_pug_with_jin):00035             STA  VREG
+101C                  (tiny_pug_with_jin):00036         PAL_LOOP     
+101C A680             (tiny_pug_with_jin):00037             LDA  ,X+
+101E B7FFE6           (tiny_pug_with_jin):00038             STA  VPAL
+1021 A680             (tiny_pug_with_jin):00039             LDA  ,X+
+1023 B7FFE6           (tiny_pug_with_jin):00040             STA  VPAL
+1026 114A             (tiny_pug_with_jin):00041             DECE
+1028 26F2             (tiny_pug_with_jin):00042             BNE  PAL_LOOP
+102A 39               (tiny_pug_with_jin):00043             RTS    
+                      (tiny_pug_with_jin):00044         ; -----------------------------------------------------------------------------
+102B                  (tiny_pug_with_jin):00045         DRAW_STARTUP_IMAGE  
+102B 8E1194           (tiny_pug_with_jin):00046             LDX  #VDP_G4_SEQ ; SET MODE GRAPHICS4
+102E                  (tiny_pug_with_jin):00047         VDP_INIT    
+102E A680             (tiny_pug_with_jin):00048             LDA  ,X+
+1030 B7FFE5           (tiny_pug_with_jin):00049             STA  VREG
+1033 8C11A6           (tiny_pug_with_jin):00050             CMPX #(VDP_G4_SEQ+VDP_G4_SZ)
+1036 25F6             (tiny_pug_with_jin):00051             BLO  VDP_INIT
+1038 8E11A6           (tiny_pug_with_jin):00052             LDX  #BLANKPALETTE   ; SET 16-COLOR PALETTE
+103B 118610           (tiny_pug_with_jin):00053             LDE  #16
+103E BD1012           (tiny_pug_with_jin):00054             JSR  SET_PALETTE
+1041 8604             (tiny_pug_with_jin):00055             LDA  #4
+1043 B71190           (tiny_pug_with_jin):00056             STA  OUTELEMS
+1046 CE1206           (tiny_pug_with_jin):00057             LDU  #IMG       ; POINT X TO START OF RLE DATA
+1049                  (tiny_pug_with_jin):00058         DRAWLOOP    
+1049 A6C0             (tiny_pug_with_jin):00059             LDA  ,U+        ; GET NEXT BYTE OF RLE DATA
+104B 2B35             (tiny_pug_with_jin):00060             BMI  U16ELEM    ; IF TOP BIT SET, NEED TO GET ANOTHER BYTE.
+104D                  (tiny_pug_with_jin):00061         U8ELEM              ; THIS PIXEL RUN IS ENCODED IN ONE BYTE:
+104D 1F89             (tiny_pug_with_jin):00062             TFR  A,B 
+104F C403             (tiny_pug_with_jin):00063             ANDB #3
+1051 F7118C           (tiny_pug_with_jin):00064             STB  PIXCOLR    ; PIXEL COLOR
+1054 44               (tiny_pug_with_jin):00065             LSRA
+1055 44               (tiny_pug_with_jin):00066             LSRA    
+1056 4C               (tiny_pug_with_jin):00067             INCA
+1057 B7118E           (tiny_pug_with_jin):00068             STA  PIXCNT+1   ; RUN LENGTH
+105A                  (tiny_pug_with_jin):00069         DRAWPIXELS8  
+105A F6118F           (tiny_pug_with_jin):00070             LDB  OUTBYTE
+105D                  (tiny_pug_with_jin):00071         LOOPPIXELS8         ; SHIFT PIXEL INTO OUTPUT BYTE
+105D 58               (tiny_pug_with_jin):00072             LSLB
+105E 58               (tiny_pug_with_jin):00073             LSLB
+105F FA118C           (tiny_pug_with_jin):00074             ORB  PIXCOLR
+1062 7A1190           (tiny_pug_with_jin):00075             DEC  OUTELEMS
+1065 260A             (tiny_pug_with_jin):00076             BNE  SKIPPLOT8
+1067 F7FFE4           (tiny_pug_with_jin):00077             STB  VDAT       ; EVERY FOUR PIXELS, SEND BYTE THE VDP
+106A 8604             (tiny_pug_with_jin):00078             LDA  #4
+106C B71190           (tiny_pug_with_jin):00079             STA  OUTELEMS       
+106F 2003             (tiny_pug_with_jin):00080             BRA  ELOOP8
+1071                  (tiny_pug_with_jin):00081         SKIPPLOT8
+1071 F7118F           (tiny_pug_with_jin):00082             STB  OUTBYTE
+1074                  (tiny_pug_with_jin):00083         ELOOP8
+1074 7A118E           (tiny_pug_with_jin):00084             DEC  PIXCNT+1   ; CHECK FOR END OF PIXEL RUN
+1077 26E4             (tiny_pug_with_jin):00085             BNE  LOOPPIXELS8
+1079 11831443         (tiny_pug_with_jin):00086             CMPU #ENDIMG    ; CHECK FOR END OF IMAGE
+107D 26CA             (tiny_pug_with_jin):00087             BNE  DRAWLOOP
+107F 7E10C4           (tiny_pug_with_jin):00088             JMP  DRAWING_DONE
+1082                  (tiny_pug_with_jin):00089         U16ELEM             ; THIS PIXEL RUN IS ENCODED IN TWO BYTES:
+1082 E6C0             (tiny_pug_with_jin):00090             LDB  ,U+  
+1084 847F             (tiny_pug_with_jin):00091             ANDA #$7F
+1086 1F06             (tiny_pug_with_jin):00092             TFR  D,W
+1088 C403             (tiny_pug_with_jin):00093             ANDB #3
+108A F7118C           (tiny_pug_with_jin):00094             STB  PIXCOLR    ; PIXEL COLOR
+108D 1F60             (tiny_pug_with_jin):00095             TFR  W,D
+108F 1044             (tiny_pug_with_jin):00096             LSRD
+1091 1044             (tiny_pug_with_jin):00097             LSRD
+1093 104C             (tiny_pug_with_jin):00098             INCD
+1095 FD118D           (tiny_pug_with_jin):00099             STD  PIXCNT     ; RUN LENGTH   
+1098                  (tiny_pug_with_jin):00100         DRAWPIXELS          ; SHIFT PIXEL INTO OUTPUT BYTE
+1098 F6118F           (tiny_pug_with_jin):00101             LDB  OUTBYTE
+109B                  (tiny_pug_with_jin):00102         LOOPPIXELS16
+109B 58               (tiny_pug_with_jin):00103             LSLB
+109C 58               (tiny_pug_with_jin):00104             LSLB
+109D FA118C           (tiny_pug_with_jin):00105             ORB  PIXCOLR
+10A0 7A1190           (tiny_pug_with_jin):00106             DEC  OUTELEMS
+10A3 260A             (tiny_pug_with_jin):00107             BNE  SKIPPLOT
+10A5 F7FFE4           (tiny_pug_with_jin):00108             STB  VDAT       ; EVERY FOUR PIXELS, SEND BYTE THE VDP
+10A8 8604             (tiny_pug_with_jin):00109             LDA  #4
+10AA B71190           (tiny_pug_with_jin):00110             STA  OUTELEMS       
+10AD 2003             (tiny_pug_with_jin):00111             BRA  ELOOP
+10AF                  (tiny_pug_with_jin):00112         SKIPPLOT
+10AF F7118F           (tiny_pug_with_jin):00113             STB  OUTBYTE
+10B2                  (tiny_pug_with_jin):00114         ELOOP
+10B2 10B6118D         (tiny_pug_with_jin):00115             LDW  PIXCNT
+10B6 105A             (tiny_pug_with_jin):00116             DECW
+10B8 10B7118D         (tiny_pug_with_jin):00117             STW  PIXCNT     ; CHECK FOR END OF PIXEL RUN
+10BC 26DD             (tiny_pug_with_jin):00118             BNE  LOOPPIXELS16
+10BE 11831443         (tiny_pug_with_jin):00119             CMPU #ENDIMG    ; CHECK FOR END OF IMAGE
+10C2 2685             (tiny_pug_with_jin):00120             BNE DRAWLOOP
+10C4                  (tiny_pug_with_jin):00121         DRAWING_DONE:
+10C4 C600             (tiny_pug_with_jin):00122             LDB  #0
+10C6 F7FFE4           (tiny_pug_with_jin):00123             STB  VDAT       ; PLOT THAT LAST PIXEL
+10C9 39               (tiny_pug_with_jin):00124             RTS             ; IMAGE DONE.
+                      (tiny_pug_with_jin):00125         ; -----------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00126         ; PLAY STARTUP SOUND USING THE YAMAHA YMF262M (OPL3) MUSIC SYNTHESIZER
+                      (tiny_pug_with_jin):00127         ; -----------------------------------------------------------------------------
+10CA                  (tiny_pug_with_jin):00128         PLAY_STARTUP_SOUND   
+10CA 8E1443           (tiny_pug_with_jin):00129             LDX  #SONG
+10CD                  (tiny_pug_with_jin):00130         SONGLOOP
+10CD A680             (tiny_pug_with_jin):00131             LDA  ,X+
+10CF 815A             (tiny_pug_with_jin):00132             CMPA #$5A
+10D1 2721             (tiny_pug_with_jin):00133             BEQ  WR_BANK0
+10D3 815F             (tiny_pug_with_jin):00134             CMPA #$5F
+10D5 2710             (tiny_pug_with_jin):00135             BEQ  WR_BANK1
+10D7 8161             (tiny_pug_with_jin):00136             CMPA #$61
+10D9 2703             (tiny_pug_with_jin):00137             BEQ  DLY_VAR0
+10DB 7E10FE           (tiny_pug_with_jin):00138             JMP  LOOPEND                             
+10DE                  (tiny_pug_with_jin):00139         DLY_VAR0
+10DE 10AE81           (tiny_pug_with_jin):00140             LDY  ,X++
+10E1 BD1163           (tiny_pug_with_jin):00141             JSR  DELAY
+10E4 7E10FE           (tiny_pug_with_jin):00142             JMP  LOOPEND
+10E7                  (tiny_pug_with_jin):00143         WR_BANK1
+10E7 A680             (tiny_pug_with_jin):00144             LDA  ,X+
+10E9 E680             (tiny_pug_with_jin):00145             LDB  ,X+
+10EB 118601           (tiny_pug_with_jin):00146             LDE  #1
+10EE BD1146           (tiny_pug_with_jin):00147             JSR  OPL_WRITE
+10F1 7E10FE           (tiny_pug_with_jin):00148             JMP  LOOPEND
+10F4                  (tiny_pug_with_jin):00149         WR_BANK0
+10F4 A680             (tiny_pug_with_jin):00150             LDA  ,X+
+10F6 E680             (tiny_pug_with_jin):00151             LDB  ,X+
+10F8 118600           (tiny_pug_with_jin):00152             LDE  #0
+10FB BD1146           (tiny_pug_with_jin):00153             JSR  OPL_WRITE
+10FE                  (tiny_pug_with_jin):00154         LOOPEND
+10FE BDFEA3           (tiny_pug_with_jin):00155             JSR  BF_UT_GETC
+1101 811B             (tiny_pug_with_jin):00156             CMPA #$1B
+1103 2722             (tiny_pug_with_jin):00157             BEQ  ENDLOOP
+1105 1F10             (tiny_pug_with_jin):00158             TFR  X,D
+1107 1044             (tiny_pug_with_jin):00159             LSRD
+1109 1044             (tiny_pug_with_jin):00160             LSRD
+110B 1044             (tiny_pug_with_jin):00161             LSRD
+110D 1044             (tiny_pug_with_jin):00162             LSRD
+110F 1044             (tiny_pug_with_jin):00163             LSRD
+1111 1044             (tiny_pug_with_jin):00164             LSRD  
+1113 1044             (tiny_pug_with_jin):00165             LSRD  
+1115 F11193           (tiny_pug_with_jin):00166             CMPB LASTVAL 
+1118 2706             (tiny_pug_with_jin):00167             BEQ  SKIPFADE
+111A F71193           (tiny_pug_with_jin):00168             STB  LASTVAL
+111D BD116D           (tiny_pug_with_jin):00169             JSR DOFADE
+1120                  (tiny_pug_with_jin):00170         SKIPFADE
+1120 8C19F2           (tiny_pug_with_jin):00171             CMPX #ENDSONG
+1123 1026FFA6         (tiny_pug_with_jin):00172             LBNE SONGLOOP
+1127                  (tiny_pug_with_jin):00173         ENDLOOP     
+1127 BD112B           (tiny_pug_with_jin):00174             JSR  OPL_RESET
+112A 39               (tiny_pug_with_jin):00175             RTS             ; ALL DONE.
+                      (tiny_pug_with_jin):00176         ; -----------------------------------------------------------------------------
+112B                  (tiny_pug_with_jin):00177         OPL_RESET:
+112B 118600           (tiny_pug_with_jin):00178             LDE  #0
+112E 8600             (tiny_pug_with_jin):00179             LDA  #0
+1130 C600             (tiny_pug_with_jin):00180             LDB  #0
+1132 BD1146           (tiny_pug_with_jin):00181         L0  JSR  OPL_WRITE
+1135 4C               (tiny_pug_with_jin):00182             INCA  
+1136 26FA             (tiny_pug_with_jin):00183             BNE  L0
+1138 118601           (tiny_pug_with_jin):00184             LDE  #1
+113B 8600             (tiny_pug_with_jin):00185             LDA  #0
+113D C600             (tiny_pug_with_jin):00186             LDB  #0
+113F BD1146           (tiny_pug_with_jin):00187         L1  JSR  OPL_WRITE
+1142 4C               (tiny_pug_with_jin):00188             INCA  
+1143 26FA             (tiny_pug_with_jin):00189             BNE  L1
+1145 39               (tiny_pug_with_jin):00190             RTS
+                      (tiny_pug_with_jin):00191         ; -----------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00192         ; POKES SPECIFIED VALUE INTO SPECIFIED REGISTER OF SOUNDCHIP (YMF-262M)
+                      (tiny_pug_with_jin):00193         ; A = REG NUM, B = VALUE, E = OPL3 BANK NUMBER (0,1)           
+                      (tiny_pug_with_jin):00194         ; -----------------------------------------------------------------------------
+1146                  (tiny_pug_with_jin):00195         OPL_WRITE
+1146 118100           (tiny_pug_with_jin):00196             CMPE #00
+1149 270C             (tiny_pug_with_jin):00197             BEQ  BANK0
+114B                  (tiny_pug_with_jin):00198         BANK1
+114B B7FFE2           (tiny_pug_with_jin):00199             STA  OPL3_BASE+2
+114E 12               (tiny_pug_with_jin):00200             NOP
+114F 12               (tiny_pug_with_jin):00201             NOP
+1150 12               (tiny_pug_with_jin):00202             NOP
+1151 F7FFE3           (tiny_pug_with_jin):00203             STB  OPL3_BASE+3
+1154 12               (tiny_pug_with_jin):00204             NOP
+1155 12               (tiny_pug_with_jin):00205             NOP
+1156 39               (tiny_pug_with_jin):00206             RTS
+1157                  (tiny_pug_with_jin):00207         BANK0
+1157 B7FFE0           (tiny_pug_with_jin):00208             STA  OPL3_BASE+0
+115A 12               (tiny_pug_with_jin):00209             NOP
+115B 12               (tiny_pug_with_jin):00210             NOP
+115C 12               (tiny_pug_with_jin):00211             NOP
+115D F7FFE1           (tiny_pug_with_jin):00212             STB  OPL3_BASE+1
+1160 12               (tiny_pug_with_jin):00213             NOP
+1161 12               (tiny_pug_with_jin):00214             NOP
+1162 39               (tiny_pug_with_jin):00215             RTS
+                      (tiny_pug_with_jin):00216         ; -----------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00217         ; WAIT THE NUMBER OF SAMPLE PERIODS GIVEN IN Y. THE SAMPLE RATE IS 44100 HZ.
+                      (tiny_pug_with_jin):00218         ;
+                      (tiny_pug_with_jin):00219         ; THIS IS JUST A BUSYLOOP FOR NOW, BUT IT WOULD BE NICE TO HAVE A PERIODIC 
+                      (tiny_pug_with_jin):00220         ; INTERRUPT INSTEAD SO WE CAN DO OTHER THINGS LIKE FADE-IN THE SPLASH SCREEN.
+                      (tiny_pug_with_jin):00221         ; -----------------------------------------------------------------------------
+1163                  (tiny_pug_with_jin):00222         DELAY
+1163 C611             (tiny_pug_with_jin):00223             LDB  #17
+1165                  (tiny_pug_with_jin):00224         DLOOP
+1165 5A               (tiny_pug_with_jin):00225             DECB
+1166 26FD             (tiny_pug_with_jin):00226             BNE  DLOOP
+1168 313F             (tiny_pug_with_jin):00227             LEAY -1,Y
+116A 26F7             (tiny_pug_with_jin):00228             BNE  DELAY
+116C 39               (tiny_pug_with_jin):00229             RTS
+                      (tiny_pug_with_jin):00230         ; -----------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00231         ; CALLED PERIODICALLY DURING STARTUP TUNE TO FADE THE PUG IN
+                      (tiny_pug_with_jin):00232         ; -----------------------------------------------------------------------------
+116D                  (tiny_pug_with_jin):00233         DOFADE:
+116D 3436             (tiny_pug_with_jin):00234             PSHS X,Y,D
+116F 1038             (tiny_pug_with_jin):00235             PSHSW
+1171 BE1191           (tiny_pug_with_jin):00236             LDX  FADEPOS
+1174 8C11FE           (tiny_pug_with_jin):00237             CMPX #PALETTE
+1177 2E0E             (tiny_pug_with_jin):00238             BGT  NOFADE
+1179 118604           (tiny_pug_with_jin):00239             LDE  #4
+117C BD1012           (tiny_pug_with_jin):00240             JSR  SET_PALETTE
+117F BE1191           (tiny_pug_with_jin):00241             LDX  FADEPOS
+1182 3008             (tiny_pug_with_jin):00242             LEAX 8,X
+1184 BF1191           (tiny_pug_with_jin):00243             STX  FADEPOS
+1187                  (tiny_pug_with_jin):00244         NOFADE:
+1187 1039             (tiny_pug_with_jin):00245             PULSW
+1189 3536             (tiny_pug_with_jin):00246             PULS X,Y,D
+118B 39               (tiny_pug_with_jin):00247             RTS
+                      (tiny_pug_with_jin):00248         ; -----------------------------------------------------------------------------
+118C                  (tiny_pug_with_jin):00249         PIXCOLR     RMB     1
+118D                  (tiny_pug_with_jin):00250         PIXCNT      RMB     2
+118F                  (tiny_pug_with_jin):00251         OUTBYTE     RMB     1
+1190                  (tiny_pug_with_jin):00252         OUTELEMS    RMB     1
+1191                  (tiny_pug_with_jin):00253         FADEPOS     RMB     2
+1193                  (tiny_pug_with_jin):00254         LASTVAL     RMB     1
+     0012             (tiny_pug_with_jin):00255         VDP_G4_SZ   EQU     18      ; INIT SEQ FOR VDP MODE GRAPHICS4 (512 X 212 X 16)
+1194 0099108708804081 (tiny_pug_with_jin):00256         VDP_G4_SEQ  FCB     $00,$99,$10,$87,$08,$80,$40,$81,$0A,$88,$80,$89,$1F,$82,$00,$8E,$00,$40
+     0A8880891F82008E
+     0040
+                      (tiny_pug_with_jin):00257         ; -----------------------------------------------------------------------------
+11A6                  (tiny_pug_with_jin):00258         BLANKPALETTE:
+11A6 7707770777077707 (tiny_pug_with_jin):00259             FDB $7707,$7707,$7707,$7707,$7707,$7707,$7707,$7707,$7707,$7707,$7707,$7707,$7707,$7707,$7707,$7707
+     7707770777077707
+     7707770777077707
+     7707770777077707
+11C6                  (tiny_pug_with_jin):00260         FADEPALETTE:
+11C6 7707770777077707 (tiny_pug_with_jin):00261             FDB $7707,$7707,$7707,$7707
+11CE 7707660677077707 (tiny_pug_with_jin):00262             FDB $7707,$6606,$7707,$7707
+11D6 7707550577076606 (tiny_pug_with_jin):00263             FDB $7707,$5505,$7707,$6606
+11DE 7707440466066606 (tiny_pug_with_jin):00264             FDB $7707,$4404,$6606,$6606
+11E6 7707330355055505 (tiny_pug_with_jin):00265             FDB $7707,$3303,$5505,$5505
+11EE 7707220244045505 (tiny_pug_with_jin):00266             FDB $7707,$2202,$4404,$5505
+11F6 7707110133034404 (tiny_pug_with_jin):00267             FDB $7707,$1101,$3303,$4404
+11FE                  (tiny_pug_with_jin):00268         PALETTE:
+11FE 7707000022024404 (tiny_pug_with_jin):00269             FDB $7707,$0000,$2202,$4404
+1206                  (tiny_pug_with_jin):00270         IMG:
+1206 FFF8FFF8FFF8FFF8 (tiny_pug_with_jin):00271             FCB $FF,$F8,$FF,$F8,$FF,$F8,$FF,$F8,$FF,$F8,$CC,$28,$13,$12,$03,$87
+     FFF8CC2813120387
+1216 B41301030C0F0E05 (tiny_pug_with_jin):00272             FCB $B4,$13,$01,$03,$0C,$0F,$0E,$05,$02,$07,$87,$88,$02,$05,$02,$07
+     0207878802050207
+1226 0C07200302010E0D (tiny_pug_with_jin):00273             FCB $0C,$07,$20,$03,$02,$01,$0E,$0D,$02,$87,$70,$03,$01,$06,$03,$50
+     0287700301060350
+1236 02010E0106010387 (tiny_pug_with_jin):00274             FCB $02,$01,$0E,$01,$06,$01,$03,$87,$64,$02,$01,$02,$01,$02,$58,$03
+     6402010201025803
+1246 011A010387540305 (tiny_pug_with_jin):00275             FCB $01,$1A,$01,$03,$87,$54,$03,$05,$06,$01,$02,$38,$03,$02,$0F,$02
+     0601023803020F02
+1256 0304030116010287 (tiny_pug_with_jin):00276             FCB $03,$04,$03,$01,$16,$01,$02,$87,$4C,$03,$01,$02,$01,$0A,$01,$04
+     4C030102010A0104
+1266 0302070614030228 (tiny_pug_with_jin):00277             FCB $03,$02,$07,$06,$14,$03,$02,$28,$03,$01,$12,$01,$87,$4C,$03,$01
+     03011201874C0301
+1276 1201031C02180312 (tiny_pug_with_jin):00278             FCB $12,$01,$03,$1C,$02,$18,$03,$12,$01,$02,$03,$08,$02,$01,$0A,$01
+     0102030802010A01
+1286 02874C0112050403 (tiny_pug_with_jin):00279             FCB $02,$87,$4C,$01,$12,$05,$04,$03,$05,$0E,$03,$08,$07,$00,$03,$0A
+     050E03080700030A
+1296 010300090208010A (tiny_pug_with_jin):00280             FCB $01,$03,$00,$09,$02,$08,$01,$0A,$01,$03,$87,$4C,$05,$0E,$01,$04
+     0103874C050E0104
+12A6 020003090E150A19 (tiny_pug_with_jin):00281             FCB $02,$00,$03,$09,$0E,$15,$0A,$19,$03,$04,$02,$01,$06,$01,$87,$54
+     0304020106018754
+12B6 02010A0100031902 (tiny_pug_with_jin):00282             FCB $02,$01,$0A,$01,$00,$03,$19,$02,$41,$02,$0C,$02,$01,$02,$87,$60
+     41020C0201028760
+12C6 0106010003150221 (tiny_pug_with_jin):00283             FCB $01,$06,$01,$00,$03,$15,$02,$21,$06,$0D,$0E,$10,$02,$87,$24,$06
+     060D0E1002872406
+12D6 0B02032409040605 (tiny_pug_with_jin):00284             FCB $0B,$02,$03,$24,$09,$04,$06,$05,$06,$05,$06,$11,$16,$15,$02,$08
+     0605061116150208
+12E6 02871C0618020310 (tiny_pug_with_jin):00285             FCB $02,$87,$1C,$06,$18,$02,$03,$10,$0B,$02,$01,$08,$02,$11,$16,$05
+     0B02010802111605
+12F6 3203080187180302 (tiny_pug_with_jin):00286             FCB $32,$03,$08,$01,$87,$18,$03,$02,$1C,$03,$01,$03,$02,$0B,$0C,$01
+     1C030103020B0C01
+1306 0402012611220103 (tiny_pug_with_jin):00287             FCB $04,$02,$01,$26,$11,$22,$01,$03,$08,$03,$02,$87,$18,$03,$02,$04
+     0803028718030204
+1316 070C062001040326 (tiny_pug_with_jin):00288             FCB $07,$0C,$06,$20,$01,$04,$03,$26,$19,$1A,$01,$03,$0C,$01,$87,$20
+     191A01030C018720
+1326 0203040603060324 (tiny_pug_with_jin):00289             FCB $02,$03,$04,$06,$03,$06,$03,$24,$03,$02,$04,$03,$02,$01,$16,$01
+     0302040302011601
+1336 0200030104071102 (tiny_pug_with_jin):00290             FCB $02,$00,$03,$01,$04,$07,$11,$02,$03,$0C,$02,$87,$28,$03,$02,$03
+     030C028728030203
+1346 0203380203080305 (tiny_pug_with_jin):00291             FCB $02,$03,$38,$02,$03,$08,$03,$05,$0A,$05,$08,$07,$04,$03,$01,$02
+     0A05080704030102
+1356 0102100302873403 (tiny_pug_with_jin):00292             FCB $01,$02,$10,$03,$02,$87,$34,$03,$02,$40,$03,$02,$0C,$03,$06,$09
+     024003020C030609
+1366 02030C0301020510 (tiny_pug_with_jin):00293             FCB $02,$03,$0C,$03,$01,$02,$05,$10,$06,$87,$38,$07,$48,$02,$03,$14
+     0687380748020314
+1376 020D060D02080302 (tiny_pug_with_jin):00294             FCB $02,$0D,$06,$0D,$02,$08,$03,$02,$03,$01,$87,$3C,$01,$54,$03,$02
+     0301873C01540302
+1386 070C03020D020318 (tiny_pug_with_jin):00295             FCB $07,$0C,$03,$02,$0D,$02,$03,$18,$07,$87,$38,$03,$02,$64,$0B,$38
+     0787380302640B38
+1396 0302873C0180AC03 (tiny_pug_with_jin):00296             FCB $03,$02,$87,$3C,$01,$80,$AC,$03,$02,$87,$3C,$01,$80,$AC,$07,$87
+     02873C0180AC0787
+13A6 3C0203809C030200 (tiny_pug_with_jin):00297             FCB $3C,$02,$03,$80,$9C,$03,$02,$00,$02,$03,$87,$40,$01,$58,$03,$28
+     0203874001580328
+13B6 0203080302000203 (tiny_pug_with_jin):00298             FCB $02,$03,$08,$03,$02,$00,$02,$03,$87,$44,$02,$28,$03,$02,$07,$06
+     8744022803020706
+13C6 030C030224020304 (tiny_pug_with_jin):00299             FCB $03,$0C,$03,$02,$24,$02,$03,$04,$03,$02,$03,$00,$02,$03,$87,$48
+     0302030002038748
+13D6 0118030601031002 (tiny_pug_with_jin):00300             FCB $01,$18,$03,$06,$01,$03,$10,$02,$01,$03,$08,$01,$24,$01,$07,$02
+     0103080124010702
+13E6 030801874C011401 (tiny_pug_with_jin):00301             FCB $03,$08,$01,$87,$4C,$01,$14,$01,$03,$04,$03,$01,$10,$03,$01,$03
+     0304030110030103
+13F6 0A01032001031003 (tiny_pug_with_jin):00302             FCB $0A,$01,$03,$20,$01,$03,$10,$03,$02,$87,$4C,$03,$02,$0C,$03,$02
+     02874C03020C0302
+1406 0C03060706030807 (tiny_pug_with_jin):00303             FCB $0C,$03,$06,$07,$06,$03,$08,$07,$01,$20,$01,$18,$01,$03,$87,$4C
+     012001180103874C
+1416 031203140F18061C (tiny_pug_with_jin):00304             FCB $03,$12,$03,$14,$0F,$18,$06,$1C,$01,$03,$10,$03,$01,$03,$87,$B0
+     01031003010387B0
+1426 030218010A030A03 (tiny_pug_with_jin):00305             FCB $03,$02,$18,$01,$0A,$03,$0A,$03,$87,$B8,$03,$06,$0F,$02,$03,$04
+     87B803060F020304
+1436 0BFFF8FFF8FFF8FF (tiny_pug_with_jin):00306             FCB $0B,$FF,$F8,$FF,$F8,$FF,$F8,$FF,$F8,$FF,$F8,$D3,$E0
+     F8FFF8D3E0
+1443                  (tiny_pug_with_jin):00307         ENDIMG
+                      (tiny_pug_with_jin):00308         ;------------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00309         ; PUGPUTER STARTUP SOUND IN VGM FORMAT (MUSIC BY BISQWIT)
+                      (tiny_pug_with_jin):00310         ; NOTE THE TWO ARGUMENT BYTES OF DELAY COMMAND (OPCODE $61) ARE SWAPPED TO 
+                      (tiny_pug_with_jin):00311         ; BIG ENDIAN FORM, BECAUSE LITTLE ENDIAN IS LAME.
+                      (tiny_pug_with_jin):00312         ;
+                      (tiny_pug_with_jin):00313         ; TODO: MORE SPACE-EFFICIENT FORMAT
+                      (tiny_pug_with_jin):00314         ;------------------------------------------------------------------------------
+1443                  (tiny_pug_with_jin):00315         SONG:
+1443 5AB0005AB1005AB2 (tiny_pug_with_jin):00316             FCB $5A,$B0,$00,$5A,$B1,$00,$5A,$B2,$00,$5A,$B3,$00,$5A,$B4,$00,$5A,$B5,$00
+     005AB3005AB4005A
+     B500
+1455 5AB6005AB7005AB8 (tiny_pug_with_jin):00317             FCB $5A,$B6,$00,$5A,$B7,$00,$5A,$B8,$00,$5F,$B0,$00,$5F,$B1,$00,$5F,$B2,$00
+     005FB0005FB1005F
+     B200
+1467 5FB3005FB4005FB5 (tiny_pug_with_jin):00318             FCB $5F,$B3,$00,$5F,$B4,$00,$5F,$B5,$00,$5F,$B6,$00,$5F,$B7,$00,$5F,$B8,$00
+     005FB6005FB7005F
+     B800
+1479 5A04605A04805F05 (tiny_pug_with_jin):00319             FCB $5A,$04,$60,$5A,$04,$80,$5F,$05,$00,$5F,$05,$01,$5F,$05,$00,$5A,$01,$20
+     005F05015F05005A
+     0120
+148B 5F05015ABDC05F04 (tiny_pug_with_jin):00320             FCB $5F,$05,$01,$5A,$BD,$C0,$5F,$04,$3F,$5A,$20,$21,$5A,$21,$30,$5A,$22,$30
+     3F5A20215A21305A
+     2230
+149D 5A23615A24A05A25 (tiny_pug_with_jin):00321             FCB $5A,$23,$61,$5A,$24,$A0,$5A,$25,$A0,$5A,$28,$A1,$5A,$29,$61,$5A,$2A,$61
+     A05A28A15A29615A
+     2A61
+14AF 5A2B215A2C215A2D (tiny_pug_with_jin):00322             FCB $5A,$2B,$21,$5A,$2C,$21,$5A,$2D,$21,$5A,$30,$31,$5A,$31,$31,$5A,$32,$31
+     215A30315A31315A
+     3231
+14C1 5A33315A34345A35 (tiny_pug_with_jin):00323             FCB $5A,$33,$31,$5A,$34,$34,$5A,$35,$34,$5A,$40,$16,$5A,$41,$98,$5A,$42,$98
+     345A40165A41985A
+     4298
+14D3 5A43095A44085A45 (tiny_pug_with_jin):00324             FCB $5A,$43,$09,$5A,$44,$08,$5A,$45,$08,$5A,$48,$8A,$5A,$49,$92,$5A,$4A,$92
+     085A488A5A49925A
+     4A92
+14E5 5A4B005A4C065A4D (tiny_pug_with_jin):00325             FCB $5A,$4B,$00,$5A,$4C,$06,$5A,$4D,$06,$5A,$50,$8D,$5A,$51,$0A,$5A,$52,$0A
+     065A508D5A510A5A
+     520A
+14F7 5A53005A54055A55 (tiny_pug_with_jin):00326             FCB $5A,$53,$00,$5A,$54,$05,$5A,$55,$0A,$5A,$60,$C2,$5A,$61,$61,$5A,$62,$61
+     0A5A60C25A61615A
+     6261
+1509 5A63CF5A64645A65 (tiny_pug_with_jin):00327             FCB $5A,$63,$CF,$5A,$64,$64,$5A,$65,$64,$5A,$68,$74,$5A,$69,$65,$5A,$6A,$65
+     645A68745A69655A
+     6A65
+151B 5A6B7F5A6C655A6D (tiny_pug_with_jin):00328             FCB $5A,$6B,$7F,$5A,$6C,$65,$5A,$6D,$65,$5A,$70,$F1,$5A,$71,$A8,$5A,$72,$A8
+     655A70F15A71A85A
+     72A8
+152D 5A73F15A74D25A75 (tiny_pug_with_jin):00329             FCB $5A,$73,$F1,$5A,$74,$D2,$5A,$75,$D2,$5A,$80,$35,$5A,$81,$03,$5A,$82,$03
+     D25A80355A81035A
+     8203
+153F 5A830A5A84175A85 (tiny_pug_with_jin):00330             FCB $5A,$83,$0A,$5A,$84,$17,$5A,$85,$17,$5A,$88,$45,$5A,$89,$17,$5A,$8A,$17
+     175A88455A89175A
+     8A17
+1551 5A8B085A8C175A8D (tiny_pug_with_jin):00331             FCB $5A,$8B,$08,$5A,$8C,$17,$5A,$8D,$17,$5A,$90,$E8,$5A,$91,$10,$5A,$92,$10
+     175A90E85A91105A
+     9210
+1563 5A93785A94B95A95 (tiny_pug_with_jin):00332             FCB $5A,$93,$78,$5A,$94,$B9,$5A,$95,$B9,$5A,$A0,$58,$5A,$A1,$B0,$5A,$A2,$03
+     B95AA0585AA1B05A
+     A203
+1575 5AA3585AA4B05AA5 (tiny_pug_with_jin):00333             FCB $5A,$A3,$58,$5A,$A4,$B0,$5A,$A5,$03,$5A,$A6,$B0,$5A,$A7,$03,$5A,$A8,$B8
+     035AA6B05AA7035A
+     A8B8
+1587 5AB0215AB12E5AB2 (tiny_pug_with_jin):00334             FCB $5A,$B0,$21,$5A,$B1,$2E,$5A,$B2,$2E,$5A,$B3,$21,$5A,$B4,$2E,$5A,$B5,$2E
+     2E5AB3215AB42E5A
+     B52E
+1599 5AB6225AB73A5AB8 (tiny_pug_with_jin):00335             FCB $5A,$B6,$22,$5A,$B7,$3A,$5A,$B8,$32,$5A,$C0,$3E,$5A,$C1,$3E,$5A,$C2,$2E
+     325AC03E5AC13E5A
+     C22E
+15AB 5AC33F5AC43F5AC5 (tiny_pug_with_jin):00336             FCB $5A,$C3,$3F,$5A,$C4,$3F,$5A,$C5,$2F,$5A,$C6,$3A,$5A,$C7,$36,$5A,$C8,$36
+     2F5AC63A5AC7365A
+     C836
+15BD 5AE0005AE1025AE2 (tiny_pug_with_jin):00337             FCB $5A,$E0,$00,$5A,$E1,$02,$5A,$E2,$02,$5A,$E3,$00,$5A,$E4,$02,$5A,$E5,$02
+     025AE3005AE4025A
+     E502
+15CF 5AE8005AE9015AEA (tiny_pug_with_jin):00338             FCB $5A,$E8,$00,$5A,$E9,$01,$5A,$EA,$01,$5A,$EB,$00,$5A,$EC,$00,$5A,$ED,$00
+     015AEB005AEC005A
+     ED00
+15E1 5AF0005AF1005AF2 (tiny_pug_with_jin):00339             FCB $5A,$F0,$00,$5A,$F1,$00,$5A,$F2,$00,$5A,$F3,$00,$5A,$F4,$01,$5A,$F5,$01
+     005AF3005AF4015A
+     F501
+15F3 5F300E5F33005F40 (tiny_pug_with_jin):00340             FCB $5F,$30,$0E,$5F,$33,$00,$5F,$40,$BF,$5F,$41,$BF,$5F,$42,$BF,$5F,$43,$9E
+     BF5F41BF5F42BF5F
+     439E
+1605 5F449E5F459E5F48 (tiny_pug_with_jin):00341             FCB $5F,$44,$9E,$5F,$45,$9E,$5F,$48,$BF,$5F,$49,$BF,$5F,$4A,$BF,$5F,$4B,$BF
+     BF5F49BF5F4ABF5F
+     4BBF
+1617 5F4CBF5F4DBF5F50 (tiny_pug_with_jin):00342             FCB $5F,$4C,$BF,$5F,$4D,$BF,$5F,$50,$00,$5F,$51,$BF,$5F,$52,$BF,$5F,$53,$00
+     005F51BF5F52BF5F
+     5300
+1629 5F54BF5F55BF5F70 (tiny_pug_with_jin):00343             FCB $5F,$54,$BF,$5F,$55,$BF,$5F,$70,$1E,$5F,$73,$18,$5F,$90,$00,$5F,$93,$FE
+     1E5F73185F90005F
+     93FE
+163B 5FA6635FB6335FC6 (tiny_pug_with_jin):00344             FCB $5F,$A6,$63,$5F,$B6,$33,$5F,$C6,$3E,$5F,$F0,$00,$5F,$F3,$03,$61,$23,$E7
+     3E5FF0005FF30361
+     23E7
+164D 5F31315F510A5F71 (tiny_pug_with_jin):00345             FCB $5F,$31,$31,$5F,$51,$0A,$5F,$71,$A8,$5F,$91,$10,$5F,$F1,$00,$5F,$34,$34
+     A85F91105FF1005F
+     3434
+165F 5F54055F74D25F94 (tiny_pug_with_jin):00346             FCB $5F,$54,$05,$5F,$74,$D2,$5F,$94,$B9,$5F,$F4,$01,$5F,$A7,$63,$5F,$B7,$37
+     B95FF4015FA7635F
+     B737
+1671 5FC736611D605AB7 (tiny_pug_with_jin):00347             FCB $5F,$C7,$36,$61,$1D,$60,$5A,$B7,$1A,$61,$03,$44,$5F,$20,$21,$5F,$40,$16
+     1A6103445F20215F
+     4016
+1683 5F60C25F80355FA0 (tiny_pug_with_jin):00348             FCB $5F,$60,$C2,$5F,$80,$35,$5F,$A0,$63,$5F,$B0,$27,$5F,$C0,$3E,$5F,$E0,$00
+     635FB0275FC03E5F
+     E000
+1695 5F23615F32315F43 (tiny_pug_with_jin):00349             FCB $5F,$23,$61,$5F,$32,$31,$5F,$43,$10,$5F,$52,$0A,$5F,$63,$CF,$5F,$72,$A8
+     105F520A5F63CF5F
+     72A8
+16A7 5F830A5F92105FA3 (tiny_pug_with_jin):00350             FCB $5F,$83,$0A,$5F,$92,$10,$5F,$A3,$63,$5F,$B3,$27,$5F,$C3,$3F,$5F,$E3,$00
+     635FB3275FC33F5F
+     E300
+16B9 5FF2005A44055A54 (tiny_pug_with_jin):00351             FCB $5F,$F2,$00,$5A,$44,$05,$5A,$54,$0A,$5F,$35,$34,$5A,$45,$05,$5F,$55,$05
+     0A5F35345A45055F
+     5505
+16CB 5F75D25F95B95FF5 (tiny_pug_with_jin):00352             FCB $5F,$75,$D2,$5F,$95,$B9,$5F,$F5,$01,$5A,$A7,$B8,$5A,$B7,$36,$5A,$B8,$12
+     015AA7B85AB7365A
+     B812
+16DD 5F28A15F488A5F68 (tiny_pug_with_jin):00353             FCB $5F,$28,$A1,$5F,$48,$8A,$5F,$68,$74,$5F,$88,$45,$5F,$A8,$B0,$5F,$B8,$3A
+     745F88455FA8B05F
+     B83A
+16EF 5FC8365FE8005F2B (tiny_pug_with_jin):00354             FCB $5F,$C8,$36,$5F,$E8,$00,$5F,$2B,$21,$5F,$4B,$09,$5F,$6B,$7F,$5F,$8B,$08
+     215F4B095F6B7F5F
+     8B08
+1701 5FEB005A4C035A4D (tiny_pug_with_jin):00355             FCB $5F,$EB,$00,$5A,$4C,$03,$5A,$4D,$03,$61,$16,$D9,$5A,$52,$8D,$5A,$72,$F1
+     036116D95A528D5A
+     72F1
+1713 5A92E85A35315A55 (tiny_pug_with_jin):00356             FCB $5A,$92,$E8,$5A,$35,$31,$5A,$55,$00,$5A,$75,$F1,$5A,$95,$78,$5A,$F5,$00
+     005A75F15A95785A
+     F500
+1725 5AB6025AA8B05AB8 (tiny_pug_with_jin):00357             FCB $5A,$B6,$02,$5A,$A8,$B0,$5A,$B8,$26,$5A,$C8,$3A,$61,$09,$CB,$5F,$B6,$13
+     265AC83A6109CB5F
+     B613
+1737 6106875FB7176103 (tiny_pug_with_jin):00358             FCB $61,$06,$87,$5F,$B7,$17,$61,$03,$44,$5A,$B7,$16,$5F,$B8,$1A,$61,$13,$95
+     445AB7165FB81A61
+     1395
+1749 5F518D5F71F15F91 (tiny_pug_with_jin):00359             FCB $5F,$51,$8D,$5F,$71,$F1,$5F,$91,$E8,$5F,$43,$09,$5A,$44,$03,$5F,$34,$31
+     E85F43095A44035F
+     3431
+175B 5A45035F54005F74 (tiny_pug_with_jin):00360             FCB $5A,$45,$03,$5F,$54,$00,$5F,$74,$F1,$5F,$94,$78,$5F,$F4,$00,$5F,$A7,$B0
+     F15F94785FF4005F
+     A7B0
+176D 5FB7225FC73A5AB8 (tiny_pug_with_jin):00361             FCB $5F,$B7,$22,$5F,$C7,$3A,$5A,$B8,$06,$5F,$4B,$00,$5A,$4C,$01,$5A,$4D,$01
+     065F4B005A4C015A
+     4D01
+177F 6147CE5A54055F55 (tiny_pug_with_jin):00362             FCB $61,$47,$CE,$5A,$54,$05,$5F,$55,$0A,$5A,$A7,$65,$5A,$B7,$36,$5F,$A8,$6D
+     0A5AA7655AB7365F
+     A86D
+1791 5FB8335A4C005A4D (tiny_pug_with_jin):00363             FCB $5F,$B8,$33,$5A,$4C,$00,$5A,$4D,$00,$61,$13,$95,$5A,$B6,$26,$5F,$B7,$02
+     006113955AB6265F
+     B702
+17A3 6109CB5A520A5A72 (tiny_pug_with_jin):00364             FCB $61,$09,$CB,$5A,$52,$0A,$5A,$72,$A8,$5A,$92,$10,$5A,$35,$34,$5A,$55,$05
+     A85A92105A35345A
+     5505
+17B5 5A75D25A95B95AF5 (tiny_pug_with_jin):00365             FCB $5A,$75,$D2,$5A,$95,$B9,$5A,$F5,$01,$5A,$A8,$43,$5A,$B8,$36,$5A,$C8,$36
+     015AA8435AB8365A
+     C836
+17C7 6123E75AA0325AB0 (tiny_pug_with_jin):00366             FCB $61,$23,$E7,$5A,$A0,$32,$5A,$B0,$27,$5F,$21,$21,$5F,$41,$16,$5A,$51,$8D
+     275F21215F41165A
+     518D
+17D9 5F510A5F61C25A71 (tiny_pug_with_jin):00367             FCB $5F,$51,$0A,$5F,$61,$C2,$5A,$71,$F1,$5F,$71,$A8,$5F,$81,$35,$5A,$91,$E8
+     F15F71A85F81355A
+     91E8
+17EB 5F91105FA16C5AB1 (tiny_pug_with_jin):00368             FCB $5F,$91,$10,$5F,$A1,$6C,$5A,$B1,$0E,$5F,$B0,$07,$5F,$B1,$21,$5F,$C1,$3E
+     0E5FB0075FB1215F
+     C13E
+17FD 5FE1005AB20E5F22 (tiny_pug_with_jin):00369             FCB $5F,$E1,$00,$5A,$B2,$0E,$5F,$22,$30,$5F,$42,$98,$5F,$62,$61,$5F,$82,$03
+     305F42985F62615F
+     8203
+180F 5FA2045AA3325AB3 (tiny_pug_with_jin):00370             FCB $5F,$A2,$04,$5A,$A3,$32,$5A,$B3,$27,$5F,$B3,$07,$5F,$B2,$2F,$5F,$C2,$3E
+     275FB3075FB22F5F
+     C23E
+1821 5FE2025A34315A54 (tiny_pug_with_jin):00371             FCB $5F,$E2,$02,$5A,$34,$31,$5A,$54,$00,$5A,$74,$F1,$5A,$94,$78,$5A,$B4,$0E
+     005A74F15A94785A
+     B40E
+1833 5AF4005F24615F25 (tiny_pug_with_jin):00372             FCB $5A,$F4,$00,$5F,$24,$61,$5F,$25,$A0,$5F,$34,$34,$5F,$44,$09,$5F,$45,$1F
+     A05F34345F44095F
+     451F
+1845 5F54055F64CF5F65 (tiny_pug_with_jin):00373             FCB $5F,$54,$05,$5F,$64,$CF,$5F,$65,$64,$5F,$74,$D2,$5F,$84,$0A,$5F,$85,$17
+     645F74D25F840A5F
+     8517
+1857 5F94B95FA46C5FA5 (tiny_pug_with_jin):00374             FCB $5F,$94,$B9,$5F,$A4,$6C,$5F,$A5,$04,$5A,$B5,$0E,$5F,$B4,$21,$5F,$B5,$2F
+     045AB50E5FB4215F
+     B52F
+1869 5FC43F5FC53F5FE4 (tiny_pug_with_jin):00375             FCB $5F,$C4,$3F,$5F,$C5,$3F,$5F,$E4,$00,$5F,$E5,$02,$5F,$F4,$01,$5A,$B6,$06
+     005FE5025FF4015A
+     B606
+187B 5AA7045FA7045AB7 (tiny_pug_with_jin):00376             FCB $5A,$A7,$04,$5F,$A7,$04,$5A,$B7,$23,$5F,$B7,$37,$5A,$C7,$3A,$5F,$C7,$36
+     235FB7375AC73A5F
+     C736
+188D 5AA8045AB8375F29 (tiny_pug_with_jin):00377             FCB $5A,$A8,$04,$5A,$B8,$37,$5F,$29,$A1,$5F,$49,$8A,$5F,$69,$74,$5F,$89,$45
+     A15F498A5F69745F
+     8945
+189F 5FE9005F2A615F4A (tiny_pug_with_jin):00378             FCB $5F,$E9,$00,$5F,$2A,$61,$5F,$4A,$92,$5F,$6A,$65,$5F,$8A,$17,$5F,$EA,$01
+     925F6A655F8A175F
+     EA01
+18B1 5F2C215F2D215F4C (tiny_pug_with_jin):00379             FCB $5F,$2C,$21,$5F,$2D,$21,$5F,$4C,$00,$5F,$4D,$1E,$5F,$6C,$7F,$5F,$6D,$65
+     005F4D1E5F6C7F5F
+     6D65
+18C3 5F8C085F8D175FEC (tiny_pug_with_jin):00380             FCB $5F,$8C,$08,$5F,$8D,$17,$5F,$EC,$00,$5F,$ED,$00,$61,$06,$87,$5F,$B8,$13
+     005FED006106875F
+     B813
+18D5 611A1C5FA8D85FB8 (tiny_pug_with_jin):00381             FCB $61,$1A,$1C,$5F,$A8,$D8,$5F,$B8,$33,$61,$23,$E7,$5A,$B0,$07,$5A,$21,$21
+     336123E75AB0075A
+     2121
+18E7 5A41165A61C25A81 (tiny_pug_with_jin):00382             FCB $5A,$41,$16,$5A,$61,$C2,$5A,$81,$35,$5F,$A0,$82,$5A,$A1,$04,$5F,$B1,$01
+     355FA0825AA1045F
+     B101
+18F9 5FB0215AB1275AE1 (tiny_pug_with_jin):00383             FCB $5F,$B0,$21,$5A,$B1,$27,$5A,$E1,$00,$5F,$A3,$82,$5A,$B3,$07,$5F,$B3,$21
+     005FA3825AB3075F
+     B321
+190B 5A24615A44095A64 (tiny_pug_with_jin):00384             FCB $5A,$24,$61,$5A,$44,$09,$5A,$64,$CF,$5A,$84,$0A,$5A,$A4,$04,$5A,$B4,$27
+     CF5A840A5AA4045A
+     B427
+191D 5AE4005F45125FB4 (tiny_pug_with_jin):00385             FCB $5A,$E4,$00,$5F,$45,$12,$5F,$B4,$01,$5A,$A8,$43,$5A,$B8,$3A,$5A,$29,$A1
+     015AA8435AB83A5A
+     29A1
+192F 5A498A5A69745A89 (tiny_pug_with_jin):00386             FCB $5A,$49,$8A,$5A,$69,$74,$5A,$89,$45,$5F,$A8,$0D,$5F,$B8,$2B,$5A,$E9,$00
+     455FA80D5FB82B5A
+     E900
+1941 5A6C7F5A8C085F4D (tiny_pug_with_jin):00387             FCB $5A,$6C,$7F,$5A,$8C,$08,$5F,$4D,$10,$61,$10,$52,$5F,$B7,$17,$61,$10,$52
+     106110525FB71761
+     1052
+1953 5FB73B6116D95AB8 (tiny_pug_with_jin):00388             FCB $5F,$B7,$3B,$61,$16,$D9,$5A,$B8,$1A,$61,$09,$CB,$5F,$45,$07,$5F,$4D,$05
+     1A6109CB5F45075F
+     4D05
+1965 6106875FB71B6100 (tiny_pug_with_jin):00389             FCB $61,$06,$87,$5F,$B7,$1B,$61,$00,$00,$5F,$45,$11,$5F,$4D,$0F,$61,$16,$D9
+     005F45115F4D0F61
+     16D9
+1977 5FB0015A22215A42 (tiny_pug_with_jin):00390             FCB $5F,$B0,$01,$5A,$22,$21,$5A,$42,$16,$5A,$62,$C2,$5A,$82,$35,$5A,$B2,$26
+     165A62C25A82355A
+     B226
+1989 5AC23E5AE2005FB3 (tiny_pug_with_jin):00391             FCB $5A,$C2,$3E,$5A,$E2,$00,$5F,$B3,$01,$5A,$25,$61,$5A,$45,$1B,$5A,$65,$CF
+     015A25615A451B5A
+     65CF
+199B 5A850A5AB5265AC5 (tiny_pug_with_jin):00392             FCB $5A,$85,$0A,$5A,$B5,$26,$5A,$C5,$3F,$5A,$E5,$00,$5A,$2A,$A1,$5A,$4A,$8A
+     3F5AE5005A2AA15A
+     4A8A
+19AD 5A6A745A8A455AEA (tiny_pug_with_jin):00393             FCB $5A,$6A,$74,$5A,$8A,$45,$5A,$EA,$00,$5A,$4D,$16,$5A,$6D,$7F,$5A,$8D,$08
+     005A4D165A6D7F5A
+     8D08
+19BF 612DB25FB20F5A45 (tiny_pug_with_jin):00394             FCB $61,$2D,$B2,$5F,$B2,$0F,$5A,$45,$09,$5F,$B5,$0F,$5A,$4D,$00,$61,$47,$CE
+     095FB50F5A4D0061
+     47CE
+19D1 5AB2065A440B5AB5 (tiny_pug_with_jin):00395             FCB $5A,$B2,$06,$5A,$44,$0B,$5A,$B5,$06,$5A,$4C,$03,$61,$44,$8A,$5A,$B1,$07
+     065A4C0361448A5A
+     B107
+19E3 5AB407613AC05FB8 (tiny_pug_with_jin):00396             FCB $5A,$B4,$07,$61,$3A,$C0,$5F,$B8,$0B,$61,$09,$CB,$5A,$B7,$03
+     0B6109CB5AB703
+19F2                  (tiny_pug_with_jin):00397         ENDSONG
+                      (tiny_pug_with_jin):00398         ;------------------------------------------------------------------------------
+                      (tiny_pug_with_jin):00399         ; EOF
+                      (tiny_pug_with_jin):00400         ;------------------------------------------------------------------------------

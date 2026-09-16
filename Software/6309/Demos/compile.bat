@@ -1,0 +1,14 @@
+..\..\bin\lwasm benchmark_itoa64.asm --format=srec --output=benchmark_itoa64.s19 --map=benchmark_itoa64.map --list=benchmark_itoa64.lst
+..\..\bin\lwasm benchmark_itoa64_atoi64.asm --format=srec --output=benchmark_itoa64_atoi64.s19 --map=benchmark_itoa64_atoi64.map --list=benchmark_itoa64_atoi64.lst
+..\..\bin\lwasm danbo_highcolor_yjk.asm --format=srec --output=danbo_highcolor_yjk.s19 --map=danbo_highcolor_yjk.map --list=danbo_highcolor_yjk.lst
+..\..\bin\lwasm jingle_bisqwit.asm --format=srec --output=jingle_bisqwit.s19 --map=jingle_bisqwit.map --list=jingle_bisqwit.lst
+..\..\bin\lwasm lily_highcolor_yjk.asm --format=srec --output=lily_highcolor_yjk.s19 --map=lily_highcolor_yjk.map --list=lily_highcolor_yjk.lst
+..\..\bin\lwasm mana_tilemap.asm --format=srec --output=mana_tilemap.s19 --map=mana_tilemap.map --list=mana_tilemap.lst
+..\..\bin\lwasm mandelbrot.asm --format=srec --output=mandelbrot.s19 --map=mandelbrot.map --list=mandelbrot.lst
+..\..\bin\lwasm SCROLLING_MANA_TILEMAP.asm --format=srec --output=SCROLLING_MANA_TILEMAP.s19 --map=SCROLLING_MANA_TILEMAP.map --list=SCROLLING_MANA_TILEMAP.lst
+..\..\bin\lwasm smpug.asm --format=srec --output=smpug.s19 --map=smpug.map --list=smpug.lst
+..\..\bin\lwasm time_test.asm --format=srec --output=time_test.s19 --map=time_test.map --list=time_test.lst
+..\..\bin\lwasm tiny_pug_with_jingle.asm --format=srec --output=tiny_pug_with_jingle.s19 --map=tiny_pug_with_jingle.map --list=tiny_pug_with_jingle.lst
+..\..\bin\lwasm vgm_monkey_island.asm --format=srec --output=vgm_monkey_island.s19 --map=vgm_monkey_island.map --list=vgm_monkey_island.lst
+..\..\bin\lwasm vgm_music.asm --format=srec --output=vgm_music.s19 --map=vgm_music.map --list=vgm_music.lst
+..\..\bin\lwasm gbasic.asm --format=srec --output=gbasic.s19 --map=gbasic.map --list=gbasic.lst

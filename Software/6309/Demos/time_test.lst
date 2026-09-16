@@ -1,0 +1,470 @@
+                      (    time_test.asm):00001         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00002         ; PROJECT: TIME TEST
+                      (    time_test.asm):00003         ; VERSION: 0.0.1
+                      (    time_test.asm):00004         ;    FILE: time_test.asm
+                      (    time_test.asm):00005         ;  AUTHOR: CRAIG IANNELLO, PUGBUTT.COM
+                      (    time_test.asm):00006         ;
+                      (    time_test.asm):00007         ; DESCRIPTION: 
+                      (    time_test.asm):00008         ;   Experiments with realtime clock and 64-bit integers
+                      (    time_test.asm):00009         ;
+                      (    time_test.asm):00010         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00011             INCLUDE DEFINES.D           ; COMMON DEFINITIONS
+                      (        DEFINES.D):00001         ; -----------------------------------------------------------------------------
+                      (        DEFINES.D):00002         ; IO DEVICE BASE ADDRESSES
+                      (        DEFINES.D):00003         ; -----------------------------------------------------------------------------
+                      (        DEFINES.D):00004         
+     FFEC             (        DEFINES.D):00005         BANK_BASE   EQU  $FFEC      : FFEC - FFEF: MEMORY BANK REGS 0...3 (BUILT-IN)
+     FFE8             (        DEFINES.D):00006         ACIA_BASE   EQU  $FFE8      ; FFE8 - FFEB: SERIAL UART R65C51P2 (BUILT-IN)
+     FFE4             (        DEFINES.D):00007         VDP_BASE    EQU  $FFE4      ; FFE4 - FFE7: VIDEO CHIP V9958
+     FFE0             (        DEFINES.D):00008         OPL3_BASE   EQU  $FFE0      ; FFE0 - FFE3: MUSIC CHIP YMF262 (OPL3)
+     FFB0             (        DEFINES.D):00009         VIA_BASE    EQU  $FFB0      ; FFB0 - FFBF: W65C22 VIA (SD CARD, SPI, KB, GPIO)
+                      (        DEFINES.D):00010         
+                      (        DEFINES.D):00011         ; V9958 VDP REGISTERS
+     FFE4             (        DEFINES.D):00012         VDAT        EQU  VDP_BASE+0 ; PORT 0: VRAM DATA (R/W)
+     FFE5             (        DEFINES.D):00013         VREG        EQU  VDP_BASE+1 ; PORT 1: STATUS REG (R), REGISTER/SETUP (W), VRAM ADDR (W)
+     FFE6             (        DEFINES.D):00014         VPAL        EQU  VDP_BASE+2 ; PORT 2: PALETTE REGISTERS (W)
+     FFE7             (        DEFINES.D):00015         VIND        EQU  VDP_BASE+3 ; PORT 3: REGISTER-INDIRECT ADDRESSING (W)
+                      (        DEFINES.D):00016         
+                      (        DEFINES.D):00017         ; MEMORY BANK REGISTERS 0..3 (BASE ADDRESS IN DEFINES.D)
+                      (        DEFINES.D):00018         ; THESE ARE WRITE-ONLY, SO WE KEEP COPIES OF 1 THROUGH 3 IN 
+                      (        DEFINES.D):00019         ; VARS IN MAIN.ASM: SBANK_1...SBANK_3
+                      (        DEFINES.D):00020         
+     FFEC             (        DEFINES.D):00021         MBANK_0     EQU  BANK_BASE+0
+     FFED             (        DEFINES.D):00022         MBANK_1     EQU  BANK_BASE+1
+     FFEE             (        DEFINES.D):00023         MBANK_2     EQU  BANK_BASE+2
+     FFEF             (        DEFINES.D):00024         MBANK_3     EQU  BANK_BASE+3
+                      (        DEFINES.D):00025         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00026         ; COMMON DEFINITIONS
+                      (        DEFINES.D):00027         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00028         ; ASCII CODES
+     001B             (        DEFINES.D):00029         ESC         EQU  $1B    ; ESCAPE
+     000A             (        DEFINES.D):00030         LF          EQU  $0A    ; LINE FEED
+     000D             (        DEFINES.D):00031         CR          EQU  $0D    ; CARRIAGE RETURN
+     0000             (        DEFINES.D):00032         NUL         EQU  $00    ; NULL
+     0020             (        DEFINES.D):00033         SPACE       EQU  $20
+     007E             (        DEFINES.D):00034         TILDE       EQU  $7E
+                      (        DEFINES.D):00035         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00036         _DATE       STRUCT
+0000s                 (        DEFINES.D):00037         YEAR        RMB  2      ; DATE AS INTEGERS
+0002s                 (        DEFINES.D):00038         DAYYR       RMB  2
+0004s                 (        DEFINES.D):00039         MON         RMB  1
+0005s                 (        DEFINES.D):00040         DAYMON      RMB  1
+0006s                 (        DEFINES.D):00041         HOUR        RMB  1
+0007s                 (        DEFINES.D):00042         MIN         RMB  1
+0008s                 (        DEFINES.D):00043         SEC         RMB  1
+0009s                 (        DEFINES.D):00044         HUND        RMB  1
+000As                 (        DEFINES.D):00045         YEARBCD     RMB  2      ; DATE AS BCD
+000Cs                 (        DEFINES.D):00046         DAYYRBCD    RMB  2
+000Es                 (        DEFINES.D):00047         MONBCD      RMB  1
+000Fs                 (        DEFINES.D):00048         DAYMONBCD   RMB  1
+0010s                 (        DEFINES.D):00049         HOURBCD     RMB  1
+0011s                 (        DEFINES.D):00050         MINBCD      RMB  1
+0012s                 (        DEFINES.D):00051         SECBCD      RMB  1
+0013s                 (        DEFINES.D):00052         HUNDBCD     RMB  1
+0014s                 (        DEFINES.D):00053                     ENDS
+                      (        DEFINES.D):00054         ;------------------------------------------------------------------------------
+                      (        DEFINES.D):00055         ; EOF
+                      (        DEFINES.D):00056         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00012             INCLUDE bios_func_tab.d     ; BIOS functions jump table
+                      (  bios_func_tab.d):00001         ;------------------------------------------------------------------------------
+                      (  bios_func_tab.d):00002         ; BIOS BIOS FUNCTION JUMP TABLE ADDRESSES
+                      (  bios_func_tab.d):00003         ;------------------------------------------------------------------------------
+     FEA0             (  bios_func_tab.d):00004         FUNC_BASE       EQU  $FEA0          ; SEE 6309/BOOT/MAIN.ASM FOR DEFS
+                      (  bios_func_tab.d):00005         ;------------------------------------------------------------------------------
+     FEA0             (  bios_func_tab.d):00006         BF_V_RESET      EQU  FUNC_BASE+0
+     FEA3             (  bios_func_tab.d):00007         BF_UT_GETC      EQU  FUNC_BASE+3
+     FEA6             (  bios_func_tab.d):00008         BF_UT_GETS      EQU  FUNC_BASE+6
+     FEA9             (  bios_func_tab.d):00009         BF_UT_PUTC      EQU  FUNC_BASE+9    ;
+     FEAC             (  bios_func_tab.d):00010         BF_UT_PUTS      EQU  FUNC_BASE+12
+     FEAF             (  bios_func_tab.d):00011         BF_UT_WAITTX    EQU  FUNC_BASE+15
+     FEB2             (  bios_func_tab.d):00012         BF_UT_CLRSCR    EQU  FUNC_BASE+18
+     FEB5             (  bios_func_tab.d):00013         BF_S_HEXA       EQU  FUNC_BASE+21   ; CONVERT REG A TO HEX OCTET AT X, X+=2
+     FEB8             (  bios_func_tab.d):00014         BF_S_EOL        EQU  FUNC_BASE+24   ; PUT CR, LF, $00 AT X, X+=3
+     FEBB             (  bios_func_tab.d):00015         BF_S_LEN        EQU  FUNC_BASE+27   ; PUT LEN OF STRING AT X INTO REG B
+     FEBE             (  bios_func_tab.d):00016         BF_S_CPY        EQU  FUNC_BASE+30   ; COPY STRING AT Y TO MEM AT X. X+=?
+     FEC1             (  bios_func_tab.d):00017         BF_RTC_GETTIX   EQU  FUNC_BASE+33   ; GET CURRENT SYSTEM TICKS TO I64 AT X.
+     FEC4             (  bios_func_tab.d):00018         BF_S_TOUPPER    EQU  FUNC_BASE+36   ; MAKE A UPPERCASE IF IT IS LOWERCASE
+     FEC7             (  bios_func_tab.d):00019         BF_S_INTD       EQU  FUNC_BASE+39   ; CONVERT REG D TO STRING AT X, X+=?
+     FECA             (  bios_func_tab.d):00020         BF_RTC_SETTIX   EQU  FUNC_BASE+42   ; SET CURRENT SYSTEM TICKS FROM I64 AT X.
+                      (  bios_func_tab.d):00021         ;------------------------------------------------------------------------------
+                      (  bios_func_tab.d):00022         ; EOF
+                      (  bios_func_tab.d):00023         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00013         ;------------------------------------------------------------------------------
+     03C0             (    time_test.asm):00014         TICKS_PER_MINUTE    equ  $3C0       ; 960
+     0010             (    time_test.asm):00015         TICKS_PER_SECOND    equ  $10        ; 16
+                      (    time_test.asm):00016         ; -----------------------------------------------------------------------------
+                      (    time_test.asm):00017             ORG     $1000               ; Begin CODE & VARS
+                      (    time_test.asm):00018         ; -----------------------------------------------------------------------------
+                      (    time_test.asm):00019         ; PROGRAM ENTRYPOINT
+                      (    time_test.asm):00020         ; -----------------------------------------------------------------------------
+1000                  (    time_test.asm):00021         ENTRYPOINT  
+1000 8E1006           (    time_test.asm):00022             LDX  #TIMESET    ; SET SYSTEM TICK COUNT FROM TIMESET CONSTANT
+                      (    time_test.asm):00023             ;JSR  BF_RTC_SETTIX
+1003 7E1076           (    time_test.asm):00024             JMP  TESTLOOP
+                      (    time_test.asm):00025         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00026         ; STARTING TIMESTAMP (SET ABOVE) IT'S AN INT64 UNIX_TIMESTAMP_SECS*16
+                      (    time_test.asm):00027         ;------------------------------------------------------------------------------
+1006 000000066FD76EE0 (    time_test.asm):00028         TIMESET     FQB $6,$6FD76EE0
+                      (    time_test.asm):00029         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00030         ; VARS
+                      (    time_test.asm):00031         ;------------------------------------------------------------------------------
+100E                  (    time_test.asm):00032         MYBUF       RMB  64     ; STRING BUF
+104E                  (    time_test.asm):00033         THISTICKS   RMB  8      ; STASH OF U64 RTC TICKCOUNT (1/16THS OF SECS)
+                      (    time_test.asm):00034         
+1056                  (    time_test.asm):00035         TMP64       RMB  8      ; TS_TO_DATE VARS
+105E                  (    time_test.asm):00036         TMP16_0     RMB  2
+1060                  (    time_test.asm):00037         TMP16_1     RMB  2
+1062                  (    time_test.asm):00038         TMP8_0      RMB  1
+1063                  (    time_test.asm):00039         TMP8_1      RMB  1
+                      (    time_test.asm):00040         
+1064                  (    time_test.asm):00041         TMPYEAR     RMB  2      ; TS_TO_DATE DECIMAL RESULT
+1066                  (    time_test.asm):00042         TMPDAYYR    RMB  2
+1068                  (    time_test.asm):00043         TMPMON      RMB  1
+1069                  (    time_test.asm):00044         TMPDAYMON   RMB  1
+106A                  (    time_test.asm):00045         TMPHOUR     RMB  1
+106B                  (    time_test.asm):00046         TMPMIN      RMB  1
+106C                  (    time_test.asm):00047         TMPSEC      RMB  1
+106D                  (    time_test.asm):00048         TMPTICKS    RMB  1
+                      (    time_test.asm):00049         
+106E                  (    time_test.asm):00050         YRHIBCD     RMB  1      ; TS_TO_DATE BCD RESULT
+106F                  (    time_test.asm):00051         YRLOWBCD    RMB  1
+1070                  (    time_test.asm):00052         MONBCD      RMB  1
+1071                  (    time_test.asm):00053         DAYMONBCD   RMB  1
+1072                  (    time_test.asm):00054         HOURBCD     RMB  1
+1073                  (    time_test.asm):00055         MINBCD      RMB  1
+1074                  (    time_test.asm):00056         SECBCD      RMB  1
+1075                  (    time_test.asm):00057         HUNDBCD     RMB  1
+                      (    time_test.asm):00058         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00059         ; TEST
+                      (    time_test.asm):00060         ;------------------------------------------------------------------------------
+1076                  (    time_test.asm):00061         TESTLOOP    
+1076 BDFEA3           (    time_test.asm):00062             JSR  BF_UT_GETC     ; QUIT LOOP IF ESC RECEIVED
+1079 811B             (    time_test.asm):00063             CMPA #$1B
+107B 272C             (    time_test.asm):00064             BEQ  ENDLOOP
+107D 8E104E           (    time_test.asm):00065             LDX  #THISTICKS     ; GET SYSTEM TICKCOUNT
+1080 BDFEC1           (    time_test.asm):00066             JSR  BF_RTC_GETTIX  
+1083 8E104E           (    time_test.asm):00067             LDX  #THISTICKS
+1086 BD11EA           (    time_test.asm):00068             JSR  TS_TO_DATE     ; CONVERT TO DATE/TIME,
+1089 108E100E         (    time_test.asm):00069             LDY  #MYBUF
+108D BD10AA           (    time_test.asm):00070             JSR  DATE_STR_Y     ; WRITE AS AN ISO-8601 STRING,
+1090 860D             (    time_test.asm):00071             LDA  #CR            ; ADD LF + CR + NULL,
+1092 A7A0             (    time_test.asm):00072             STA  ,Y+
+1094 860A             (    time_test.asm):00073             LDA  #LF
+1096 A7A0             (    time_test.asm):00074             STA  ,Y+
+1098 8600             (    time_test.asm):00075             LDA  #0
+109A A7A0             (    time_test.asm):00076             STA  ,Y+
+109C 108E100E         (    time_test.asm):00077             LDY  #MYBUF         ; OUTPUT VIA SERIAL,
+10A0 BDFEAC           (    time_test.asm):00078             JSR  BF_UT_PUTS
+10A3 BDFEAF           (    time_test.asm):00079             JSR  BF_UT_WAITTX
+10A6 7E1076           (    time_test.asm):00080             JMP  TESTLOOP       ; AND KEEP LOOPING.
+10A9                  (    time_test.asm):00081         ENDLOOP
+10A9 39               (    time_test.asm):00082             RTS
+                      (    time_test.asm):00083         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00084         ; GIVEN BCD DATE FIELDS FROM TS_TO_DATE, OUTPUTS TO Y AS AN ISO-8601 STRING.
+                      (    time_test.asm):00085         ;------------------------------------------------------------------------------
+10AA                  (    time_test.asm):00086         DATE_STR_Y
+10AA 3410             (    time_test.asm):00087             PSHS X
+10AC 8E106E           (    time_test.asm):00088             LDX  #YRHIBCD       ; POINT X AT BEGINNING OF BCD DATE FIELDS
+10AF A680             (    time_test.asm):00089             LDA  ,X+            ; "YYYY-"
+10B1 BD10F6           (    time_test.asm):00090             JSR  S_HEXA
+10B4 A680             (    time_test.asm):00091             LDA  ,X+
+10B6 BD10F6           (    time_test.asm):00092             JSR  S_HEXA
+10B9 862D             (    time_test.asm):00093             LDA  #'-'
+10BB A7A0             (    time_test.asm):00094             STA  ,Y+
+10BD A680             (    time_test.asm):00095             LDA  ,X+            ; "MM-"
+10BF BD10F6           (    time_test.asm):00096             JSR  S_HEXA
+10C2 862D             (    time_test.asm):00097             LDA  #'-'
+10C4 A7A0             (    time_test.asm):00098             STA  ,Y+
+10C6 A680             (    time_test.asm):00099             LDA  ,X+            ; "DD "
+10C8 BD10F6           (    time_test.asm):00100             JSR  S_HEXA
+10CB 8620             (    time_test.asm):00101             LDA  #' '
+10CD A7A0             (    time_test.asm):00102             STA  ,Y+
+10CF A680             (    time_test.asm):00103             LDA  ,X+            ; "HH:"
+10D1 BD10F6           (    time_test.asm):00104             JSR  S_HEXA
+10D4 863A             (    time_test.asm):00105             LDA  #':'
+10D6 A7A0             (    time_test.asm):00106             STA  ,Y+
+10D8 A680             (    time_test.asm):00107             LDA  ,X+            ; "MM:"
+10DA BD10F6           (    time_test.asm):00108             JSR  S_HEXA
+10DD 863A             (    time_test.asm):00109             LDA  #':'
+10DF A7A0             (    time_test.asm):00110             STA  ,Y+
+10E1 A680             (    time_test.asm):00111             LDA  ,X+            ; "SS."
+10E3 BD10F6           (    time_test.asm):00112             JSR  S_HEXA
+10E6 862E             (    time_test.asm):00113             LDA  #'.'
+10E8 A7A0             (    time_test.asm):00114             STA  ,Y+
+10EA A680             (    time_test.asm):00115             LDA  ,X+            ; "FF"
+10EC BD10F6           (    time_test.asm):00116             JSR  S_HEXA
+10EF 8600             (    time_test.asm):00117             LDA  #NUL           ; NULL TERMINATOR
+10F1 A7A4             (    time_test.asm):00118             STA  ,Y
+10F3 3510             (    time_test.asm):00119             PULS X
+10F5 39               (    time_test.asm):00120             RTS
+                      (    time_test.asm):00121         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00122         ; CONVERTS BYTE VALUE FROM A TO AN UNTERMINATED 2-BYTE HEX STRING AT Y. 
+                      (    time_test.asm):00123         ; Y IS INCREMENTED BY TWO. (L. LEVENTHAL)
+                      (    time_test.asm):00124         ;------------------------------------------------------------------------------
+10F6                  (    time_test.asm):00125         S_HEXA      
+10F6 1F89             (    time_test.asm):00126             TFR  A,B        ; SAVE ORIGINAL BINARY VALUE
+10F8 44               (    time_test.asm):00127             LSRA            ; MOVE HIGH DIGIT TO LOW DIGIT
+10F9 44               (    time_test.asm):00128             LSRA
+10FA 44               (    time_test.asm):00129             LSRA
+10FB 44               (    time_test.asm):00130             LSRA
+10FC 8109             (    time_test.asm):00131             CMPA #9
+10FE 2302             (    time_test.asm):00132             BLS  AD30       ; BRANCH IF HIGH DIGIT IS DECIMAL
+1100 8B07             (    time_test.asm):00133             ADDA #7         ; ELSE ADD 7 SO AFTER ADDING '0' THE
+                      (    time_test.asm):00134                             ; CHARACTER WILL BE IN ‘'A'..'F'
+1102                  (    time_test.asm):00135         AD30:       
+1102 8B30             (    time_test.asm):00136             ADDA #'0        ; ADD ASCII 0 TO MAKE A CHARACTER
+1104 C40F             (    time_test.asm):00137             ANDB #$0F       ; MASK OFF LOW DIGIT
+1106 C109             (    time_test.asm):00138             CMPB #9
+1108 2302             (    time_test.asm):00139             BLS AD3OLD      ; BRANCH IF LOW DIGIT IS DECIMAL
+110A CB07             (    time_test.asm):00140             ADDB #7         ; ELSE ADD 7 SO AFTER ADDING '0' THE
+                      (    time_test.asm):00141                             ; CHARACTER WILL BE IN '‘A'..'F!
+110C                  (    time_test.asm):00142         AD3OLD:     
+110C CB30             (    time_test.asm):00143             ADDB #'0        ; ADD ASCII 0 TO MAKE A CHARACTER
+110E A7A0             (    time_test.asm):00144             STA ,Y+         ; INSERT HEX BYTES INTO DEST STRING AT Y
+1110 E7A0             (    time_test.asm):00145             STB ,Y+         ; AND NCREMENT Y
+1112 39               (    time_test.asm):00146             RTS     
+                      (    time_test.asm):00147         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00148         ; CONVERT A U8 IN A TO BCD IN D (FROM LANCE LEVENTHAL)
+                      (    time_test.asm):00149         ;------------------------------------------------------------------------------
+1113                  (    time_test.asm):00150         BN2BCD: 
+1113 C6FF             (    time_test.asm):00151             LDB  #$FF       ; START QUOTIENT AT -1
+1115                  (    time_test.asm):00152         D10LP:  
+1115 5C               (    time_test.asm):00153             INCB            ; ADD 1 TO QUOTIENT
+1116 800A             (    time_test.asm):00154             SUBA #10        ; SUBTRACT 10 FROM DIVIDEND
+1118 24FB             (    time_test.asm):00155             BCC  D10LP      ; JUMP IF DIFFERENCE STILL POSITIVE
+111A 8B0A             (    time_test.asm):00156             ADDA #10        ; IF NOT, ADD THE LAST 10 BACK
+111C 58               (    time_test.asm):00157             LSLB            ; MOVE 10'S DIGIT TO HIGH NIBBLE LSLB
+111D 58               (    time_test.asm):00158             LSLB
+111E 58               (    time_test.asm):00159             LSLB
+111F 58               (    time_test.asm):00160             LSLB
+1120 A7E2             (    time_test.asm):00161             STA  ,-S        ; SAVE 1'S DIGIT ON STACK
+1122 EBE0             (    time_test.asm):00162             ADDB ,S+        ; COMBINE 1'S AND 10'S DIGITS IN B
+1124 39               (    time_test.asm):00163             RTS
+                      (    time_test.asm):00164         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00165         ; Compare U64 at Y to U32 at X
+                      (    time_test.asm):00166         ;------------------------------------------------------------------------------
+1125                  (    time_test.asm):00167         Y64_CMPX32
+1125 EC20             (    time_test.asm):00168             LDD  0,Y
+1127 10860000         (    time_test.asm):00169             LDW  #0
+112B 103760           (    time_test.asm):00170             CMPR W,D
+112E 2619             (    time_test.asm):00171             BNE  Y64_CMPX32_DONE
+1130 EC22             (    time_test.asm):00172             LDD  2,Y
+1132 103760           (    time_test.asm):00173             CMPR W,D
+1135 2612             (    time_test.asm):00174             BNE  Y64_CMPX32_DONE
+1137 EC24             (    time_test.asm):00175             LDD  4,Y
+1139 10A600           (    time_test.asm):00176             LDW  0,X
+113C 103760           (    time_test.asm):00177             CMPR W,D
+113F 2608             (    time_test.asm):00178             BNE  Y64_CMPX32_DONE
+1141 EC26             (    time_test.asm):00179             LDD  6,Y
+1143 10A602           (    time_test.asm):00180             LDW  2,X
+1146 103760           (    time_test.asm):00181             CMPR W,D
+1149                  (    time_test.asm):00182         Y64_CMPX32_DONE    
+1149 39               (    time_test.asm):00183             RTS        
+                      (    time_test.asm):00184         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00185         ; Subtract i32 X from i64 Y, leaving result in Y.
+                      (    time_test.asm):00186         ;------------------------------------------------------------------------------
+114A                  (    time_test.asm):00187         I64Y_SUBI32X    
+114A 1CFE             (    time_test.asm):00188             ANDCC #$FE  ; CLEAR CARRY
+114C 10EC24           (    time_test.asm):00189             LDQ  4,Y    ; Get lower 32-bits of I64 into Q
+114F 1E06             (    time_test.asm):00190             EXG  D,W    ; subtract 32-bit number at X from Q
+1151 10A202           (    time_test.asm):00191             SBCD 2,X
+1154 1E06             (    time_test.asm):00192             EXG  D,W
+1156 10A200           (    time_test.asm):00193             SBCD 0,X
+1159 10ED24           (    time_test.asm):00194             STQ  4,Y    ; store lower 32-bits of result, note borroe
+115C 10EC20           (    time_test.asm):00195             LDQ  0,Y    ; Get lower 32-bits of I64 into Q
+115F 1E06             (    time_test.asm):00196             EXG  D,W    ; subtract 32-bit number at X from Q
+1161 10820000         (    time_test.asm):00197             SBCD #0
+1165 1E06             (    time_test.asm):00198             EXG  D,W
+1167 10820000         (    time_test.asm):00199             SBCD #0
+116B 10ED20           (    time_test.asm):00200             STQ  0,Y    ; store lower 32-bits of result, note borroe
+116E 39               (    time_test.asm):00201             RTS
+                      (    time_test.asm):00202         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00203         ; Function to check if the year in D is a leap year
+                      (    time_test.asm):00204         ; Sets carry if leap year, clears carry otherwise
+                      (    time_test.asm):00205         ; Argument: D = year
+                      (    time_test.asm):00206         ; Result: C flag set if leap year, cleared otherwise
+                      (    time_test.asm):00207         ;------------------------------------------------------------------------------
+116F                  (    time_test.asm):00208         IS_LEAP:
+116F FD1064           (    time_test.asm):00209             STD  TMPYEAR    
+                      (    time_test.asm):00210             ; Check if divisible by four
+1172 10830004         (    time_test.asm):00211         D4L CMPD #4
+1176 2D20             (    time_test.asm):00212             BLT  NOT_LEAP  ; not leap if not divisble by 4
+1178 830004           (    time_test.asm):00213             SUBD #4     ; D=D-4
+117B 2702             (    time_test.asm):00214             BEQ  MAYBE  ; If divisible by 4, it's maybe leap year
+117D 20F3             (    time_test.asm):00215             BRA  D4L
+117F                  (    time_test.asm):00216         MAYBE    
+                      (    time_test.asm):00217             ; Divisible by 4, now check if divisible by 100
+117F FC1064           (    time_test.asm):00218             LDD  TMPYEAR
+1182 118D64           (    time_test.asm):00219             DIVD #100
+1185 4D               (    time_test.asm):00220             TSTA        ;
+1186 2617             (    time_test.asm):00221             BNE  LEAP   ; IF NOT DIVISIBLE BY 100, IT IS A LEAP YEAR.
+                      (    time_test.asm):00222             ; Divisible by 100, now check if divisible by 400
+1188 FC1064           (    time_test.asm):00223             LDD  TMPYEAR
+118B 10830190         (    time_test.asm):00224         D40L CMPD #400
+118F 2D07             (    time_test.asm):00225             BLT  NOT_LEAP
+1191 830190           (    time_test.asm):00226             SUBD #400   ; D=D-400    
+1194 2709             (    time_test.asm):00227             BEQ  LEAP   ; If divisible by 400, it's a leap year
+1196 20F3             (    time_test.asm):00228             BRA  D40L
+1198                  (    time_test.asm):00229         NOT_LEAP:
+1198 FC1064           (    time_test.asm):00230             LDD  TMPYEAR ; RESTORE YEAR IN D
+119B 1CFE             (    time_test.asm):00231             ANDCC #$FE  ; Clear carry, not a leap year
+119D 2005             (    time_test.asm):00232             BRA  END_LEAP
+119F                  (    time_test.asm):00233         LEAP:
+119F FC1064           (    time_test.asm):00234             LDD  TMPYEAR ; RESTORE YEAR IN D
+11A2 1A01             (    time_test.asm):00235             ORCC    #1  ; Set carry, leap year
+11A4                  (    time_test.asm):00236         END_LEAP:
+11A4 39               (    time_test.asm):00237             RTS         ; Return from subroutine    
+                      (    time_test.asm):00238         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00239         ; Given a year in D, points x to the u32 number of 1/16th sec ticks in that 
+                      (    time_test.asm):00240         ; year. (366*86400*16 if leap year, 365*86400*16 otherwise.)
+                      (    time_test.asm):00241         ;------------------------------------------------------------------------------
+11A5 1E285000         (    time_test.asm):00242         TICKS_PER_LEAP_YEAR FQB  $1E285000          ; 505958400
+11A9 1E133800         (    time_test.asm):00243         TICKS_PER_YEAR      FQB  $1E133800          ; 504576000
+11AD                  (    time_test.asm):00244         TICKS_IN_YEAR
+11AD BD116F           (    time_test.asm):00245             JSR  IS_LEAP
+11B0 2404             (    time_test.asm):00246             BCC  DY_NOTLEAP
+11B2                  (    time_test.asm):00247         DY_LEAP
+11B2 8E11A5           (    time_test.asm):00248             LDX  #TICKS_PER_LEAP_YEAR
+11B5 39               (    time_test.asm):00249             RTS
+11B6                  (    time_test.asm):00250         DY_NOTLEAP
+11B6 8E11A9           (    time_test.asm):00251             LDX  #TICKS_PER_YEAR
+11B9 39               (    time_test.asm):00252             RTS    
+                      (    time_test.asm):00253         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00254         ; Given a 64-bit UNIX timestamp at X, fills out the date struct
+                      (    time_test.asm):00255         ;------------------------------------------------------------------------------
+11BA 00151800         (    time_test.asm):00256         TICKS_PER_DAY       FQB  $151800            ; 1382400
+11BE 0000E100         (    time_test.asm):00257         TICKS_PER_HOUR      FQB  $E100              ; 57600
+11C2 1F1C1F1E1F1E1F1F (    time_test.asm):00258         DAYS_IN_MONTHS      FCB  31,28,31,30,31,30,31,31,30,31,30,31
+     1E1F1E1F
+11CE 1F1D1F1E1F1E1F1F (    time_test.asm):00259         DAYS_IN_MONTHS_LEAP FCB  31,29,31,30,31,30,31,31,30,31,30,31
+     1E1F1E1F
+                      (    time_test.asm):00260         ; TICKCOUNTS [0...15] IN HUNDREDTHS OF SECS * 100
+11DA 00060C13191F262C (    time_test.asm):00261         FRACS               FCB 0,6,12,19,25,31,38,44,50,56,62,69,75,81,88,94
+     32383E454B51585E
+                      (    time_test.asm):00262         ;------------------------------------------------------------------------------
+11EA                  (    time_test.asm):00263         TS_TO_DATE
+11EA 3436             (    time_test.asm):00264             PSHS A,B,X,Y
+11EC 10EC00           (    time_test.asm):00265             LDQ  0,X        ; Stash 64-bit working timestamp
+11EF 10FD1056         (    time_test.asm):00266             STQ  TMP64+0
+11F3 10EC04           (    time_test.asm):00267             LDQ  4,X
+11F6 10FD105A         (    time_test.asm):00268             STQ  TMP64+4
+11FA CC07B2           (    time_test.asm):00269             LDD  #1970      ; starting with unix epoch year
+11FD FD1064           (    time_test.asm):00270             STD  TMPYEAR
+1200 7F1066           (    time_test.asm):00271             CLR  TMPDAYYR
+1203 7F1067           (    time_test.asm):00272             CLR  TMPDAYYR+1
+1206 7F106A           (    time_test.asm):00273             CLR  TMPHOUR
+1209 7F106B           (    time_test.asm):00274             CLR  TMPMIN
+120C 7F106C           (    time_test.asm):00275             CLR  TMPSEC
+120F 7F1068           (    time_test.asm):00276             CLR  TMPMON
+1212 7F1069           (    time_test.asm):00277             CLR  TMPDAYMON
+1215 108E1056         (    time_test.asm):00278             LDY  #TMP64         ; get working timestamp to y
+1219                  (    time_test.asm):00279         YEARSLOOP
+1219 BD11AD           (    time_test.asm):00280             JSR  TICKS_IN_YEAR  ; get the year's ticks to X
+121C BD1125           (    time_test.asm):00281             JSR  Y64_CMPX32     ; Compare timestamp to yearly ticks, and
+121F 250D             (    time_test.asm):00282             BLO  DAYSLOOP       ; if timestamp is less, we're done counting years.
+1221 BD114A           (    time_test.asm):00283             JSR  I64Y_SUBI32X   ; subtract ticks from working timestamp
+1224 FC1064           (    time_test.asm):00284             LDD  TMPYEAR
+1227 104C             (    time_test.asm):00285             INCD                ; Increment year
+1229 FD1064           (    time_test.asm):00286             STD  TMPYEAR
+122C 20EB             (    time_test.asm):00287             BRA  YEARSLOOP
+122E                  (    time_test.asm):00288         DAYSLOOP                ; Calculate day of year
+122E 8E11BA           (    time_test.asm):00289             LDX  #TICKS_PER_DAY
+1231 BD1125           (    time_test.asm):00290             JSR  Y64_CMPX32
+1234 250D             (    time_test.asm):00291             BLO  GOTDAYYR
+1236 BD114A           (    time_test.asm):00292             JSR  I64Y_SUBI32X
+1239 FC1066           (    time_test.asm):00293             LDD  TMPDAYYR
+123C 104C             (    time_test.asm):00294             INCD
+123E FD1066           (    time_test.asm):00295             STD  TMPDAYYR
+1241 20EB             (    time_test.asm):00296             BRA  DAYSLOOP
+1243                  (    time_test.asm):00297         GOTDAYYR
+                      (    time_test.asm):00298             ; by now, remaining timestamp will be a u32 (<$151800) and
+                      (    time_test.asm):00299             ; ticks per hour is a u16 ($E100), so we can calc this more efficiently
+                      (    time_test.asm):00300             ; (But we're not, yet.)
+1243                  (    time_test.asm):00301         HOURSLOOP               ; CALC HOUR OF DAY
+1243 8E11BE           (    time_test.asm):00302             LDX  #TICKS_PER_HOUR
+1246 BD1125           (    time_test.asm):00303             JSR  Y64_CMPX32
+1249 2508             (    time_test.asm):00304             BLO  GOTHOUR
+124B BD114A           (    time_test.asm):00305             JSR  I64Y_SUBI32X
+124E 7C106A           (    time_test.asm):00306             INC  TMPHOUR
+1251 20F0             (    time_test.asm):00307             BRA  HOURSLOOP
+1253                  (    time_test.asm):00308         GOTHOUR                 ; CALC MINUTE OF HOUR
+                      (    time_test.asm):00309             ; remaining timestamp will be a u16 (<$e100) and ticks per 
+                      (    time_test.asm):00310             ; minute is a u16 ($3c0), so we can calc minutes efficiently
+1253 CD00000000       (    time_test.asm):00311             LDQ  #0
+1258 10A626           (    time_test.asm):00312             LDW  6,Y
+125B 118E03C0         (    time_test.asm):00313             DIVQ #TICKS_PER_MINUTE
+125F 11F7106B         (    time_test.asm):00314             STF  TMPMIN
+1263 ED26             (    time_test.asm):00315             STD  6,Y
+1265                  (    time_test.asm):00316         GOTMINUTE               ; CALC SECOND OF MINUTE               
+                      (    time_test.asm):00317             ; remaining timestamp will be a u16 (<$3C0) and
+                      (    time_test.asm):00318             ; ticks per second is a u8 ($10).
+1265 EC26             (    time_test.asm):00319             LDD  6,Y
+1267 118D10           (    time_test.asm):00320             DIVD #TICKS_PER_SECOND
+126A F7106C           (    time_test.asm):00321             STB  TMPSEC
+126D 1F80             (    time_test.asm):00322             TFR  A,D
+126F F7106D           (    time_test.asm):00323             STB  TMPTICKS
+1272                  (    time_test.asm):00324         GOTSECOND               ; CALC MONTH OF YEAR
+1272 FC1066           (    time_test.asm):00325             LDD  TMPDAYYR
+1275 FD105E           (    time_test.asm):00326             STD  TMP16_0
+1278 FC1064           (    time_test.asm):00327             LDD  TMPYEAR
+127B BD116F           (    time_test.asm):00328             JSR  IS_LEAP    ; depending on whether lts a leap year,
+127E 2505             (    time_test.asm):00329             BCS  MONLEAP    ; point x to approproate array of days per month. 
+1280 8E11C2           (    time_test.asm):00330             LDX  #DAYS_IN_MONTHS
+1283 2003             (    time_test.asm):00331             BRA  GOTDAYSM
+1285                  (    time_test.asm):00332         MONLEAP
+1285 8E11CE           (    time_test.asm):00333             LDX  #DAYS_IN_MONTHS_LEAP
+1288                  (    time_test.asm):00334         GOTDAYSM
+1288 FC105E           (    time_test.asm):00335             LDD  TMP16_0    ; temp day of year
+128B                  (    time_test.asm):00336         MONTHSLOOP
+128B FC105E           (    time_test.asm):00337             LDD  TMP16_0
+128E 10860000         (    time_test.asm):00338             LDW  #0
+1292 11E684           (    time_test.asm):00339             LDF  ,X
+1295 10B71060         (    time_test.asm):00340             STW  TMP16_1
+1299 10B31060         (    time_test.asm):00341             CMPD TMP16_1
+129D 2D0D             (    time_test.asm):00342             BLT  GOTMONTH
+129F B31060           (    time_test.asm):00343             SUBD TMP16_1
+12A2 FD105E           (    time_test.asm):00344             STD  TMP16_0
+12A5 3001             (    time_test.asm):00345             LEAX 1,X
+12A7 7C1068           (    time_test.asm):00346             INC  TMPMON
+12AA 20DF             (    time_test.asm):00347             BRA  MONTHSLOOP
+12AC                  (    time_test.asm):00348         GOTMONTH
+12AC 7C1068           (    time_test.asm):00349             INC  TMPMON     ; MONTHS ARE NUMBERED STARTING AT ONE.
+12AF FC105E           (    time_test.asm):00350             LDD  TMP16_0    ; STORE CURRENT DAY WITHIN MONTH
+12B2 F71069           (    time_test.asm):00351             STB  TMPDAYMON
+12B5 7C1069           (    time_test.asm):00352             INC  TMPDAYMON  ; ALSO STARTING AT ONE.
+12B8 FC1064           (    time_test.asm):00353             LDD  TMPYEAR    ; GET YEAR AS INT16, E.G. 2024
+12BB 118D64           (    time_test.asm):00354             DIVD #100       ; GET HIGH AND LOW PARTS, E.G. 20 AND 24
+12BE B71062           (    time_test.asm):00355             STA  TMP8_0
+12C1 F71063           (    time_test.asm):00356             STB  TMP8_1
+12C4 B61063           (    time_test.asm):00357             LDA  TMP8_1
+12C7 BD1113           (    time_test.asm):00358             JSR  BN2BCD
+12CA F7106E           (    time_test.asm):00359             STB  YRHIBCD    ; HIGH PART AS BCD (CURRENTLY $20)
+12CD B61062           (    time_test.asm):00360             LDA  TMP8_0
+12D0 BD1113           (    time_test.asm):00361             JSR  BN2BCD
+12D3 F7106F           (    time_test.asm):00362             STB  YRLOWBCD   ; LOW PART AS BCD (CURRENTLY $24)
+12D6 B61068           (    time_test.asm):00363             LDA  TMPMON     ; MONTH BCD ($01...$12)
+12D9 BD1113           (    time_test.asm):00364             JSR  BN2BCD
+12DC F71070           (    time_test.asm):00365             STB  MONBCD
+12DF B61069           (    time_test.asm):00366             LDA  TMPDAYMON  ; DAY OF MONTH BCD ($01...$31)
+12E2 BD1113           (    time_test.asm):00367             JSR  BN2BCD
+12E5 F71071           (    time_test.asm):00368             STB  DAYMONBCD
+12E8 B6106A           (    time_test.asm):00369             LDA  TMPHOUR    ; HOUR OF DAY BCD ($00..$23)
+12EB BD1113           (    time_test.asm):00370             JSR  BN2BCD
+12EE F71072           (    time_test.asm):00371             STB  HOURBCD
+12F1 B6106B           (    time_test.asm):00372             LDA  TMPMIN     ; MINUTE OF HOUR BCD ($00...$59)
+12F4 BD1113           (    time_test.asm):00373             JSR  BN2BCD
+12F7 F71073           (    time_test.asm):00374             STB  MINBCD
+12FA B6106C           (    time_test.asm):00375             LDA  TMPSEC     ; SECOND OF MINUTE BCD ($00...$59)
+12FD BD1113           (    time_test.asm):00376             JSR  BN2BCD
+1300 F71074           (    time_test.asm):00377             STB  SECBCD
+1303 B6106D           (    time_test.asm):00378             LDA  TMPTICKS   ; REMAINING TICKS AS HUNDREDTHS OF SEC BCD ($00...$94)
+1306 8E11DA           (    time_test.asm):00379             LDX  #FRACS
+1309 A686             (    time_test.asm):00380             LDA  A,X
+130B BD1113           (    time_test.asm):00381             JSR  BN2BCD
+130E F71075           (    time_test.asm):00382             STB  HUNDBCD
+                      (    time_test.asm):00383         
+1311 3536             (    time_test.asm):00384             PULS A,B,X,Y
+1313 39               (    time_test.asm):00385             RTS
+                      (    time_test.asm):00386         ;------------------------------------------------------------------------------
+                      (    time_test.asm):00387         ; EOF
+                      (    time_test.asm):00388         ;------------------------------------------------------------------------------
