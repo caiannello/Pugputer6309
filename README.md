@@ -41,7 +41,9 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 [Pugputer6309_Emulator](https://github.com/caiannello/Pugputer6309_Emulator)
 It's got 1MB RAM, UART, 4K BIOS, FAT16 SD Card, DOS-like command shell, and on the SD card is an updated version of Microsoft Extended BASIC 6809 that works with the BIOS and has most of the DISK/FILE support, patterned on GW-BASIC. 
 
-On my PC, the emulator currently runs 92x faster than the actual hardware. Going to need to add throttling. No graphical display or OPL3 sound yet, but you can interact with it from command prompt, a real Glass TTY at 19.2Kbaud, or if using the com0com NULL-modem driver for Windows, a terminal program. 
+On my PC, the emulator currently runs 92x faster than the actual hardware. Going to need to add throttling. 
+
+No graphical display or OPL3 sound yet, but you can interact with it from command prompt, a real Glass TTY at 19.2Kbaud, or if using the com0com NULL-modem driver for Windows, a terminal program. 
 
 ## Gallery
 
