@@ -39,7 +39,7 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 ```
 ## There's now a (vibe-coded) Emulator!
 [Pugputer6309_Emulator](https://github.com/caiannello/Pugputer6309_Emulator)
-It's got 1MB RAM, UART, 4K BIOS, FAT16 SD Card, DOS-like command shell, and on the SD card is a Text Editor, Assembler, Linker, and a version of Microsoft Extended BASIC 6809 that's been expanded with DISK support, patterned on GW-BASIC, and ON ERROR statemen. 
+It's got 1MB RAM, UART, 4K BIOS, FAT16 SD Card, DOS-like command shell, and on the SD card is a Text Editor, Assembler, Linker, and a version of Microsoft Extended BASIC 6809 that's been expanded with DISK support patterned on GW-BASIC, and the ON ERROR statement implemented. 
 
 On my PC, the emulator currently runs 92x faster than the actual hardware. Going to need to add throttling. 
 
