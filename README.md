@@ -39,7 +39,10 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 ```
 ## There's now a (vibe-coded) Emulator!
 [Pugputer6309_Emulator](https://github.com/caiannello/Pugputer6309_Emulator)
-It's got 1MB RAM, UART, 4K BIOS, FAT16 SD Card, OPL3 Sound, DOS-like command shell, and on the SD card is a Text Editor, Assembler, Linker, and a version of Microsoft Extended BASIC 6809 that's been expanded with DISK support patterned on GW-BASIC, and the ON ERROR statement implemented. 
+It's got 1MB RAM, UART, 4K BIOS, FAT16 SD Card, RP2350-based Graphics Card, OPL3 Sound, DOS-like command shell, 
+and on the SD card is a Text Editor, Assembler, Linker, and a version of Microsoft Extended BASIC 6809 that's 
+been expanded with DISK support patterned on GW-BASIC, graphics and sprites, and the ON ERROR statement.
+There's also some demos which play OPL3 music and demonstrate graphics capabilities.
 
 On my PC, the emulator currently runs 92x faster than the actual hardware. Going to need to add throttling. 
 
