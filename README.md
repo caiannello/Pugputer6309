@@ -46,7 +46,12 @@ There's also some demos which play OPL3 music and demonstrate graphics capabilit
 
 On my PC, the emulator currently runs 92x faster than the actual hardware. Going to need to add throttling. 
 
-You can interact with it from command prompt, a real Glass TTY at 19.2Kbaud, or if using the com0com NULL-modem driver for Windows, a terminal program. There's also a demo folder on the SD card that plays a couple VGM songs and demos some graphics. Excited to get the new utils/OS running on the real HW!
+You can interact with it from command prompt, a real Glass TTY at 19.2Kbaud, or if using the com0com NULL-modem 
+driver for Windows, a terminal program. There's also a demo folder on the SD card that plays a couple VGM songs 
+and demos some graphics. Excited to get the new utils/OS running on the real HW!  Also, note the lack of 
+V9958 video. Going to go with the RP2350 instead, since it's much more capable and easy to use, and the V9958 
+is getting more scarce and expensive. Using a modern MCU does bother me, but not as much as using an FPGA or
+an inferior rare chip.
 
 ## Gallery
 
