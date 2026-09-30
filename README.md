@@ -46,7 +46,7 @@ There's also some demos which play OPL3 music and demonstrate graphics capabilit
 
 On my PC, the emulator currently runs 92x faster than the actual hardware. Going to need to add throttling. 
 
-No graphical display yet, but you can interact with it from command prompt, a real Glass TTY at 19.2Kbaud, or if using the com0com NULL-modem driver for Windows, a terminal program. There's also a demo folder on the SD card that plays a couple VGM songs. Excited to get the new utils/OS running on the real HW!
+You can interact with it from command prompt, a real Glass TTY at 19.2Kbaud, or if using the com0com NULL-modem driver for Windows, a terminal program. There's also a demo folder on the SD card that plays a couple VGM songs and demos some graphics. Excited to get the new utils/OS running on the real HW!
 
 ## Gallery
 
