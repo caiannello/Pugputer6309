@@ -38,6 +38,9 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 
 ```
 ## There's now a (vibe-coded) Emulator!
+
+<img width="1346" height="541" alt="image" src="https://github.com/user-attachments/assets/ded7f57b-a07c-467e-94a5-2e14fb165b3f" />
+
 [Pugputer6309_Emulator](https://github.com/caiannello/Pugputer6309_Emulator)
 It's got 1MB RAM, UART, 4K BIOS, FAT16 SD Card, RP2350-based Graphics Card, OPL3 Sound, DOS-like command shell, 
 and on the SD card is a Text Editor, Assembler, Linker, and a version of Microsoft Extended BASIC 6809 that's 
