@@ -7,6 +7,10 @@ HDMI breakout board off Amazon. (Going to need to get a real part
 number on that part eventually. Basically, pin 0, at the top-left is GND, and after that its HDMI pins 1 
 through 19.
 
+Since this olimex module has an SD card slot on it, and USB, I may as well try to shoehorn SD card functions,
+as well as keyboard, mouse, gamepad, connections. No room for a 4-port hub and usb connectors at the moment..
+maybe if I find some a wacky-sideways HDMI connector?
+
 For a writeup on the current capabilities of this card, see [Pugputer6309_Emulator - Video card readme](https://github.com/caiannello/Pugputer6309_Emulator/tree/main/vidcard)
 
 ## Video Card Layout and Schematic
