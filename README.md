@@ -37,22 +37,6 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 (Nice renders using Indigo Renderer by Glare Technologies)
 
 ```
-## There's now a (vibe-coded) Emulator!
-[Pugputer6309_Emulator](https://github.com/caiannello/Pugputer6309_Emulator)
-It's got 1MB RAM, UART, 4K BIOS, FAT16 SD Card, RP2350-based Graphics Card, OPL3 Sound, DOS-like command shell, 
-and on the SD card is a Text Editor, Assembler, Linker, and a version of Microsoft Extended BASIC 6809 that's 
-been expanded with DISK support patterned on GW-BASIC, graphics and sprites, and the ON ERROR statement.
-There's also some demos which play OPL3 music and demonstrate graphics capabilities.
-
-On my PC, the emulator currently runs 92x faster than the actual hardware. Going to need to add throttling. 
-
-You can interact with it from command prompt, a real Glass TTY at 19.2Kbaud, or if using the com0com NULL-modem 
-driver for Windows, a terminal program. There's also a demo folder on the SD card that plays a couple VGM songs 
-and demos some graphics. Excited to get the new utils/OS running on the real HW!  Also, note the lack of 
-V9958 video. Going to go with the RP2350 instead, since it's much more capable and easy to use, and the V9958 
-is getting more scarce and expensive. Using a modern MCU does bother me, but not as much as using an FPGA or
-an inferior rare chip.
-
 ## Gallery
 
 Graphics from SquareSoft's Seiken Densetsu 3 for Super NES ([Source code](https://github.com/caiannello/Pugputer6309/blob/main/Software/6309/Demos/mana_tilemap.asm))
@@ -104,6 +88,25 @@ The card in the middle in the below image is a prototype multifunction card. It 
 
 Still working on a nice enclosure.. (I wish I had taken shop class in high school!) ([SketchUp Models](https://github.com/caiannello/Pugputer6309/tree/main/3D_Models))
 ![case design](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/wedge_kb_model.png)
+
+## There's now a (vibe-coded) Emulator!
+
+<img width="1346" height="541" alt="image" src="https://github.com/user-attachments/assets/ded7f57b-a07c-467e-94a5-2e14fb165b3f" />
+
+[Pugputer6309_Emulator](https://github.com/caiannello/Pugputer6309_Emulator)
+It's got 1MB RAM, UART, 4K BIOS, FAT16 SD Card, RP2350-based Graphics Card, OPL3 Sound, DOS-like command shell, 
+and on the SD card is a Text Editor, Assembler, Linker, and a version of Microsoft Extended BASIC 6809 that's 
+been expanded with DISK support patterned on GW-BASIC, graphics and sprites, and the ON ERROR statement.
+There's also some demos which play OPL3 music and demonstrate graphics capabilities.
+
+On my PC, the emulator currently runs 92x faster than the actual hardware. Going to need to add throttling. 
+
+You can interact with it from command prompt, a real Glass TTY at 19.2Kbaud, or if using the com0com NULL-modem 
+driver for Windows, a terminal program. There's also a demo folder on the SD card that plays a couple VGM songs 
+and demos some graphics. Excited to get the new utils/OS running on the real HW!  Also, note the lack of 
+V9958 video. Going to go with the RP2350 instead, since it's much more capable and easy to use, and the V9958 
+is getting more scarce and expensive. Using a modern MCU does bother me, but not as much as using an FPGA or
+an inferior rare chip.
 
 ## Contact
 
