@@ -9,7 +9,8 @@ through 19.
 
 Since this olimex module has an SD card slot on it, and USB, I may as well try to shoehorn SD card functions,
 as well as keyboard, mouse, gamepad, connections. No room for a 4-port hub and usb connectors at the moment..
-maybe if I find some a wacky-sideways HDMI connector?
+maybe if I find some a wacky-sideways HDMI connector? I agree it feels like cheating to use a modern MCU 
+to provide so many functions for the Pugputer 6309. Maybe someday there will be a discrete TTL logic version.
 
 For a writeup on the current capabilities of this card, see [Pugputer6309_Emulator - Video card readme](https://github.com/caiannello/Pugputer6309_Emulator/tree/main/vidcard)
 
