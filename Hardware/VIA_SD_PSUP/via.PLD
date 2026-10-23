@@ -1,0 +1,7 @@
+
+
+Pin 11 = !IO ;
+Pin 19 = !VCS ;
+
+VCS = IO & A7 & !A6 & A5 & A4 ;      /* $FFB0-$FFBF: no E, no Q */
+
