@@ -20,6 +20,7 @@ Projects in the Hardware directory:
   V9958 Video -         Same graphics chip as the MSX 2+ home computer 
                         Optional OPL3 synthesizer module (YMF262)
   VIA_SD_PSUP -         SD Card, SPI, I2C, ADC, parallel port, and power supply.
+  Pico2_Video_Misc      Replaces V9958, OPL3, and VIA Cards 
   3 MB RAM Expans. -    Gives the Pugputer more memory than actual pugs. 
   all-in-one -          Combines all of the above on one 10.6" x 3.5" board
 
