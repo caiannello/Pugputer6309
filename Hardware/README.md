@@ -11,11 +11,15 @@ boards are viewable. Editing may be another story. TODO: Learn Kicad?
 Projects in this directory:
 6309 CPU Card V2      HD63C09P CPU, R65C51P2 UART, 1MB RAM, 32K ROM, RTC
 V9958 Video Card      Same graphics chip as the MSX 2+ home computer + OPL3
-Pico2_Video_Misc      RP2350B graphics card, replaces V9958 one.
 VIA_SD_PSUP           Power supply, W65C22 VIA, MCU, SD Card, SPI, I2C, etc.
-Backplane             Five card slots, tombstone-style
 RAM Expansion         Gives the Pugputer more memory than actual pugs. (3 MB)
-all-in-one            Combines all of the above into one 10.6" x 3.5" board
+Pico2_Video_Misc      RP2350B graphics card + OPL3, replaces V9958 one. Also,
+                      provides SD card and USB host for KB/Mouse/Gamepad, so
+                      this card can replace the VIA card too.
+Backplane             Five card slots, tombstone-style
+all-in-one            Combines CPU, V9958, VIA, SD, OPL3 into one board.
+                      10.6" x 3.5" (Obsolete, and never got it working, but
+                      keeping it around since it looks neat)
 -------------------------------------------------------------------------------
 ```
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/Layout.png)
