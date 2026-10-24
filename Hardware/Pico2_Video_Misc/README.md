@@ -14,8 +14,8 @@ to provide so many functions for the Pugputer 6309. Maybe someday there will be 
 
 For a writeup on the current capabilities of this card, see [Pugputer6309_Emulator - Video card readme](https://github.com/caiannello/Pugputer6309_Emulator/tree/main/vidcard)
 
-## RP2350 Graphics Card. 
-Supports 64-color 80x60 text, 640x480x16 bitmap, or 320x240x256 bitmap, tilemaps mode, and sprites.
+## Graphics Demos 
+Supports 64-color 80x60 text, 640x480x16 bitmap, or 320x240x256 bitmap, tilemaps mode (3-layers), and sprites.
 
 ![VIDGFX.COM Demo](https://github.com/caiannello/Pugputer6309_Emulator/blob/main/media/vidgfx.png?raw=true)
 
