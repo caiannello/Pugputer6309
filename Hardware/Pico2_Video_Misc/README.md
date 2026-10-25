@@ -25,8 +25,8 @@ Supports 64-color 80x60 text, 640x480x16 bitmap, or 320x240x256 bitmap, tilemaps
 ## Video Card Layout and Schematic
 
 I know the DVI differential signals aren't equal-length, but I believe they'll suffice for 640x480. 
-(The old version of CADSOFT EAGLE I use 4.16r2 has no easy way to serpentine the shorter traces, or indeed,
-even report a trace's length. Maybe I'll whip out a ruler and do it manually at some point. :-)
+The old version of CADSOFT EAGLE I use, 4.16r2, has no automatic way to do this, or indeed,
+even report a trace's length. (Maybe I'll whip out a ruler at some point and do it manually. :-)
 
 ![Layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Pico2_Video_Misc/layout.png)
 
