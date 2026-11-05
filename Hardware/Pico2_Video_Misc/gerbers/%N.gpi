@@ -1,0 +1,41 @@
+Photoplotter Info File: C:/Users/caian/Documents/GitHub/Pugputer6309/Hardware/Pico2_Video_Misc/gerbers/%N.gpi
+
+ Date              : 10/24/2026 01:40:30p
+ Plotfile          : C:/Users/caian/Documents/GitHub/Pugputer6309/Hardware/Pico2_Video_Misc/gerbers/%N.GBP
+ Apertures         : generated: 
+ Device            : Gerber photoplotter with RS-274-X aperture generation
+
+Parameter settings:
+
+ Emulate Apertures : no
+ Emulate Thermal   : no
+ Emulate Annulus   : no
+ Tolerance Draw  + :  0.00 %
+ Tolerance Draw  - :  0.00 %
+ Tolerance Flash + :  0.00 %
+ Tolerance Flash - :  0.00 %
+ Rotate            : no
+ Mirror            : no
+ Optimize          : yes
+ Auto fit          : yes
+ OffsetX           : 0inch
+ OffsetY           : 0inch
+
+Plotfile Info:
+
+ Coordinate Format : 2.4
+ Coordinate Units  : Inch
+ Data Mode         : Absolute
+ Zero Suppression  : None
+ End Of Block      : *
+
+Apertures used:
+
+ Code     Shape     Size                  used
+
+ D10      rectangle 0.0433inch x 0.0394inch    20
+ D11      rectangle 0.0613inch x 0.3000inch    30
+ D12      rectangle 0.0394inch x 0.0433inch    16
+ D13      draw      0.0007inch              40
+ D14      rectangle 0.0394inch x 0.0551inch     3
+
