@@ -24,7 +24,7 @@ Moved previous version to past_revs/ subfolder.
   MEM1      4000 - 7fff    16384    Mem sect 1 (a14 - a21 from bank reg. 1)
   MEM2      8000 - bfff    16384    Mem sect 2 (a14 - a21 from bank reg. 2)
   MEM3      c000 - efff    12288    Mem sect 3 (a14 - a21 from bank reg. 3)
-  ROM       f000 - feff    3840     Fixed ROM  (bootloader)
+  ROM       f000 - feff    3840     Fixed ROM  (BIOS)
   IO0       ff00 - ff0f    16
   IO1       ff10 - ff1f    16
   IO2       ff20 - ff2f    16
@@ -33,8 +33,8 @@ Moved previous version to past_revs/ subfolder.
   IO5       ff50 - ff5f    16
   IO6       ff60 - ff6f    16
   IO7       ff70 - ff7f    16
-  IO8       ff80 - ff8f    16
-  IO9       ff90 - ff9f    16
+  IO8       ff80 - ff8f    16       Video Card (RP2350) registers 0-15
+  IO9       ff90 - ff9f    16       Video Card (RP2350) registers 16-31
   IO10      ffa0 - ffaf    16
   IO11      ffb0 - ffbf    16       W65C22 VIA (SD Card, SPI, KB, GPIO)
   SIO0      ffc0 - ffc3    4      
@@ -43,14 +43,18 @@ Moved previous version to past_revs/ subfolder.
   SIO3      ffcc - ffcf    4      
   SIO4      ffd0 - ffd3    4        
   SIO5      ffd4 - ffd7    4        
-  SIO6      ffd8 - ffdb    4        
+  SIO6      ffd8 - ffdb    4        SD Card (on the RP2350 Video Card)
   SIO7      ffdc - ffdf    4        
-  SIO8      ffe0 - ffe3    4        Music Chip YMF262 (OPL3)
-  SIO9      ffe4 - ffe7    4        Video Chip V9958
+  SIO8      ffe0 - ffe3    4        Music Chip YMF262 (OPL3, on the Video Card)
+  SIO9      ffe4 - ffe7    4        Video Chip V9958 (the old V9958 card)
   SIO10     ffe8 - ffeb    4        Serial UART R65C51P2
   SIO11     ffec - ffef    4        Memory Bank Regs 0...3
   intvec    fff0 - ffff    16       Fixed ROM (interrupt vectors)
 ```
+The ROM is an AT28C256 (32K). The CPU sees its last 4K, `$7000-$7FFF` of the chip, at
+`$F000-$FFFF`, less the I/O page's `$FF00-$FFEF`: so the BIOS (`Software/6309/bios`) is burned
+at `$7000` of the chip (`pugbios_rom.bin` is the whole 32K image, ready to burn).
+
 ## Memory Paging Scheme
 ```
 Two 74LS670 chips are added to the design which provide four writable bytes at
@@ -135,6 +139,12 @@ eclk, r//w, hn3, hn2, hn1, ssf, e21, e20, e19, a3, a2
 
 # Outputs from onboard PAL
 
+(What cpu_pld.PLD actually does differs in one way from the sketch below: /rd and /wr are made
+from R//W alone, not gated by E -- read_n = !RW, write_n = RW -- so they say whether a cycle
+reads or writes, but not when its data is valid. A card that takes data on a /wr edge should use
+a select qualified with E instead, as the RP2350 video card's GAL does. Gating them with E is
+worth doing the next time the PAL is reprogrammed.)
+
 /rd   = !eclk | !r//w                      # bus: memory read
 /wr   = !eclk | r//w                       # bus: memory write
 /io   = !hn3 | !hn2 | hn1                  # bus: IO select
@@ -147,7 +157,9 @@ xmem  = !hn3 & e20 | e21                   # bus: expansion mem select
 
 # outputs from PALs on other cards:
 
-/v9958  = !io | !a7 | !a6 | !a5 | a4 | a3 | !a2   # ffe4 - ffe7  Video Card video chip
+/vcs    = !io | !a7 | a6 | a5 | !e & !q       # ff80 - ff9f  RP2350 Video Card (and ffd8 - ffdb,
+                                           # its SD card): see Pico2_Video_Misc/VIDCARD.PLD
+/v9958  = !io | !a7 | !a6 | !a5 | a4 | a3 | !a2   # ffe4 - ffe7  V9958 Video Card video chip
 /opl3   = !io | !a7 | !a6 | !a5 | a4 | a3 | a2    # ffe0 - ffe3  Video Card music chip
 
 /via    = !io | !a7 | a6 | !a5 | !a4       # ffb0 - ffbf  W65C22 Versatile Interface Adaptor

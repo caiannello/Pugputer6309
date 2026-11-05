@@ -1,0 +1,62 @@
+Name            VIDCARD ;
+Partno          ATF16V8B ;
+Revision        01 ;
+Date            11/5/2026 ;
+Designer        Craig Iannello ;
+Company         Pugbutt Industries LLC ;
+Assembly        Pico2_Video_Misc video card ;
+Location        IC3 ;
+Device          g16v8a ;
+
+/********************************************************************************/
+/* ATF16V8B: the address decoder of the RP2350 video card (Pico2_Video_Misc)    */
+/*                                                                              */
+/*   ff80 - ff9f  the video card's registers   (/VCS low, SDCS low)             */
+/*   ffd8 - ffdb  the SD card's registers      (/VCS low, SDCS high)            */
+/*   ffe0 - ffe3  the YMF262 (OPL3) music chip (/OPL low)                       */
+/*                                                                              */
+/* Compile using WINCUPL; burn the .jed it makes.                               */
+/* The same equations as Pugputer6309_Emulator's vidcard/hardware/VIDCARD.PLD   */
+/********************************************************************************/
+/*
+ * /VCS  goes to the RP2350 (GPIO 32, through the level shifter), and times every access:
+ *       low only while E or Q is high, from Q rising (the address valid) to E falling (a
+ *       write's data taken), so it goes high between bus cycles, even back-to-back ones.
+ *       The card answers a read as /VCS falls and takes a write's data as it rises.
+ * SDCS  goes to the RP2350 (GPIO 47): high for the SD card's four registers. The card reads
+ *       it with A0-A4 as a 6-bit register number (0-31 video, 56-59 SD).
+ * /OPL  is the YMF262's /CS, low while E is high: the YMF262 takes a write's data as its /CS
+ *       rises, which is then as E falls. (The bus's /RD and /WR, which it also gets, are
+ *       made from R/W alone on the CPU card, not gated by E, so /OPL does the timing.)
+ *
+ * /IO is the CPU card's select for the I/O page ($FFxx); A7-A2 pick the device in it.
+ * Pin 1 is grounded and unused.
+ */
+
+/* inputs */
+
+Pin 2  = E ;
+Pin 3  = Q ;
+Pin 4  = A2 ;
+Pin 5  = A3 ;
+Pin 6  = A4 ;
+Pin 7  = A5 ;
+Pin 8  = A6 ;
+Pin 9  = A7 ;
+Pin 11 = !IO ;
+
+/* outputs */
+
+Pin 19 = !VCS ;
+Pin 18 = SDCS ;
+Pin 17 = !OPL ;
+
+/* equations */
+
+VIDEO = IO & A7 & !A6 & !A5 ;                      /* $FF80-$FF9F */
+SD    = IO & A7 &  A6 & !A5 &  A4 &  A3 & !A2 ;    /* $FFD8-$FFDB */
+OPL3  = IO & A7 &  A6 &  A5 & !A4 & !A3 & !A2 ;    /* $FFE0-$FFE3 */
+
+VCS  = (VIDEO # SD) & (E # Q) ;
+SDCS = SD ;
+OPL  = OPL3 & E ;

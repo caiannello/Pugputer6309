@@ -13,9 +13,11 @@ Projects in this directory:
 V9958 Video Card      Same graphics chip as the MSX 2+ home computer + OPL3
 VIA_SD_PSUP           Power supply, W65C22 VIA, MCU, SD Card, SPI, I2C, etc.
 RAM Expansion         Gives the Pugputer more memory than actual pugs. (3 MB)
-Pico2_Video_Misc      RP2350B graphics card + OPL3, replaces V9958 one. Also,
-                      provides SD card and USB host for KB/Mouse/Gamepad, so
-                      this card can replace the VIA card too.
+Pico2_Video_Misc      RP2350B graphics card + OPL3, replaces V9958 one. Also
+                      provides the SD card the BIOS boots from (and, once the
+                      firmware has it, USB host for KB/Mouse/Gamepad), so
+                      this card can replace the VIA card too. Its GAL is
+                      VIDCARD.PLD; its firmware is in Software/RP2350.
 Backplane             Five card slots, tombstone-style
 all-in-one            Combines CPU, V9958, VIA, SD, OPL3 into one board.
                       10.6" x 3.5" (Obsolete, and never got it working, but
@@ -24,6 +26,9 @@ all-in-one            Combines CPU, V9958, VIA, SD, OPL3 into one board.
 ```
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/Layout.png)
 ![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/6309%20CPU%20Card/Schematic.png)
+
+![Pico2_Video_Misc layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Pico2_Video_Misc/layout.png)
+![Pico2_Video_Misc schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Pico2_Video_Misc/schematic.png)
 
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/VIA_SD_PSUP/Layout.png)
 ![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/VIA_SD_PSUP/Schematic.png)

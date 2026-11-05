@@ -1,0 +1,4 @@
+# Build leftovers (compile.bat); the ROM images (.s19, .hex, _rom.bin) are kept.
+*.o
+*.lst
+*.map

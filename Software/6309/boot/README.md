@@ -1,4 +1,8 @@
 # PugBoot - Minimal Bootloader v2
+
+**Superseded by [`../bios`](../bios)**, the BIOS developed with the Pugputer6309_Emulator, which
+does what was planned here (and boots DOS from the SD card on the RP2350 video card). This
+folder is kept for reference.
 ```
 -------------------------------------------------------------------------------
 This will be the firmware for the Rev 2 hardware. We have 32K of FLASH, but 

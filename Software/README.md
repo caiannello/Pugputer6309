@@ -13,7 +13,12 @@ by the pugputer. I hope to add file handling to BASIC and Pugmon soon.
 
 Contents
 
-6309 		Extended Basic, bootloader, Pugmon, demos of sound and graphics
+6309 		The BIOS and the SD card image (DOS, shell, BASIC, tools and
+		demos, from the Pugputer6309_Emulator), and the older Extended
+		Basic, bootloader, Pugmon, demos of sound and graphics
+
+RP2350		RP2350 firmware: video_misc is the Pico2_Video_Misc card's
+		(graphics over DVI, and the SD card the BIOS boots from)
 
 Arduino UNO	Allows an Uno to be connected to the Pugputer (via parallel IO
 		card) to provide SD Card, SPI, PS/2 keyboard, and minimal (PWM)

@@ -27,9 +27,16 @@ Projects in the Hardware directory:
 Projects in the Software Directory:  (All are work-in-progress, stay tuned.) 
   (Using LWTOOLS/LWASM 4.20 for the 6309 assembly stuff)
 
+  6309/bios -             The CPU card's BIOS: serial console, BIOS calls,
+                          RAM banking, and booting DOS from the SD card
+                          (the same BIOS the emulator runs)
+  6309/sdcard -           The SD card image: DOS, its shell, BASIC with disk
+                          and graphics, an editor, assembler, linker, demos
+  RP2350/video_misc -     Firmware for the Pico2_Video_Misc card's RP2350:
+                          graphics (DVI) and the SD card
   6309 Extended Basic -   Microsoft, Walter K. Zydhek, Grant Searle,
-                          Tom Circuit, and me
-  boot -                  Minimal bootloader (Also unfinished, but coming soon!)
+                          Tom Circuit, and me (the V9958-era version)
+  boot -                  Minimal bootloader (superseded by bios)
   Pugmon -                ML Monitor (Far from complete)
   Demos -                 graphics and sound examples in Assembly and BASIC
 
