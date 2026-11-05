@@ -1,13 +1,6 @@
 ## 6309 CPU Card v2
 
 ```
-2025-02-15 UPDATE:
-
-V2.1 moves the card-egde connecter fingers further from the board edge to facilitate gold-plating of the connector.
-
-```
-
-```
 2024-03-01 UPDATE:
 
 Added a new v2 CPU card. It has the same HD63C09 clocked at 3.57 MHz, 32K Flash
