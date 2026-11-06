@@ -64,15 +64,19 @@ static void diag_report(uint32_t secs) {
         if (diag_writes[i]) { printf(" W%02x:%lu", i, (unsigned long)diag_writes[i]); any = 1; }
     }
     printf(any ? "\n" : " (no bus accesses yet)\n");
-    printf("  index late: %lu (reads %lu, early = previous access's %lu); bits A0 %lu A1 %lu A2 %lu A3 %lu A4 %lu SD %lu\n",
-           (unsigned long)diag_index_late, (unsigned long)diag_late_reads, (unsigned long)diag_late_prev,
+    printf("  index as /CS fell differed: %lu; bits A0 %lu A1 %lu A2 %lu A3 %lu A4 %lu SD %lu\n",
+           (unsigned long)diag_fall_diff, (unsigned long)diag_fall_bit[0], (unsigned long)diag_fall_bit[1],
+           (unsigned long)diag_fall_bit[2], (unsigned long)diag_fall_bit[3], (unsigned long)diag_fall_bit[4],
+           (unsigned long)diag_fall_bit[5]);
+    printf("  index changed during access: %lu (reads %lu, late = next access's %lu); bits A0 %lu A1 %lu A2 %lu A3 %lu A4 %lu SD %lu\n",
+           (unsigned long)diag_index_late, (unsigned long)diag_late_reads, (unsigned long)diag_late_next,
            (unsigned long)diag_late_bit[0], (unsigned long)diag_late_bit[1], (unsigned long)diag_late_bit[2],
            (unsigned long)diag_late_bit[3], (unsigned long)diag_late_bit[4], (unsigned long)diag_late_bit[5]);
     if (secs == 1 || secs % 10 == 0) /* (the first ones, now and then) */
         for (uint32_t i = 0; i < diag_late_logged; ++i) {
             uint32_t e = diag_late_log[i][0];
-            printf("    %c early %02lx late %02lx data %02lx, previous access %02lx\n", EV_READ(e) ? 'R' : 'W',
-                   (unsigned long)EV_EARLY_INDEX(e), (unsigned long)EV_INDEX(e), (unsigned long)(e & 0xFF),
+            printf("    %c index %02lx late %02lx data %02lx, previous access %02lx\n", EV_READ(e) ? 'R' : 'W',
+                   (unsigned long)EV_INDEX(e), (unsigned long)EV_LATE_INDEX(e), (unsigned long)(e & 0xFF),
                    (unsigned long)diag_late_log[i][1]);
         }
     /* The picture: whether core 1 keeps up (a line has 31.7 us), and what row 1 holds. */

@@ -28,8 +28,9 @@ static volatile bool paused;
 #if VIDCARD_DIAG
 volatile uint32_t diag_reads[64], diag_writes[64], diag_last_event;
 volatile uint32_t diag_pin_resets, diag_card_resets, diag_index_late;
-volatile uint32_t diag_late_bit[6], diag_late_reads, diag_late_prev, diag_late_log[8][2], diag_late_logged;
-static uint32_t diag_prev_index;
+volatile uint32_t diag_late_bit[6], diag_late_reads, diag_late_next, diag_late_log[8][2], diag_late_logged;
+volatile uint32_t diag_fall_diff, diag_fall_bit[6];
+static uint32_t diag_prev_index, diag_pending = 0xFF; /* (the last one's late index, if it differed) */
 #endif
 
 static void __isr bus_isr(void) {
@@ -44,14 +45,23 @@ static void __isr bus_isr(void) {
         if (EV_READ(e)) ++diag_reads[EV_INDEX(e)];
         else ++diag_writes[EV_INDEX(e)];
         diag_last_event = e;
-        if (EV_EARLY_INDEX(e) != EV_INDEX(e)) {
-            /* Which bits, on what, and whether the early index was the last access's. */
-            uint32_t diff = EV_EARLY_INDEX(e) ^ EV_INDEX(e);
+        if (EV_FALL_INDEX(e) != EV_INDEX(e)) { /* (what taking it at once would have got) */
+            uint32_t diff = EV_FALL_INDEX(e) ^ EV_INDEX(e);
+            ++diag_fall_diff;
+            for (int b = 0; b < 6; ++b)
+                if (diff & (1u << b)) ++diag_fall_bit[b];
+        }
+        if (diag_pending == EV_INDEX(e)) ++diag_late_next;
+        diag_pending = 0xFF;
+        if (EV_LATE_INDEX(e) != EV_INDEX(e)) {
+            /* Which bits, on what, and (with the next one) whether the late index was the
+             * next access's. */
+            uint32_t diff = EV_LATE_INDEX(e) ^ EV_INDEX(e);
             ++diag_index_late;
             for (int b = 0; b < 6; ++b)
                 if (diff & (1u << b)) ++diag_late_bit[b];
             if (EV_READ(e)) ++diag_late_reads;
-            if (EV_EARLY_INDEX(e) == diag_prev_index) ++diag_late_prev;
+            diag_pending = EV_LATE_INDEX(e);
             if (diag_late_logged < 8) {
                 diag_late_log[diag_late_logged][0] = e;
                 diag_late_log[diag_late_logged][1] = diag_prev_index;
@@ -104,10 +114,10 @@ void bus_init(void) {
     pio_sm_exec(pio, sm_read, pio_encode_pull(false, true));
     pio_sm_exec(pio, sm_read, pio_encode_mov(pio_x, pio_osr));
 
-    /* bus_events: data, index and SD-select from D0 (14 pins). */
+    /* bus_events: R/W, data, index and SD-select from R/W (15 pins); waits on /CS. */
     c = bus_events_program_get_default_config(at_events);
-    sm_config_set_in_pins(&c, PIN_D0);
-    sm_config_set_jmp_pin(&c, PIN_RW);
+    sm_config_set_in_pins(&c, PIN_RW);
+    sm_config_set_jmp_pin(&c, PIN_CS);
     sm_config_set_in_shift(&c, false, false, 32);
     sm_config_set_out_shift(&c, true, false, 32);
     pio_sm_init(pio, sm_events, at_events, &c);
