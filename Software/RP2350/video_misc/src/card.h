@@ -21,6 +21,7 @@ extern uint8_t regcopy[64];
 #define EV_DATA(e) ((uint8_t)(e))
 #define EV_INDEX(e) (((e) >> 8) & 0x3F)
 #define EV_READ(e) (((e) >> 14) & 1)
+#define EV_EARLY_INDEX(e) (((e) >> 16) & 0x3F) /* the index as /CS fell (diagnostics) */
 
 void card_init(void);
 /* Core 0's bus interrupt: one access, in the order the CPU made them. Returns false to

@@ -16,6 +16,11 @@
 #include "hardware/structs/hstx_ctrl.h"
 #include "hardware/structs/hstx_fifo.h"
 #include "hardware/sync.h"
+#include "hardware/timer.h"
+
+#if VIDCARD_DIAG
+volatile uint32_t diag_render_us_max, diag_lines_drawn;
+#endif
 
 /* 640x480 at 60 Hz: 800 pixels a line, 525 lines; both syncs negative. */
 #define H_FRONT 16
@@ -168,7 +173,16 @@ void dvi_run(void) {
         int16_t y = to_draw;
         if (y >= 0) {
             to_draw = -1;
+#if VIDCARD_DIAG
+            uint32_t t0 = time_us_32();
+#endif
             vc_render_line(&card, y, pixels[y & 1]);
+#if VIDCARD_DIAG
+            /* Diagnostic: how long a line takes to draw (it has 31.7 us). */
+            uint32_t dt = time_us_32() - t0;
+            if (dt > diag_render_us_max) diag_render_us_max = dt;
+            ++diag_lines_drawn;
+#endif
         }
     }
 }

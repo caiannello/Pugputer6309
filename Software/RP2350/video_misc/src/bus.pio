@@ -4,9 +4,10 @@
 ; marks a whole bus cycle: it falls once the address is valid, and rises as E falls, when
 ; a write's data is to be taken.
 ;
-; The pin numbers here are as the PIO sees them: its GPIO window starts at GPIO16 (see
-; ../src/config.h), so GPIO32 is 16.
-.define CS_N 16 ; GPIO32 /CS
+; WAIT GPIO takes the absolute GPIO number: the PIO's window starts at GPIO16 (see
+; ../src/config.h), and the SDK subtracts that base as it loads the program. (Writing 16
+; here, the window-relative number, waits on GPIO16 -- a DVI pin.)
+.define CS_N 32 ; GPIO32 /CS
 
 ; bus_read: serves the CPU's reads with no CPU in the way. The register's index (A0-A4,
 ; and SD-select as bit 5) becomes the address of its byte in the register copy, which a
@@ -37,27 +38,31 @@ read:
 ; bus_events: tells core 0 about every access, reads too (some have side effects, such
 ; as stepping a data port): a word into the RX FIFO, which a DMA moves into a ring in
 ; SRAM, then PIO interrupt 0.
-;   bits 0-7 the data (a write's), 8-13 the index (A0-A4, SD-select), 14 set for a read.
+;   bits 0-7 the data (a write's; a read's is what the card drove), 8-13 the index (A0-A4,
+;   SD-select), 14 set for a read, 16-21 the index as it was when /CS fell.
 ;   in_base = D0 (GPIO34, 14 pins: D0-D7, A0-A4, SD-select), jmp_pin = R/W,
 ;   ISR shifts left, OSR right, no autopush or autopull.
+; The index that counts is the one as /CS rises, when everything has long settled. The one
+; as /CS falls is kept for the diagnostics: the index must be settled by then too, as
+; bus_read takes it then. (With VIDCARD.PLD revision 01 it often wasn't: SD-select came
+; from the same GAL as /CS, qualified with the CPU card's /IO, and rose as /CS fell.
+; Revision 02 makes it from the address alone.)
 .program bus_events
 .wrap_target
     wait 0 gpio CS_N
-    mov osr, pins           ; the address, as /CS falls
+    mov osr, pins           ; as /CS falls
     out null, 8
-    out x, 6                ; X = the index
-    jmp pin read
-    wait 1 gpio CS_N        ; a write: its data, as /CS rises (E falls) ...
-    mov y, pins             ; ... at once: the 6309 holds it only briefly
+    in osr, 6               ; (bits 16-21, once the rest is in) the index then
     in null, 1
+    jmp pin read
+    in null, 1              ; bit 14: a write
     jmp both
 read:
-    set y, 1
-    in y, 1
+    set x, 1
+    in x, 1                 ; bit 14: a read
 both:
-    in x, 6
-    in y, 8                 ; the data (a read's is junk)
-    push block              ; (a read's goes at once, so core 0 can get on with it)
+    wait 1 gpio CS_N        ; as /CS rises (E falls): a write's data, and the index ...
+    in pins, 14             ; ... at once: the 6309 holds them only briefly
+    push block
     irq set 0
-    wait 1 gpio CS_N
 .wrap

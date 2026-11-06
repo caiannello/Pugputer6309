@@ -474,63 +474,196 @@ void vc_begin_line(vc_card *c, uint16_t line) {
     if (line == c->irq_line) SET_FLAGS(c, VC_IRQ_LINE);
 }
 
-/* ---- the picture ---- */
+/* ---- the picture ----
+ *
+ * On the card a line has to be drawn in 31.7 us (8000 clocks), so it is drawn a character
+ * cell, a tile or a run of pixels at a time rather than working out each pixel from
+ * scratch. When only one layer is on and no sprite is on the line, that layer is drawn
+ * straight in colors. Otherwise each layer puts palette indexes into a line of them (0 is
+ * transparent: what's below shows), the sprites go in among the layers, and the line of
+ * indexes becomes colors at the end. Both ways give the same picture. */
 
-/* One layer's pixels on a line: palette indexes into idx[], 0 (transparent) left alone. */
-static void render_layer(const vc_card *c, const uint8_t *l, int y, uint8_t *idx) {
+#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define VC_BIG_ENDIAN 1
+#else
+#define VC_BIG_ENDIAN 0
+#endif
+
+#if defined(__GNUC__)
+#define VC_INLINE static inline __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define VC_INLINE static __forceinline
+#else
+#define VC_INLINE static inline
+#endif
+
+/* Two pixels as one 32-bit word, the first at the lower address; and 4 bytes, 0xFF where
+ * a nibble's bits are set (bit 3 the first). */
+#if VC_BIG_ENDIAN
+#define PAIR(a, b) ((uint32_t)(a) << 16 | (uint32_t)(b))
+#define NIB(n) (((n) & 8 ? 0xFF000000u : 0) | ((n) & 4 ? 0xFF0000u : 0) | ((n) & 2 ? 0xFF00u : 0) | ((n) & 1 ? 0xFFu : 0))
+#else
+#define PAIR(a, b) ((uint32_t)(b) << 16 | (uint32_t)(a))
+#define NIB(n) (((n) & 8 ? 0xFFu : 0) | ((n) & 4 ? 0xFF00u : 0) | ((n) & 2 ? 0xFF0000u : 0) | ((n) & 1 ? 0xFF000000u : 0))
+#endif
+
+static const uint32_t k_nib[16] = {NIB(0), NIB(1), NIB(2),  NIB(3),  NIB(4),  NIB(5),  NIB(6),  NIB(7),
+                                   NIB(8), NIB(9), NIB(10), NIB(11), NIB(12), NIB(13), NIB(14), NIB(15)};
+static const uint32_t k_nib_wide[4] = {NIB(0), NIB(3), NIB(12), NIB(15)}; /* 2 bits, each doubled */
+static const uint32_t k_px2[4] = {0, PAIR(0, 0xFFFF), PAIR(0xFFFF, 0), 0xFFFFFFFFu}; /* 2 bits, 2 pixels */
+
+VC_INLINE uint32_t get32(const void *p) {
+    uint32_t v;
+    memcpy(&v, p, 4);
+    return v;
+}
+VC_INLINE void put32(void *p, uint32_t v) { memcpy(p, &v, 4); }
+
+/* One pixel of a layer (at its own resolution): as a color (pal[0] is the backdrop), or
+ * as an index, if it isn't transparent. */
+VC_INLINE void put(uint8_t *idx, uint16_t *out, const uint16_t *pal, int direct, int scale, int lx, uint8_t v) {
+    if (direct) {
+        if (scale == 1) {
+            out[lx] = pal[v];
+        } else {
+            uint16_t col = pal[v];
+            put32(out + 2 * lx, PAIR(col, col));
+        }
+    } else if (v) {
+        if (scale == 1) {
+            idx[lx] = v;
+        } else {
+            idx[2 * lx] = v;
+            idx[2 * lx + 1] = v;
+        }
+    }
+}
+
+/* 4 indexes: where m is set fg, else bg, except where that is 0 (transparent). */
+VC_INLINE void put4(uint8_t *p, uint32_t m, uint32_t fg4, uint32_t bg4, uint32_t fg_on, uint32_t bg_on) {
+    uint32_t set = (m & fg_on) | (~m & bg_on);
+    put32(p, (get32(p) & ~set) | (((fg4 & m) | (bg4 & ~m)) & set));
+}
+
+/* A whole character cell: its 8 pixels, from the glyph's row. */
+VC_INLINE void text_cell(uint8_t *idx, uint16_t *out, const uint16_t *pal, int direct, int scale, int lx,
+                         unsigned glyph, uint8_t fg, uint8_t bg) {
+    if (direct) {
+        uint16_t cf = pal[fg], cb = pal[bg];
+        if (scale == 1) {
+            uint32_t base = PAIR(cb, cb), diff = PAIR(cf ^ cb, cf ^ cb);
+            uint16_t *d = out + lx;
+            put32(d, base ^ (diff & k_px2[glyph >> 6]));
+            put32(d + 2, base ^ (diff & k_px2[(glyph >> 4) & 3]));
+            put32(d + 4, base ^ (diff & k_px2[(glyph >> 2) & 3]));
+            put32(d + 6, base ^ (diff & k_px2[glyph & 3]));
+        } else {
+            uint32_t f2 = PAIR(cf, cf), b2 = PAIR(cb, cb);
+            uint16_t *d = out + 2 * lx;
+            int i;
+            for (i = 0; i < 8; ++i) put32(d + 2 * i, (glyph >> (7 - i)) & 1 ? f2 : b2);
+        }
+    } else {
+        uint32_t fg4 = fg * 0x01010101u, bg4 = bg * 0x01010101u;
+        uint32_t fg_on = fg ? 0xFFFFFFFFu : 0, bg_on = bg ? 0xFFFFFFFFu : 0;
+        if (scale == 1) {
+            put4(idx + lx, k_nib[glyph >> 4], fg4, bg4, fg_on, bg_on);
+            put4(idx + lx + 4, k_nib[glyph & 15], fg4, bg4, fg_on, bg_on);
+        } else {
+            uint8_t *d = idx + 2 * lx;
+            put4(d, k_nib_wide[glyph >> 6], fg4, bg4, fg_on, bg_on);
+            put4(d + 4, k_nib_wide[(glyph >> 4) & 3], fg4, bg4, fg_on, bg_on);
+            put4(d + 8, k_nib_wide[(glyph >> 2) & 3], fg4, bg4, fg_on, bg_on);
+            put4(d + 12, k_nib_wide[glyph & 3], fg4, bg4, fg_on, bg_on);
+        }
+    }
+}
+
+/* One layer's line: into idx (direct 0), or into out as colors (direct 1, every pixel). */
+VC_INLINE void render_layer(const vc_card *c, const uint8_t *l, int y, uint8_t *idx, uint16_t *out,
+                            const uint16_t *pal, int direct) {
     int mode = l[VC_L_MODE], type = mode & 3, hires = (mode >> 2) & 1, big = (mode >> 5) & 1;
     int bpp = 1 << ((mode >> 3) & 3), scale = hires ? 1 : 2, width = VC_WIDTH / scale;
     int ly = y / scale, lx;
     uint32_t mapbase = be24(l + VC_L_MAPBASE), tilebase = be24(l + VC_L_TILEBASE);
+    uint32_t vmask = (1u << bpp) - 1;
     int hs = s16(l + VC_L_HSCROLL), vs = s16(l + VC_L_VSCROLL);
     int mapw = 32 << (l[VC_L_MAP] & 3), maph = 32 << ((l[VC_L_MAP] >> 2) & 3);
     const uint8_t *vram = c->vram;
-    for (lx = 0; lx < width; ++lx) {
-        uint8_t v = 0;
-        if (type == VC_TEXT) {
-            int fh = big ? 16 : 8;
-            int px = (lx + hs) & (mapw * 8 - 1), py = (ly + vs) & (maph * fh - 1);
-            uint32_t cell = mapbase + 4u * (uint32_t)((py / fh) * mapw + px / 8);
-            uint8_t ch = vram[cell & VRAM_MASK];
-            uint8_t glyph = vram[(tilebase + (uint32_t)ch * fh + (uint32_t)(py % fh)) & VRAM_MASK];
-            v = vram[(cell + ((glyph >> (7 - (px & 7))) & 1 ? 1 : 2)) & VRAM_MASK];
-        } else if (type == VC_TILE) {
-            int ts = big ? 16 : 8;
-            int px = (lx + hs) & (mapw * ts - 1), py = (ly + vs) & (maph * ts - 1);
-            uint32_t e = be16(vram + ((mapbase + 2u * (uint32_t)((py / ts) * mapw + px / ts)) & VRAM_MASK));
-            int tx = px % ts, ty = py % ts, pal = (int)(e >> 12);
-            uint32_t bit;
-            uint8_t b;
-            if (e & 0x400) tx = ts - 1 - tx;
-            if (e & 0x800) ty = ts - 1 - ty;
-            bit = (uint32_t)(ty * ts + tx) * bpp;
-            b = vram[(tilebase + (e & 0x3FF) * (uint32_t)(ts * ts * bpp / 8) + bit / 8) & VRAM_MASK];
-            if (bpp == 8) {
-                v = b;
-            } else {
-                v = (uint8_t)(b >> (8 - bpp - (bit & 7)) & ((1u << bpp) - 1));
-                if (v) v = (uint8_t)(pal * 16 + v);
+    if (type == VC_TEXT) {
+        /* A cell is 4 bytes: the character, its color, its background (and one unused). */
+        int fh = big ? 16 : 8, wmask = mapw * 8 - 1;
+        int py = (ly + vs) & (maph * fh - 1), px = hs & wmask;
+        uint32_t row = mapbase + 4u * (uint32_t)((py / fh) * mapw), gbase = tilebase + (uint32_t)(py % fh);
+        lx = 0;
+        while (lx < width) {
+            uint32_t cell = row + 4u * (uint32_t)(px >> 3);
+            uint8_t ch = vram[cell & VRAM_MASK], fg = vram[(cell + 1) & VRAM_MASK], bg = vram[(cell + 2) & VRAM_MASK];
+            unsigned glyph = vram[(gbase + (uint32_t)ch * (uint32_t)fh) & VRAM_MASK];
+            int b = px & 7, n = 8 - b, i;
+            if (n > width - lx) n = width - lx;
+            if (n == 8) {
+                text_cell(idx, out, pal, direct, scale, lx, glyph, fg, bg);
+            } else { /* a cell cut by the scroll or the screen's edge */
+                for (i = 0; i < n; ++i) put(idx, out, pal, direct, scale, lx + i, (glyph >> (7 - b - i)) & 1 ? fg : bg);
             }
-        } else if (type == VC_BITMAP) {
-            int stride = (int)be16(l + VC_L_STRIDE), px = lx + hs, py = ly + vs;
-            if (px >= 0 && py >= 0 && px < stride * 8 / bpp) {
-                uint32_t bit = (uint32_t)px * bpp;
-                uint8_t b = vram[(mapbase + (uint32_t)py * (uint32_t)stride + bit / 8) & VRAM_MASK];
+            lx += n;
+            px = (px + n) & wmask;
+        }
+    } else if (type == VC_TILE) {
+        /* A map entry is 16 bits: bits 0-9 the tile, 10 flip across, 11 flip down, 12-15
+         * its 16 colors (below 8 bits per pixel). */
+        int ts = big ? 16 : 8, shift = big ? 4 : 3, wmask = mapw * ts - 1;
+        int py = (ly + vs) & (maph * ts - 1), px = hs & wmask, row_in_tile = py & (ts - 1);
+        uint32_t row = mapbase + 2u * (uint32_t)((py / ts) * mapw), tile_bytes = (uint32_t)(ts * ts * bpp / 8);
+        lx = 0;
+        while (lx < width) {
+            uint32_t e = be16(vram + ((row + 2u * (uint32_t)(px >> shift)) & VRAM_MASK));
+            uint32_t tile = tilebase + (e & 0x3FF) * tile_bytes, pal16 = (e >> 12) * 16;
+            int tx = px & (ts - 1), n = ts - tx, ty = e & 0x800 ? ts - 1 - row_in_tile : row_in_tile, i;
+            if (n > width - lx) n = width - lx;
+            for (i = 0; i < n; ++i, ++tx) {
+                uint32_t bit = (uint32_t)(ty * ts + (e & 0x400 ? ts - 1 - tx : tx)) * (uint32_t)bpp;
+                uint8_t v = vram[(tile + bit / 8) & VRAM_MASK];
+                if (bpp != 8) {
+                    v = (uint8_t)(v >> (8 - bpp - (bit & 7)) & vmask);
+                    if (v) v = (uint8_t)(pal16 + v);
+                }
+                put(idx, out, pal, direct, scale, lx + i, v);
+            }
+            lx += n;
+            px = (px + n) & wmask;
+        }
+    } else {
+        /* A bitmap (type 3 shows nothing): the pixels from x0 to x1 are on it. */
+        int x0 = 0, x1 = 0;
+        if (type == VC_BITMAP) {
+            int stride = (int)be16(l + VC_L_STRIDE), py = ly + vs;
+            if (py >= 0) {
+                x0 = hs < 0 ? -hs : 0;
+                x1 = stride * 8 / bpp - hs;
+                if (x0 > width) x0 = width;
+                if (x1 > width) x1 = width;
+                if (x1 < x0) x1 = x0;
+            }
+            if (x0 < x1) {
+                uint32_t row = mapbase + (uint32_t)py * (uint32_t)stride;
                 if (bpp == 8) {
-                    v = b;
+                    uint32_t a = row + (uint32_t)(x0 + hs);
+                    for (lx = x0; lx < x1; ++lx, ++a) put(idx, out, pal, direct, scale, lx, vram[a & VRAM_MASK]);
                 } else {
-                    v = (uint8_t)(b >> (8 - bpp - (bit & 7)) & ((1u << bpp) - 1));
-                    if (v) v = (uint8_t)(l[VC_L_PALOFS] * 16 + v);
+                    uint32_t bit = (uint32_t)(x0 + hs) * (uint32_t)bpp, pal16 = (uint32_t)l[VC_L_PALOFS] * 16;
+                    for (lx = x0; lx < x1; ++lx, bit += (uint32_t)bpp) {
+                        uint8_t v = (uint8_t)(vram[(row + bit / 8) & VRAM_MASK] >> (8 - bpp - (bit & 7)) & vmask);
+                        if (v) v = (uint8_t)(pal16 + v);
+                        put(idx, out, pal, direct, scale, lx, v);
+                    }
                 }
             }
         }
-        if (v) {
-            if (scale == 1) {
-                idx[lx] = v;
-            } else {
-                idx[2 * lx] = v;
-                idx[2 * lx + 1] = v;
-            }
+        if (direct) { /* the backdrop around it */
+            for (lx = 0; lx < x0; ++lx) put(idx, out, pal, direct, scale, lx, 0);
+            for (lx = x1; lx < width; ++lx) put(idx, out, pal, direct, scale, lx, 0);
         }
     }
 }
@@ -578,12 +711,11 @@ static void render_sprites(const vc_card *c, const line_sprite *list, int n, int
 }
 
 void vc_render_line(const vc_card *c, int y, uint16_t *out) {
-    uint8_t idx[VC_WIDTH];
+    uint16_t pal[256]; /* the palette as RGB565, with 0 (transparent) the backdrop */
     line_sprite list[VC_MAX_LINE_SPRITES];
-    int n = 0, layer, x;
-    uint8_t ctrl = c->cfg[VC_DC_CTRL];
-    const uint8_t *pal = c->cfg + (VC_PAL_BASE - VC_CFG_BASE);
-    memset(idx, 0, sizeof idx);
+    int n = 0, layer, x, layers;
+    uint8_t ctrl = c->cfg[VC_DC_CTRL], *idx;
+    const uint8_t *p = c->cfg + (VC_PAL_BASE - VC_CFG_BASE);
     if (ctrl & 0x08) {
         /* The sprites on this line: the first VC_MAX_LINE_SPRITES in the table. */
         int count = c->cfg[VC_SPR_COUNT] > 128 ? 128 : c->cfg[VC_SPR_COUNT];
@@ -602,12 +734,28 @@ void vc_render_line(const vc_card *c, int y, uint16_t *out) {
             ++n;
         }
     }
+    for (x = 0; x < 256; x += 2) { /* (big-endian in the card's memory) */
+        uint32_t w = get32(p + 2 * x);
+#if !VC_BIG_ENDIAN
+        w = (w & 0x00FF00FFu) << 8 | (w >> 8 & 0x00FF00FFu);
+#endif
+        put32(pal + x, w);
+    }
+    pal[0] = pal[c->cfg[VC_DC_BACK]];
+
+    layers = ctrl & 7;
+    if (!n && layers && !(layers & (layers - 1))) {
+        layer = layers == 1 ? 0 : layers == 2 ? 1 : 2;
+        render_layer(c, c->cfg + VC_LAYER0 + VC_LAYER_SIZE * layer, y, NULL, out, pal, 1);
+        return;
+    }
+    /* The indexes go in the top half of out: the colors, filled in from the start, only
+     * overwrite indexes already turned into colors. */
+    idx = (uint8_t *)out + VC_WIDTH;
+    memset(idx, 0, VC_WIDTH);
     for (layer = 0; layer < 3; ++layer) {
-        if (ctrl & (1 << layer)) render_layer(c, c->cfg + VC_LAYER0 + VC_LAYER_SIZE * layer, y, idx);
+        if (ctrl & (1 << layer)) render_layer(c, c->cfg + VC_LAYER0 + VC_LAYER_SIZE * layer, y, idx, NULL, pal, 0);
         if (n) render_sprites(c, list, n, layer + 1, idx);
     }
-    for (x = 0; x < VC_WIDTH; ++x) {
-        uint8_t v = idx[x] ? idx[x] : c->cfg[VC_DC_BACK];
-        out[x] = (uint16_t)(pal[2 * v] << 8 | pal[2 * v + 1]);
-    }
+    for (x = 0; x < VC_WIDTH; ++x) out[x] = pal[idx[x]];
 }

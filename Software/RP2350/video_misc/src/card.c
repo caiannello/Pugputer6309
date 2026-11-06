@@ -158,6 +158,9 @@ void card_system_reset(void) {
 
 void card_poll(void) {
     if (reset_waiting) {
+#if VIDCARD_DIAG
+        ++diag_card_resets; /* (each one clears the screen) */
+#endif
         if (system_reset) {
             system_reset = false;
             blockdev_reset();
