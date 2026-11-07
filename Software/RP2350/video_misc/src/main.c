@@ -6,6 +6,7 @@
  * Core 1: the picture. */
 #include <stdio.h>
 
+#include "bench.h"
 #include "blockdev.h"
 #include "bus.h"
 #include "card.h"
@@ -13,6 +14,7 @@
 #include "dvi.h"
 #include "hardware/clocks.h"
 #include "hardware/gpio.h"
+#include "hardware/pll.h"
 #include "hardware/psram.h"
 #include "hardware/vreg.h"
 #include "pico/multicore.h"
@@ -22,8 +24,27 @@ static void clocks_init(void) {
     vreg_set_voltage(CORE_VOLTAGE);
     sleep_ms(10);
     set_sys_clock_khz(SYS_CLOCK_KHZ, true);
-    /* HSTX at half the system clock: 126 MHz */
-    clock_configure_int_divider(clk_hstx, 0, CLOCKS_CLK_HSTX_CTRL_AUXSRC_VALUE_CLK_SYS, SYS_CLOCK_KHZ * 1000u, 2);
+#if SYS_CLOCK_KHZ % 126000 == 0
+    /* HSTX from the system clock: 126 MHz */
+    clock_configure_int_divider(clk_hstx, 0, CLOCKS_CLK_HSTX_CTRL_AUXSRC_VALUE_CLK_SYS, SYS_CLOCK_KHZ * 1000u,
+                                SYS_CLOCK_KHZ / 126000);
+#else
+#if SYS_CLOCK_KHZ % 48000
+#error "the system clock must be a multiple of 126 or of 48 MHz (config.h)"
+#endif
+    /* Everything on the USB PLL moves first: USB and the ADC to the system PLL (48 MHz),
+     * and the peripherals' clock too (the SDK leaves it on the USB PLL's 48 MHz: the
+     * UART and the SD card's SPI work out their dividers from it). Its divider goes up
+     * to 3 only: 112 MHz. Then the USB PLL at 126 MHz for HSTX (756 MHz / 6). */
+    clock_configure_int_divider(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS, SYS_CLOCK_KHZ * 1000u,
+                                3);
+    clock_configure_int_divider(clk_usb, 0, CLOCKS_CLK_USB_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS, SYS_CLOCK_KHZ * 1000u,
+                                SYS_CLOCK_KHZ / 48000);
+    clock_configure_int_divider(clk_adc, 0, CLOCKS_CLK_ADC_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS, SYS_CLOCK_KHZ * 1000u,
+                                SYS_CLOCK_KHZ / 48000);
+    pll_init(pll_usb, 1, 756 * MHZ, 6, 1);
+    clock_configure_undivided(clk_hstx, 0, CLOCKS_CLK_HSTX_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB, 126 * MHZ);
+#endif
     /* The PSRAM's timing, for the new clock. */
     if (psram_is_available())
         psram_configure_params(PICO_DEFAULT_PSRAM_MAX_FREQ, PICO_DEFAULT_PSRAM_MAX_SELECT,
@@ -40,8 +61,71 @@ static void say(int row, const char *text) {
 static void on_reset(uint gpio, uint32_t events) {
     (void)gpio;
     (void)events;
+#if VIDCARD_DIAG
+    ++diag_pin_resets;
+#endif
     card_system_reset();
 }
+
+#if VIDCARD_DIAG
+/* Once a second, on the UART: how long it's been up, whether the picture is running
+ * (FRAME counts), the resets (each one clears the screen), the pins as they are, what a
+ * read of the ID/version and SD registers would get, and every register the CPU has
+ * read (R) or written (W), with counts. A line on the screen too (row 3), so a black
+ * screen with a picture running shows it. */
+static void diag_report(uint32_t secs) {
+    printf("[%lus] frame=%u pinres=%lu cardres=%lu /RES=%d /CS=%d R/W=%d copy:id=%02x ver=%02x sd=%02x %02x %02x %02x last=%05lx\n ",
+           (unsigned long)secs, card.frame, (unsigned long)diag_pin_resets, (unsigned long)diag_card_resets,
+           gpio_get(PIN_RESET), gpio_get(PIN_CS), gpio_get(PIN_RW), regcopy[VC_ID], regcopy[VC_VERSION],
+           regcopy[COPY_SD], regcopy[COPY_SD + 1], regcopy[COPY_SD + 2], regcopy[COPY_SD + 3],
+           (unsigned long)diag_last_event);
+    int any = 0;
+    for (int i = 0; i < 64; ++i) {
+        if (diag_reads[i]) { printf(" R%02x:%lu", i, (unsigned long)diag_reads[i]); any = 1; }
+        if (diag_writes[i]) { printf(" W%02x:%lu", i, (unsigned long)diag_writes[i]); any = 1; }
+    }
+    printf(any ? "\n" : " (no bus accesses yet)\n");
+    printf("  index as /CS fell differed: %lu; bits A0 %lu A1 %lu A2 %lu A3 %lu A4 %lu SD %lu\n",
+           (unsigned long)diag_fall_diff, (unsigned long)diag_fall_bit[0], (unsigned long)diag_fall_bit[1],
+           (unsigned long)diag_fall_bit[2], (unsigned long)diag_fall_bit[3], (unsigned long)diag_fall_bit[4],
+           (unsigned long)diag_fall_bit[5]);
+    printf("  index changed during access: %lu (reads %lu, late = next access's %lu); bits A0 %lu A1 %lu A2 %lu A3 %lu A4 %lu SD %lu\n",
+           (unsigned long)diag_index_late, (unsigned long)diag_late_reads, (unsigned long)diag_late_next,
+           (unsigned long)diag_late_bit[0], (unsigned long)diag_late_bit[1], (unsigned long)diag_late_bit[2],
+           (unsigned long)diag_late_bit[3], (unsigned long)diag_late_bit[4], (unsigned long)diag_late_bit[5]);
+    if (secs == 1 || secs % 10 == 0) /* (the first ones, now and then) */
+        for (uint32_t i = 0; i < diag_late_logged; ++i) {
+            uint32_t e = diag_late_log[i][0];
+            printf("    %c index %02lx late %02lx data %02lx, previous access %02lx\n", EV_READ(e) ? 'R' : 'W',
+                   (unsigned long)EV_INDEX(e), (unsigned long)EV_LATE_INDEX(e), (unsigned long)(e & 0xFF),
+                   (unsigned long)diag_late_log[i][1]);
+        }
+    /* The picture: whether core 1 keeps up (a line has 31.7 us), and what row 1 holds. */
+    char row1[13];
+    for (int i = 0; i < 12; ++i) row1[i] = (char)card.vram[VC_RESET_TEXT_MAP + 128 * 4 + 4 + 4 * i];
+    row1[12] = 0;
+    printf("  command bytes lost (queue full): %lu\n", (unsigned long)diag_cmd_lost);
+    printf("  data port reads answered stale: %lu (while a reset's clear went on: %lu)\n",
+           (unsigned long)diag_stale_reads, (unsigned long)diag_stale_clearing);
+    printf("  lines drawn %lu (core 0 %lu), late %lu, frames helped %lu, longest %lu us; row 1 \"%s\" color %u, DC_CTRL %02x\n",
+           (unsigned long)diag_lines_drawn, (unsigned long)diag_lines_core0, (unsigned long)dvi_late_lines,
+           (unsigned long)diag_help_frames, (unsigned long)diag_render_us_max, row1,
+           card.vram[VC_RESET_TEXT_MAP + 128 * 4 + 5], card.cfg[VC_DC_CTRL]);
+    diag_render_us_max = 0;
+    /* The picture by 16 lines: the slowest drawn, and the most sprites on one. */
+    printf("  by 16 lines, slowest us/most sprites:");
+    for (int i = 0; i < 30; ++i) {
+        printf(" %u/%u", diag_strip_us[i], diag_strip_sprites[i]);
+        diag_strip_us[i] = 0;
+        diag_strip_sprites[i] = 0;
+    }
+    printf("\n  sprite table decoded %lu times\n", (unsigned long)dvi_decodes());
+    char line[80];
+    snprintf(line, sizeof line, "diag %lus: frame %3u, resets pin %lu card %lu    ", (unsigned long)secs, card.frame,
+             (unsigned long)diag_pin_resets, (unsigned long)diag_card_resets);
+    say(3, line);
+}
+#endif
 
 int main(void) {
     clocks_init();
@@ -53,6 +137,7 @@ int main(void) {
     card_init();
     blockdev_init();
     bus_init(); /* the card answers from here; the SD card says BUSY until it's awake */
+    dvi_init();
     multicore_launch_core1(dvi_run);
     blockdev_start();
 
@@ -68,8 +153,21 @@ int main(void) {
     gpio_disable_pulls(PIN_RESET); /* (the divider sets its level) */
     gpio_set_irq_enabled_with_callback(PIN_RESET, GPIO_IRQ_EDGE_FALL, true, on_reset);
 
+#if VIDCARD_DIAG
+    uint32_t secs = 0, next = time_us_32() + 1000000;
+#endif
     for (;;) {
         card_poll();
         blockdev_poll();
+#if VIDCARD_DIAG
+        if ((int32_t)(time_us_32() - next) >= 0) {
+            next += 1000000;
+            diag_report(++secs);
+            if (secs == 2) { /* (DOS has loaded by now) */
+                bench_run();
+                card_reset();
+            }
+        }
+#endif
     }
 }

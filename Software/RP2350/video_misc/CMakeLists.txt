@@ -39,10 +39,11 @@ add_executable(vidcard
     src/dvi.c
     src/sd.c
     src/blockdev.c
+    src/bench.c
     ${CORE}/vc.c
     ${CORE}/vc_font.c
 )
-set_source_files_properties(src/main.c src/card.c src/bus.c src/dvi.c src/sd.c src/blockdev.c ${CORE}/vc.c
+set_source_files_properties(src/main.c src/card.c src/bus.c src/dvi.c src/sd.c src/blockdev.c src/bench.c ${CORE}/vc.c
     PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra")
 pico_generate_pio_header(vidcard ${CMAKE_CURRENT_LIST_DIR}/src/bus.pio)
 target_include_directories(vidcard PRIVATE src ${CORE})
@@ -51,10 +52,21 @@ target_compile_definitions(vidcard PRIVATE
     PICO_PSRAM_CS_PIN=8                # the board's 8MB PSRAM, set up by the SDK at start
     PICO_PSRAM_SIZE_BYTES=0x800000
 )
+# Bring-up diagnostics (bus.c): -DBUS_DIAG=1 keeps the level shifters off,
+# -DBUS_DIAG=2 turns them on but never drives D0-D7.
+if(DEFINED BUS_DIAG)
+    target_compile_definitions(vidcard PRIVATE BUS_DIAG=${BUS_DIAG})
+endif()
+# -DVIDCARD_DIAG=1: a status report once a second on the UART (and row 3 of the screen):
+# the bus accesses seen, by register, the resets, and whether the picture is running.
+if(DEFINED VIDCARD_DIAG)
+    target_compile_definitions(vidcard PRIVATE VIDCARD_DIAG=${VIDCARD_DIAG})
+endif()
 target_link_libraries(vidcard
     pico_stdlib
     pico_multicore
     hardware_clocks
+    hardware_pll
     hardware_dma
     hardware_pio
     hardware_psram

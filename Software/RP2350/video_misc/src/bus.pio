@@ -4,26 +4,34 @@
 ; marks a whole bus cycle: it falls once the address is valid, and rises as E falls, when
 ; a write's data is to be taken.
 ;
-; The pin numbers here are as the PIO sees them: its GPIO window starts at GPIO16 (see
-; ../src/config.h), so GPIO32 is 16.
-.define CS_N 16 ; GPIO32 /CS
+; WAIT GPIO takes the absolute GPIO number: the PIO's window starts at GPIO16 (see
+; ../src/config.h), and the SDK subtracts that base as it loads the program. (Writing 16
+; here, the window-relative number, waits on GPIO16 -- a DVI pin.)
+.define CS_N 32 ; GPIO32 /CS
 
-; bus_read: serves the CPU's reads with no CPU in the way. The register's index (A0-A4,
-; and SD-select as bit 5) becomes the address of its byte in the register copy, which a
-; DMA fetches; the byte is driven onto D0-D7 until /CS rises.
+; Both take the index (A0-A4, and SD-select as bit 5) 11 clocks (44 ns at 252 MHz) after
+; they see /CS fall, not at once. The 6309 at 3.57 MHz has its address valid only just
+; before Q rises, which is what makes /CS fall; A0-A4 come straight from it, but SD-select
+; comes through the GAL, one gate delay (~15 ns) behind, so as /CS falls it can still be
+; low on an SD access (seen thousands of times a boot, more on some boots than others).
+; From then the address holds until E falls, ~200 ns later.
+
+; bus_read: serves the CPU's reads with no CPU in the way. The register's index becomes
+; the address of its byte in the register copy, which a DMA fetches; the byte is driven
+; onto D0-D7 until /CS rises.
 ;   in_base = A0 (GPIO42, 6 pins: A0-A4, SD-select), jmp_pin = R/W (GPIO33),
 ;   out_base = D0 (GPIO34, 8 pins), ISR shifts left, OSR right, no autopush or autopull.
 ;   X holds the register copy's address / 64 (it is 64-byte aligned), set once at start.
 .program bus_read
 top:
 .wrap_target
-    wait 0 gpio CS_N
+    wait 0 gpio CS_N [8]    ; (the index settles: see above)
     jmp pin read            ; R/W high: a read
     wait 1 gpio CS_N        ; a write: bus_events takes it
 .wrap
 read:
     mov isr, x
-    in pins, 6              ; ISR = the byte's address
+    in pins, 6              ; ISR = the byte's address (11 clocks after /CS fell)
     push block              ; to the DMA, which sends the byte back
     pull block
     out pins, 8
@@ -37,27 +45,32 @@ read:
 ; bus_events: tells core 0 about every access, reads too (some have side effects, such
 ; as stepping a data port): a word into the RX FIFO, which a DMA moves into a ring in
 ; SRAM, then PIO interrupt 0.
-;   bits 0-7 the data (a write's), 8-13 the index (A0-A4, SD-select), 14 set for a read.
-;   in_base = D0 (GPIO34, 14 pins: D0-D7, A0-A4, SD-select), jmp_pin = R/W,
+;   bits 0-7 the data (a write's; a read's is what the card drove), 8-13 the index just
+;   before /CS rose, 14-19 the index (as bus_read takes it), 20 set for a read, 21-26 the
+;   index as /CS fell. (8-13 and 21-26 are for the diagnostics.)
+;   in_base = R/W (GPIO33, then D0-D7, A0-A4, SD-select: 15 pins), jmp_pin = /CS,
 ;   ISR shifts left, OSR right, no autopush or autopull.
+; A write's data is valid only near the end, so the pins are taken again and again while
+; /CS is low, and the data is the last of those before it rose. (Once /CS has risen, E
+; fell some 20-30 ns before, and the 6309 may already be on to the next cycle's address.)
 .program bus_events
 .wrap_target
     wait 0 gpio CS_N
-    mov osr, pins           ; the address, as /CS falls
-    out null, 8
-    out x, 6                ; X = the index
-    jmp pin read
-    wait 1 gpio CS_N        ; a write: its data, as /CS rises (E falls) ...
-    mov y, pins             ; ... at once: the 6309 holds it only briefly
-    in null, 1
-    jmp both
-read:
-    set y, 1
-    in y, 1
-both:
-    in x, 6
-    in y, 8                 ; the data (a read's is junk)
-    push block              ; (a read's goes at once, so core 0 can get on with it)
+    mov osr, pins           ; as /CS falls:
+    out null, 9
+    in osr, 6 [7]           ; bits 21-26: the index then
+    mov osr, pins           ; 11 clocks after, as bus_read:
+    in osr, 1               ; bit 20: R/W (high: a read)
+    out null, 9
+    in osr, 6               ; bits 14-19: the index
+sample:
+    mov x, pins             ; everything, every 3 clocks while /CS is low ...
+    jmp pin done
+    jmp sample
+done:
+    mov osr, x              ; ... the last time before it rose: the data, and the index
+    out null, 1
+    in osr, 14              ; bits 0-13
+    push block
     irq set 0
-    wait 1 gpio CS_N
 .wrap

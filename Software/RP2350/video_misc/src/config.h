@@ -3,10 +3,16 @@
 #ifndef VIDCARD_FW_CONFIG_H
 #define VIDCARD_FW_CONFIG_H
 
-/* The system clock: 252 MHz, so that HSTX at half of it (126 MHz) is exactly five times
- * 640x480's 25.2 MHz pixel clock. The core voltage is raised a step for it. */
-#define SYS_CLOCK_KHZ 252000
-#define CORE_VOLTAGE VREG_VOLTAGE_1_15
+/* The system clock. HSTX runs at 126 MHz, five times 640x480's 25.2 MHz pixel clock:
+ * from the system clock when that is a multiple of it (252 MHz: half), else from the USB
+ * PLL, set to 126 MHz for it; USB (for a host, one day) then takes its 48 MHz from the
+ * system clock, which must be a multiple of that (336 MHz: a seventh). The bus PIO runs
+ * at 252 MHz whatever it is (a divider), so its timing stays as it was tuned.
+ * 336 MHz: a third more for the picture, at 1.25 V (most RP2350s run 300 MHz at 1.1-1.2;
+ * 1.30 is the regulator's limit, short of unlocking it). */
+#define SYS_CLOCK_KHZ 336000
+#define CORE_VOLTAGE VREG_VOLTAGE_1_25
+#define BUS_PIO_KHZ 252000
 
 /* DVI through HSTX, GPIO 12-19: D2+ D2- CK+ CK- D1+ D1- D0+ D0- (220 ohm each). */
 #define PIN_DVI_FIRST 12

@@ -19,8 +19,11 @@ extern uint8_t regcopy[64];
 
 /* A bus access, as bus_events reports it (see bus.pio). */
 #define EV_DATA(e) ((uint8_t)(e))
-#define EV_INDEX(e) (((e) >> 8) & 0x3F)
-#define EV_READ(e) (((e) >> 14) & 1)
+#define EV_INDEX(e) (((e) >> 14) & 0x3F)
+#define EV_READ(e) (((e) >> 20) & 1)
+/* (diagnostics) the index just before /CS rose, and as it fell */
+#define EV_LATE_INDEX(e) (((e) >> 8) & 0x3F)
+#define EV_FALL_INDEX(e) (((e) >> 21) & 0x3F)
 
 void card_init(void);
 /* Core 0's bus interrupt: one access, in the order the CPU made them. Returns false to
@@ -29,6 +32,18 @@ bool card_bus_event(uint32_t e);
 /* Core 0's main loop: a reset if one is waiting, then a share of the queued drawing
  * commands. */
 void card_poll(void);
+/* The main loop has a reset to do, or a reset's clear (the CPU may be waiting on it). */
+bool card_waiting(void);
+
+/* A reset, as writing VC_CTRL bit 7 does, from the main loop. */
+void card_reset(void);
+
+#if VIDCARD_DIAG
+/* Data port reads answered with a stale byte: the copy wasn't ready by the next read. */
+extern volatile uint32_t diag_stale_reads, diag_stale_clearing; /* (and of those, while the
+                                                                     reset's clear went on) */
+extern volatile uint32_t diag_cmd_lost; /* command bytes lost: the queue was full */
+#endif
 /* The Pugputer is being reset (/RES fell): the card and the SD interface are put back as
  * they start, as the emulator does, by the main loop. Safe from an interrupt. */
 void card_system_reset(void);

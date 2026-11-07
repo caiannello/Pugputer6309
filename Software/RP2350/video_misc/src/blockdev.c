@@ -137,6 +137,8 @@ static bool write_later(void) {
     return ok;
 }
 
+bool blockdev_waiting(void) { return pending != 0; }
+
 void blockdev_poll(void) {
     if (!pending) {
         if (later_waiting) {
