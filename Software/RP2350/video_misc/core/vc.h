@@ -163,6 +163,10 @@ typedef struct vc_card {
     uint8_t key_char;            /* VC_KEY_CHAR: the last event taken */
     uint8_t keyq[VC_KEY_QUEUE][2]; /* usage, character | $80 if released */
     uint8_t keyq_head, keyq_len;
+    uint32_t pal_gen;            /* counts changes to the palette (see vc_palette) */
+    uint32_t spr_gen;            /* counts changes to the sprites: their table, its settings
+                                  * (anything that writes there without vc_poke() counts
+                                  * itself: see vc_palette) */
 } vc_card;
 
 extern const uint8_t vc_font8x16[256 * 16];
@@ -170,6 +174,13 @@ extern const uint8_t vc_font8x16[256 * 16];
 /* Power-on state: registers, settings, the xterm palette, the font, a blank 80x30 text
  * screen on layer 0. The PSRAM (if any) is left as it is. */
 void vc_reset(vc_card *c);
+/* vc_reset() in two: everything but the video memory (quick), and the video memory from
+ * addr for n bytes (the card does that a block at a time, after the rest). */
+void vc_reset_state(vc_card *c);
+void vc_reset_vram(vc_card *c, uint32_t addr, uint32_t n);
+/* What the reset puts in the video memory from addr for n bytes, into dst instead (the
+ * card builds a block there, then copies it in quickly). */
+void vc_reset_bytes(uint32_t addr, uint8_t *dst, uint32_t n);
 
 /* The CPU's side: a register read or write. */
 uint8_t vc_read(vc_card *c, uint8_t reg);
@@ -196,6 +207,39 @@ void vc_begin_line(vc_card *c, uint16_t line);
 
 /* One line of the picture (0-479), as it looks now: 640 RGB565 pixels. */
 void vc_render_line(const vc_card *c, int y, uint16_t *out);
+
+/* The same, with the palette kept in pixels' form between lines, worked out again only
+ * after it has changed (one for each caller that draws: they may draw at once). Start it
+ * zeroed. */
+typedef struct vc_palette {
+    uint32_t gen;      /* the vc_card's pal_gen it is as of */
+    int ready;
+    uint16_t raw0;     /* color 0 (index 0 is transparent: col[0] holds the backdrop) */
+    uint16_t col[256];
+    /* For 4-bit sprites, a table for each of the 16 sets of 16 colors, made when first
+     * wanted after the palette is worked out (its epoch counts those): a byte's two
+     * pixels, as colors side by side (0 where see-through). */
+    uint32_t epoch;
+    uint32_t pair_epoch[16];
+    uint32_t pair[16][256];
+    /* The sprite table, decoded (as of the vc_card's spr_gen), and for each band of 32
+     * lines (of the sprites' own: 320x240 or 640x480) the ones on it, in the table's
+     * order. Worked out again after a change. */
+    uint32_t spr_gen;
+    int spr_ready;
+    struct vc_sprite {
+        int16_t x, top;
+        uint16_t image;    /* its address / 32 */
+        uint8_t h, w, a6, a7; /* (a6, a7: its attribute bytes 6 and 7) */
+    } spr[128];
+    uint8_t band_n[15];
+    uint8_t band[15][128];
+    /* (for the card's diagnostics) the sprites on the last line drawn, and the times the
+     * table has been decoded */
+    int sprites;
+    uint32_t decodes;
+} vc_palette;
+void vc_render_line_with(const vc_card *c, int y, uint16_t *out, vc_palette *pal);
 
 /* RGB565 -> 0x00RRGGBB */
 static inline uint32_t vc_rgb888(uint16_t p) {

@@ -13,6 +13,8 @@ void blockdev_start(void);
 void blockdev_access(int reg, int read, uint8_t value);
 /* Core 0's main loop: a block to read or write, if one is waiting. */
 void blockdev_poll(void);
+/* A command is waiting for blockdev_poll (the CPU is waiting on it). */
+bool blockdev_waiting(void);
 /* The Pugputer was reset: the block number, the cursor and the buffer back to 0 (a write
  * still waiting is written all the same). Core 0's main loop. */
 void blockdev_reset(void);

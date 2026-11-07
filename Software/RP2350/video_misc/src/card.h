@@ -32,6 +32,18 @@ bool card_bus_event(uint32_t e);
 /* Core 0's main loop: a reset if one is waiting, then a share of the queued drawing
  * commands. */
 void card_poll(void);
+/* The main loop has a reset to do, or a reset's clear (the CPU may be waiting on it). */
+bool card_waiting(void);
+
+/* A reset, as writing VC_CTRL bit 7 does, from the main loop. */
+void card_reset(void);
+
+#if VIDCARD_DIAG
+/* Data port reads answered with a stale byte: the copy wasn't ready by the next read. */
+extern volatile uint32_t diag_stale_reads, diag_stale_clearing; /* (and of those, while the
+                                                                     reset's clear went on) */
+extern volatile uint32_t diag_cmd_lost; /* command bytes lost: the queue was full */
+#endif
 /* The Pugputer is being reset (/RES fell): the card and the SD interface are put back as
  * they start, as the emulator does, by the main loop. Safe from an interrupt. */
 void card_system_reset(void);

@@ -6,6 +6,7 @@
  * Core 1: the picture. */
 #include <stdio.h>
 
+#include "bench.h"
 #include "blockdev.h"
 #include "bus.h"
 #include "card.h"
@@ -13,6 +14,7 @@
 #include "dvi.h"
 #include "hardware/clocks.h"
 #include "hardware/gpio.h"
+#include "hardware/pll.h"
 #include "hardware/psram.h"
 #include "hardware/vreg.h"
 #include "pico/multicore.h"
@@ -22,8 +24,27 @@ static void clocks_init(void) {
     vreg_set_voltage(CORE_VOLTAGE);
     sleep_ms(10);
     set_sys_clock_khz(SYS_CLOCK_KHZ, true);
-    /* HSTX at half the system clock: 126 MHz */
-    clock_configure_int_divider(clk_hstx, 0, CLOCKS_CLK_HSTX_CTRL_AUXSRC_VALUE_CLK_SYS, SYS_CLOCK_KHZ * 1000u, 2);
+#if SYS_CLOCK_KHZ % 126000 == 0
+    /* HSTX from the system clock: 126 MHz */
+    clock_configure_int_divider(clk_hstx, 0, CLOCKS_CLK_HSTX_CTRL_AUXSRC_VALUE_CLK_SYS, SYS_CLOCK_KHZ * 1000u,
+                                SYS_CLOCK_KHZ / 126000);
+#else
+#if SYS_CLOCK_KHZ % 48000
+#error "the system clock must be a multiple of 126 or of 48 MHz (config.h)"
+#endif
+    /* Everything on the USB PLL moves first: USB and the ADC to the system PLL (48 MHz),
+     * and the peripherals' clock too (the SDK leaves it on the USB PLL's 48 MHz: the
+     * UART and the SD card's SPI work out their dividers from it). Its divider goes up
+     * to 3 only: 112 MHz. Then the USB PLL at 126 MHz for HSTX (756 MHz / 6). */
+    clock_configure_int_divider(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS, SYS_CLOCK_KHZ * 1000u,
+                                3);
+    clock_configure_int_divider(clk_usb, 0, CLOCKS_CLK_USB_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS, SYS_CLOCK_KHZ * 1000u,
+                                SYS_CLOCK_KHZ / 48000);
+    clock_configure_int_divider(clk_adc, 0, CLOCKS_CLK_ADC_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS, SYS_CLOCK_KHZ * 1000u,
+                                SYS_CLOCK_KHZ / 48000);
+    pll_init(pll_usb, 1, 756 * MHZ, 6, 1);
+    clock_configure_undivided(clk_hstx, 0, CLOCKS_CLK_HSTX_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB, 126 * MHZ);
+#endif
     /* The PSRAM's timing, for the new clock. */
     if (psram_is_available())
         psram_configure_params(PICO_DEFAULT_PSRAM_MAX_FREQ, PICO_DEFAULT_PSRAM_MAX_SELECT,
@@ -83,10 +104,22 @@ static void diag_report(uint32_t secs) {
     char row1[13];
     for (int i = 0; i < 12; ++i) row1[i] = (char)card.vram[VC_RESET_TEXT_MAP + 128 * 4 + 4 + 4 * i];
     row1[12] = 0;
-    printf("  lines drawn %lu, longest %lu us; row 1 \"%s\" color %u, DC_CTRL %02x\n",
-           (unsigned long)diag_lines_drawn, (unsigned long)diag_render_us_max, row1,
+    printf("  command bytes lost (queue full): %lu\n", (unsigned long)diag_cmd_lost);
+    printf("  data port reads answered stale: %lu (while a reset's clear went on: %lu)\n",
+           (unsigned long)diag_stale_reads, (unsigned long)diag_stale_clearing);
+    printf("  lines drawn %lu (core 0 %lu), late %lu, frames helped %lu, longest %lu us; row 1 \"%s\" color %u, DC_CTRL %02x\n",
+           (unsigned long)diag_lines_drawn, (unsigned long)diag_lines_core0, (unsigned long)dvi_late_lines,
+           (unsigned long)diag_help_frames, (unsigned long)diag_render_us_max, row1,
            card.vram[VC_RESET_TEXT_MAP + 128 * 4 + 5], card.cfg[VC_DC_CTRL]);
     diag_render_us_max = 0;
+    /* The picture by 16 lines: the slowest drawn, and the most sprites on one. */
+    printf("  by 16 lines, slowest us/most sprites:");
+    for (int i = 0; i < 30; ++i) {
+        printf(" %u/%u", diag_strip_us[i], diag_strip_sprites[i]);
+        diag_strip_us[i] = 0;
+        diag_strip_sprites[i] = 0;
+    }
+    printf("\n  sprite table decoded %lu times\n", (unsigned long)dvi_decodes());
     char line[80];
     snprintf(line, sizeof line, "diag %lus: frame %3u, resets pin %lu card %lu    ", (unsigned long)secs, card.frame,
              (unsigned long)diag_pin_resets, (unsigned long)diag_card_resets);
@@ -104,6 +137,7 @@ int main(void) {
     card_init();
     blockdev_init();
     bus_init(); /* the card answers from here; the SD card says BUSY until it's awake */
+    dvi_init();
     multicore_launch_core1(dvi_run);
     blockdev_start();
 
@@ -129,6 +163,10 @@ int main(void) {
         if ((int32_t)(time_us_32() - next) >= 0) {
             next += 1000000;
             diag_report(++secs);
+            if (secs == 2) { /* (DOS has loaded by now) */
+                bench_run();
+                card_reset();
+            }
         }
 #endif
     }

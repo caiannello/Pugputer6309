@@ -39,10 +39,11 @@ add_executable(vidcard
     src/dvi.c
     src/sd.c
     src/blockdev.c
+    src/bench.c
     ${CORE}/vc.c
     ${CORE}/vc_font.c
 )
-set_source_files_properties(src/main.c src/card.c src/bus.c src/dvi.c src/sd.c src/blockdev.c ${CORE}/vc.c
+set_source_files_properties(src/main.c src/card.c src/bus.c src/dvi.c src/sd.c src/blockdev.c src/bench.c ${CORE}/vc.c
     PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra")
 pico_generate_pio_header(vidcard ${CMAKE_CURRENT_LIST_DIR}/src/bus.pio)
 target_include_directories(vidcard PRIVATE src ${CORE})
@@ -65,6 +66,7 @@ target_link_libraries(vidcard
     pico_stdlib
     pico_multicore
     hardware_clocks
+    hardware_pll
     hardware_dma
     hardware_pio
     hardware_psram
