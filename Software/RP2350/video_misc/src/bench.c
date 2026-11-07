@@ -15,7 +15,7 @@
 #include "hardware/timer.h"
 
 static uint16_t __attribute__((aligned(4))) line[VC_WIDTH];
-static vc_palette pal; /* (kept, as the card keeps it) */
+#define pal (*dvi_bench_palette()) /* (kept, as the card keeps it: core 0's, idle meanwhile) */
 static uint32_t rng = 1;
 static uint32_t rnd(void) {
     rng ^= rng << 13;

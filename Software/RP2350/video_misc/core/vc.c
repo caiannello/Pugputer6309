@@ -181,6 +181,7 @@ void vc_reset(vc_card *c) {
 static void pset(vc_card *c, int x, int y, uint8_t col) {
     uint32_t bit, a;
     if (x < 0 || y < 0 || x >= c->t_w || y >= c->t_h) return;
+    ++c->work;
     bit = (uint32_t)x * c->t_bpp;
     a = c->t_addr + (uint32_t)y * c->t_stride + bit / 8;
     if (c->t_bpp == 8) {
@@ -312,6 +313,7 @@ static void run_command(vc_card *c) {
         break;
     case VC_C_COPY: {
         uint32_t src = be24(p), dst = be24(p + 3), len = be24(p + 6), k;
+        c->work += len;
         if (dst > src && dst < src + len) {
             for (k = len; k-- > 0;) vc_poke(c, dst + k, vc_peek(c, src + k));
         } else {
@@ -321,18 +323,21 @@ static void run_command(vc_card *c) {
     }
     case VC_C_FILL: {
         uint32_t dst = be24(p), len = be24(p + 3), k;
+        c->work += len;
         for (k = 0; k < len; ++k) vc_poke(c, dst + k, p[6]);
         break;
     }
     case VC_C_BLIT: {
         uint32_t src = be24(p), stride = be16(p + 3);
         int w = s16(p + 5), h = s16(p + 7), transparent = p[13] & 1;
+        uint32_t w0 = c->work;
         x = s16(p + 9); y = s16(p + 11);
         for (j = 0; j < h; ++j)
             for (i = 0; i < w; ++i) {
                 uint8_t v = pget(c, src, stride, i, j, c->t_bpp);
                 if (!(transparent && v == 0)) pset(c, x + i, y + j, v);
             }
+        if (w > 0 && h > 0) c->work = w0 + (uint32_t)w * (uint32_t)h; /* (every pixel looked at) */
         break;
     }
     case VC_C_TRIANGLE: triangle(c, s16(p), s16(p + 2), s16(p + 4), s16(p + 6), s16(p + 8), s16(p + 10)); break;
@@ -340,14 +345,17 @@ static void run_command(vc_card *c) {
         c->font = be24(p);
         c->font_h = p[3] ? p[3] : 16;
         break;
-    case VC_C_CHAR:
+    case VC_C_CHAR: {
+        uint32_t w0 = c->work;
         x = s16(p); y = s16(p + 2);
         for (j = 0; j < c->font_h; ++j) {
             uint8_t bits = vc_peek(c, c->font + (uint32_t)p[4] * c->font_h + (uint32_t)j);
             for (i = 0; i < 8; ++i)
                 if (bits & (0x80 >> i)) pset(c, x + i, y + j, c->color);
         }
+        c->work = w0 + 8u * c->font_h; /* (every pixel of the cell) */
         break;
+    }
     default: break;
     }
 }

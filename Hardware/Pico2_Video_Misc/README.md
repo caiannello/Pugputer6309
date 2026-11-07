@@ -8,8 +8,9 @@ number on that part eventually.) Basically, pin 0, at the top-left is GND, and a
 through 19.
 
 Since this olimex module has an SD card slot on it, and USB, I may as well try to shoehorn SD card functions,
-as well as keyboard, mouse, gamepad, connections. (The firmware does the SD card; USB keyboard and
-mouse aren't in it yet.) No room for a 4-port hub and usb connectors at the moment..
+as well as keyboard, mouse, gamepad, connections. (The firmware does the SD card, and USB keyboards and
+mice through a small unpowered hub, which needs the bus's 5V on the board's VBUS pin; gamepads
+aren't in it yet.) No room for a 4-port hub and usb connectors at the moment..
 maybe if I find some a wacky-sideways HDMI connector? I agree it feels like cheating to use a modern MCU 
 to provide so many functions for the Pugputer 6309. Maybe someday there will be a discrete TTL logic version.
 
@@ -62,7 +63,8 @@ For a writeup on the current capabilities of this card, see [Pugputer6309_Emulat
 4. **SD card:** write `Software/6309/sdcard/pugdisk.img` to a microSD card, raw (Win32 Disk
    Imager, balenaEtcher or `dd`; don't let Windows format it), and put it in the board's slot.
 5. **Serial console:** a terminal on the CPU card's UART at 19200 baud, 8N1. That's where the
-   Pugputer is typed at for now: the card's USB keyboard and mouse aren't in the firmware yet.
+   Pugputer is typed at. (The card's USB keyboard goes to the video card's key registers, which
+   programs like VIDMOUSE read; the shell and BASIC still read the console.)
 6. **Power on.** The display shows the card's reset screen (with `Pugputer 6309 video card: ...`
    at the top); the terminal shows `Pugputer 6309 BIOS v0.1.0`, then DOS's shell and its
    `/> ` prompt, loaded from the SD card. Then try `CD /DEMO`, `VIDDEMO`, `VIDGFX`, `VGMONKEY`,

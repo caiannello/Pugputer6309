@@ -55,6 +55,13 @@ static spin_lock_t *lock;
 
 #if VIDCARD_DIAG
 volatile uint32_t diag_stale_reads, diag_stale_clearing, diag_cmd_lost;
+diag_cmd_stat diag_cmds[VC_C_COUNT];
+volatile uint32_t diag_cmd_gaps, diag_cmd_gap_max;
+volatile uint64_t diag_cmd_gap_cycles;
+#define DEMCR (*(volatile uint32_t *)0xE000EDFCu)
+#define DWT_CTRL (*(volatile uint32_t *)0xE0001000u)
+#define DWT_CYCCNT (*(volatile uint32_t *)0xE0001004u)
+static uint32_t cmd_gap_from; /* when the main loop last left commands waiting (0: it didn't) */
 #endif
 
 /* With interrupts off only once it's ours: spin_lock_blocking waits with them off, and
@@ -213,6 +220,10 @@ void card_init(void) {
     uint32_t s = copy_lock();
     refresh_all();
     copy_unlock(s);
+#if VIDCARD_DIAG
+    DEMCR |= 1u << 24; /* (TRCENA: the DWT on, for the commands' timings) */
+    DWT_CTRL |= 1u;
+#endif
 }
 
 bool card_bus_event(uint32_t e) {
@@ -280,6 +291,28 @@ bool card_bus_event(uint32_t e) {
 
 bool card_waiting(void) { return reset_waiting || clearing; }
 
+/* The input registers ($15-$1D: the mouse, the keys) and what input changes besides
+ * (STATUS's key bit, ISR's input flag, /IRQ). */
+static void refresh_input(void) {
+    for (int r = VC_MOUSE_X_H; r <= VC_KEY_MODS; ++r) refresh(r);
+    refresh_state();
+}
+
+void card_key(uint8_t usage, bool down) {
+    uint32_t s = copy_lock();
+    vc_key(&card, usage, down);
+    refresh_input();
+    copy_unlock(s);
+}
+
+void card_mouse(int dx, int dy, uint8_t buttons, int wheel) {
+    uint32_t s = copy_lock();
+    vc_mouse_by(&card, dx, dy, buttons);
+    if (wheel) vc_mouse_wheel(&card, wheel);
+    refresh_input();
+    copy_unlock(s);
+}
+
 void card_reset(void) {
     uint32_t s = copy_lock();
     reset_now();
@@ -328,17 +361,45 @@ void card_poll(void) {
     }
     /* A share of the commands (any one runs to its end), then the rest of the loop. */
     int n = 0;
+#if VIDCARD_DIAG
+    if (cmd_gap_from && cmdq_waiting()) { /* (the rest of the loop kept these waiting) */
+        uint32_t g = DWT_CYCCNT - cmd_gap_from;
+        ++diag_cmd_gaps;
+        diag_cmd_gap_cycles += g;
+        if (g > diag_cmd_gap_max) diag_cmd_gap_max = g;
+    }
+#endif
     while (n < 256 && !reset_waiting) {
         in_command = true; /* (before it looks: a reset now waits for this one) */
         if (!cmdq_waiting() || clearing) { /* (or one came just before) */
             in_command = false;
             break;
         }
+#if VIDCARD_DIAG
+        uint32_t w0 = card.work, t0 = DWT_CYCCNT;
+#endif
         vc_write(&card, VC_CMD, cmdq[cmdq_out & (CMDQ_SIZE - 1)]);
+#if VIDCARD_DIAG
+        if (card.cmd_len == 0) { /* (that byte ended a command: it has run) */
+            uint32_t t = DWT_CYCCNT - t0, w = card.work - w0, op = card.cmd[0];
+            if (op < VC_C_COUNT) {
+                diag_cmd_stat *d = &diag_cmds[op];
+                ++d->n;
+                d->w += w;
+                d->c += t;
+                d->ww += (double)w * w;
+                d->wc += (double)w * t;
+                if (t > d->max_cycles) d->max_cycles = t;
+            }
+        }
+#endif
         ++cmdq_out; /* (after: STATUS says busy while one runs) */
         in_command = false;
         ++n;
     }
+#if VIDCARD_DIAG
+    cmd_gap_from = cmdq_waiting() ? DWT_CYCCNT | 1u : 0;
+#endif
     if (n) {
         uint32_t s = copy_lock();
         refresh_state();

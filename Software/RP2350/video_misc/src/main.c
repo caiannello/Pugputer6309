@@ -12,6 +12,7 @@
 #include "card.h"
 #include "config.h"
 #include "dvi.h"
+#include "usbhost.h"
 #include "hardware/clocks.h"
 #include "hardware/gpio.h"
 #include "hardware/pll.h"
@@ -105,6 +106,9 @@ static void diag_report(uint32_t secs) {
     for (int i = 0; i < 12; ++i) row1[i] = (char)card.vram[VC_RESET_TEXT_MAP + 128 * 4 + 4 + 4 * i];
     row1[12] = 0;
     printf("  command bytes lost (queue full): %lu\n", (unsigned long)diag_cmd_lost);
+    printf("  USB: devices %lu, key events %lu, mouse reports %lu; mouse at %u,%u buttons %02x\n",
+           (unsigned long)diag_usb_devices, (unsigned long)diag_usb_keys, (unsigned long)diag_usb_mouse,
+           card.mouse_x, card.mouse_y, card.buttons);
     printf("  data port reads answered stale: %lu (while a reset's clear went on: %lu)\n",
            (unsigned long)diag_stale_reads, (unsigned long)diag_stale_clearing);
     printf("  lines drawn %lu (core 0 %lu), late %lu, frames helped %lu, longest %lu us; row 1 \"%s\" color %u, DC_CTRL %02x\n",
@@ -120,6 +124,25 @@ static void diag_report(uint32_t secs) {
         diag_strip_sprites[i] = 0;
     }
     printf("\n  sprite table decoded %lu times\n", (unsigned long)dvi_decodes());
+    /* The drawing commands so far, by opcode: how many, and the line fitted to their times,
+     * a + b * work (pixels, or bytes COPYed or FILLed), in ns; the longest, in us. */
+    static const char *const ops[VC_C_COUNT] = {"NOP", "TARGET", "COLOR", "PLOT", "LINE", "RECT",
+                                                "FILLRECT", "CIRCLE", "DISC", "CLEAR", "COPY", "FILL",
+                                                "BLIT", "TRIANGLE", "FONT", "CHAR"};
+    const double ns = 1e9 / (double)clock_get_hz(clk_sys);
+    int shown = 0;
+    for (int i = 0; i < VC_C_COUNT; ++i) {
+        const diag_cmd_stat *d = &diag_cmds[i];
+        if (!d->n) continue;
+        double den = d->n * d->ww - d->w * d->w, b = den > 0 ? (d->n * d->wc - d->w * d->c) / den : 0;
+        double a = (d->c - b * d->w) / d->n;
+        printf("%s %s n=%lu work=%.0f a=%.0fns b=%.1fns max=%.0fus", shown++ ? "," : "  commands:", ops[i],
+               (unsigned long)d->n, d->w / d->n, a * ns, b * ns, d->max_cycles * ns / 1000);
+    }
+    if (shown)
+        printf("\n  command gaps (the main loop's other work): %lu, mean %.1fus, longest %.1fus\n",
+               (unsigned long)diag_cmd_gaps, diag_cmd_gaps ? (double)diag_cmd_gap_cycles * ns / 1000 / diag_cmd_gaps : 0.0,
+               diag_cmd_gap_max * ns / 1000);
     char line[80];
     snprintf(line, sizeof line, "diag %lus: frame %3u, resets pin %lu card %lu    ", (unsigned long)secs, card.frame,
              (unsigned long)diag_pin_resets, (unsigned long)diag_card_resets);
@@ -140,6 +163,7 @@ int main(void) {
     dvi_init();
     multicore_launch_core1(dvi_run);
     blockdev_start();
+    usbhost_init(); /* (keyboards and mice: clk_usb is 48 MHz, from the system PLL) */
 
     /* What it found, on the UART and on the screen (until a program resets the card). */
     char line[80];
@@ -159,6 +183,7 @@ int main(void) {
     for (;;) {
         card_poll();
         blockdev_poll();
+        usbhost_poll();
 #if VIDCARD_DIAG
         if ((int32_t)(time_us_32() - next) >= 0) {
             next += 1000000;

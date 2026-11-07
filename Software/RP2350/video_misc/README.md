@@ -20,9 +20,12 @@ commands and how it all works are in the emulator's
 [vidcard/README.md](https://github.com/caiannello/Pugputer6309_Emulator/blob/main/vidcard/README.md)
 ("On the card" for the hardware side).
 
-**Status: it builds, but hasn't been tried on the hardware yet.** Not in it yet: the **mouse
-and keyboard** (USB host). Until then the board's USB port is only for flashing and power, and
-typing is on the CPU card's serial console.
+**Status (2026-11-07):**
+- **Working on the hardware:** booting DOS from the SD card, and every video demo (VIDDEMO,
+  VIDTEXT, VIDGFX, VIDTILES).
+- **USB keyboards and mice** (TinyUSB host, through a hub): written, not yet tried. The hub needs
+  5V on the board's VBUS pin, from the bus through a diode.
+- **Not in yet:** gamepads, and the repeat of a held key.
 
 `vidcard.uf2` here is built and ready to flash.
 
@@ -33,8 +36,10 @@ typing is on the CPU card's serial console.
 | `src/config.h` | the pins and clocks |
 | `src/main.c` | start-up; core 0's main loop |
 | `src/bus.pio`, `src/bus.c` | the bus: reads answered by PIO and DMA from a copy of the registers; every access logged by DMA for core 0's interrupt |
-| `src/card.c` | the card between the bus, the drawing commands (a queue) and the beam; keeps the register copy up to date |
-| `src/dvi.c` | the picture: HSTX's TMDS encoder, two DMA channels, core 1 drawing a line ahead |
+| `src/card.c` | the card between the bus, the drawing commands (a 64KB queue) and the beam; keeps the register copy up to date; puts video memory back after a reset |
+| `src/dvi.c` | the picture: HSTX's TMDS encoder, two DMA channels, 8 line buffers; core 1 draws, and core 0 helps when lines run long |
+| `src/usbhost.c`, `src/tusb_config.h` | USB host (TinyUSB): boot-protocol keyboards and mice, through a hub |
+| `src/bench.c` | (diagnostic builds only, `VIDCARD_DIAG=1`) timings printed on the UART |
 | `src/sd.c` | the microSD card in SPI mode (SDSC, SDHC and SDXC) |
 | `src/blockdev.c` | the SD interface's registers, on `sd.c` |
 | `core/` | the card itself (built here with `VC_ATOMIC_FLAGS`); `vc_font.c` is the font, see `NOTICE.md` |
@@ -86,7 +91,7 @@ A 3.3V serial adapter on the UEXT connector's UART (GPIO0 TX, GPIO1 RX, 115200 b
 the firmware says at start, e.g.
 
 ```
-Pugputer 6309 video card: 252 MHz, PSRAM 8192 KB, SD card ready
+Pugputer 6309 video card: 336 MHz, PSRAM 8192 KB, SD card ready
 ```
 
 The same line shows at the top of the screen at power-on, until a program resets the card.
@@ -101,9 +106,9 @@ The same line shows at the top of the screen at power-on, until a program resets
    (booted from the SD card). `B_DQUERY` / BASIC's `SCREEN` find the card; then the demos in
    `/DEMO` (`VIDDEMO`, `VIDGFX`: a line interrupt every 8 lines; the VGM players: the OPL3).
 
-## Limits to confirm on the hardware
+## Limits, measured on the hardware
 
-A line takes 31.8us: about 8000 cycles at 252MHz. Three hires layers plus 32 wide sprites on one
-line may not fit in that; if they don't, the firmware will set a smaller budget and the emulator
-will be made to keep to it. The CPU's fastest writes (`TFM`, one every 840ns) set how quickly core
-0 must take a register write.
+The system clock is 336MHz at 1.25V (`src/config.h`). A line takes 31.8us, about 10700 cycles.
+VIDTILES' page 2 (three tile layers, 128 sprites) looks right with core 0 helping. The CPU's
+fastest writes (`TFM`, one every 840ns) set how quickly core 0 must take a register write, so
+the data ports take a short, lock-free path.

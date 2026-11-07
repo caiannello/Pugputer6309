@@ -137,6 +137,7 @@ static void draw(uint32_t n, int y) {
 
 #if VIDCARD_DIAG
 uint32_t dvi_decodes(void) { return palettes[0].decodes + palettes[1].decodes; }
+vc_palette *dvi_bench_palette(void) { return &palettes[0]; }
 #endif
 
 /* Core 0's part: lines while core 1 is behind. But not while its main loop has work the

@@ -40,10 +40,11 @@ add_executable(vidcard
     src/sd.c
     src/blockdev.c
     src/bench.c
+    src/usbhost.c
     ${CORE}/vc.c
     ${CORE}/vc_font.c
 )
-set_source_files_properties(src/main.c src/card.c src/bus.c src/dvi.c src/sd.c src/blockdev.c src/bench.c ${CORE}/vc.c
+set_source_files_properties(src/main.c src/card.c src/bus.c src/dvi.c src/sd.c src/blockdev.c src/bench.c src/usbhost.c ${CORE}/vc.c
     PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra")
 pico_generate_pio_header(vidcard ${CMAKE_CURRENT_LIST_DIR}/src/bus.pio)
 target_include_directories(vidcard PRIVATE src ${CORE})
@@ -72,6 +73,7 @@ target_link_libraries(vidcard
     hardware_psram
     hardware_spi
     hardware_vreg
+    tinyusb_host
 )
 # Everything runs from SRAM (copied there from flash at start): the bus interrupt and
 # the picture can't wait on the flash, which also shares its cache with the PSRAM.

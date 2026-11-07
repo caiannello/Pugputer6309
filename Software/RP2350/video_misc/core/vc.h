@@ -153,6 +153,10 @@ typedef struct vc_card {
     uint8_t t_bpp, color;
     uint32_t font;
     uint8_t font_h;
+    uint32_t work;               /* the drawing commands' work so far: a pixel drawn, or a byte
+                                  * COPYed or FILLed, is 1. (For timing them as the card does:
+                                  * the emulator's queue, the firmware's diagnostics. Nothing
+                                  * else reads it.) */
     /* input */
     uint8_t in_ctrl;
     uint16_t mouse_x, mouse_y;   /* where the mouse is */

@@ -6,6 +6,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "vc.h"
+
 /* On core 0, before core 1 starts: core 0's part (an interrupt). */
 void dvi_init(void);
 
@@ -25,6 +27,8 @@ extern volatile bool dvi_solo, dvi_park; /* (dvi_park: core 1 draws nothing) */
 extern volatile uint16_t diag_strip_us[30];
 extern volatile uint8_t diag_strip_sprites[30];
 uint32_t dvi_decodes(void);
+/* Core 0's render cache, for bench.c (which runs with core 0's help off). */
+vc_palette *dvi_bench_palette(void);
 #endif
 
 #endif

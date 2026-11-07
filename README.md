@@ -45,6 +45,24 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 (Nice renders using Indigo Renderer by Glare Technologies)
 
 ```
+## NEWS!
+
+Have made an effort to bring the hardware up to sync with the emulator, and have brought over a lot of great software and utilities, and have them mostly runnning well on real HW. (Thanks, Claude!):
+
+- rp2350-based card doing text, multilayer tilemap graphics and sprites, bitmap graphics, USB host, and SD card.
+- DOS-like command shell
+- Updated BASIC with good graphics/sprites, program load/save, seqfile and randfile operations
+- Fullscreen text editor in the terminal, modelled after GNU Nano
+- Assembler and Linker running on the Pugputer
+  - all project sources are on the disk image and can be edited and recompiled right on the pugputer:
+    BIOS
+    DOS
+    BASIC
+    EDIT
+    ASSEMBLER/LINKER
+- VGM player for OPL3 music and "sampled" soundeffects from the WAV2VGM project
+- TILEKIT - tilemap editor for games.. Hoping to get a full game development system built for the Pugputer, with scripting, music editor, sprite editor, etc.
+
 ## Gallery
 
 Graphics from SquareSoft's Seiken Densetsu 3 for Super NES ([Source code](https://github.com/caiannello/Pugputer6309/blob/main/Software/6309/Demos/mana_tilemap.asm))
