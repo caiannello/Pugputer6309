@@ -54,19 +54,13 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
 
 Have made an effort to bring the hardware up to sync with the emulator, and have brought over a lot of great software and utilities, and have them mostly runnning well on real HW. (Thanks, Claude!):
 
-- rp2350-based card doing text, multilayer tilemap graphics and sprites, bitmap graphics, USB host, and SD card.
+- rp2350-based card doing multilayer tilemap graphics and sprites, bitmap graphics, text, USB host, and SD card.
 - DOS-like command shell
 - Updated BASIC with good graphics/sprites, program load/save, seqfile and randfile operations
 - Fullscreen text editor in the terminal, modelled after GNU Nano
-- Assembler and Linker running on the Pugputer
-  - all project sources are on the disk image and can be edited and recompiled right on the pugputer:
-    BIOS
-    DOS
-    BASIC
-    EDIT
-    ASSEMBLER/LINKER
 - VGM player for OPL3 music and "sampled" soundeffects from the WAV2VGM project
 - TILEKIT - tilemap editor for games.. Hoping to get a full game development system built for the Pugputer, with scripting, music editor, sprite editor, etc.
+- Assembler and Linker running on the Pugputer - (All 6309 sources are on the disk image and can be edited and recompiled right on the pugputer: DOS, BASIC, EDIT, HEXDUMP, ASM/LINK, TILEKIT, VGMPLAY)
 
 ## There's now a (vibe-coded) Emulator!
 
@@ -77,7 +71,6 @@ It's got 1MB RAM, UART, 4K BIOS, FAT16 SD Card, RP2350-based Graphics Card, OPL3
 and on the SD card is a Text Editor, Assembler, Linker, and a version of Microsoft Extended BASIC 6809 that's 
 been expanded with DISK support patterned on GW-BASIC, graphics and sprites, and the ON ERROR statement.
 There's also some demos which play OPL3 music and demonstrate graphics capabilities. 
-### All of these goodies have since been included in the present repo as an SD card image and run on real HW.
 
 On my PC, the emulator currently runs 92x faster than the actual hardware. Going to need to add throttling. 
 
