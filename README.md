@@ -36,10 +36,15 @@ Projects in the Software Directory:  (All are work-in-progress, stay tuned.)
                           graphics (DVI) and the SD card
   6309 Extended Basic -   Microsoft, Walter K. Zydhek, Grant Searle,
                           Tom Circuit, and me (the V9958-era version)
+                          (New version bundled in pugdisk.img, which is
+                          built by the emulator. Same BASIC, but with
+                          lots of updates to support graphics and files.
+                          It's still slow! )
   boot -                  Minimal bootloader (superseded by bios)
   Pugmon -                ML Monitor (Far from complete)
   Demos -                 graphics and sound examples in Assembly and BASIC
-
+                          (Also V9958-centric and superseded by demos on
+                          on the pugdisk.img disk image)    
 3D Models 
   (Using Trimble SketchUp MAKE 17.2.2555 for Windows 64-bit )
 (Nice renders using Indigo Renderer by Glare Technologies)
