@@ -305,11 +305,28 @@ void card_key(uint8_t usage, bool down) {
     copy_unlock(s);
 }
 
+void card_key_repeat(uint8_t usage) {
+    uint32_t s = copy_lock();
+    /* (only into a queue with room: if nothing is reading, the release must still fit) */
+    if (card.keyq_len < VC_KEY_QUEUE / 2) {
+        vc_key(&card, usage, true);
+        refresh_input();
+    }
+    copy_unlock(s);
+}
+
 void card_mouse(int dx, int dy, uint8_t buttons, int wheel) {
     uint32_t s = copy_lock();
     vc_mouse_by(&card, dx, dy, buttons);
     if (wheel) vc_mouse_wheel(&card, wheel);
     refresh_input();
+    copy_unlock(s);
+}
+
+void card_pad(int n, const uint8_t *state) {
+    uint32_t s = copy_lock();
+    vc_pad(&card, n, state);
+    refresh_state(); /* (a data port may be pointing at it; and the interrupt flag) */
     copy_unlock(s);
 }
 

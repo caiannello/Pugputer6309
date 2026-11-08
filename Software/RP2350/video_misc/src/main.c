@@ -17,6 +17,8 @@
 #include "hardware/gpio.h"
 #include "hardware/pll.h"
 #include "hardware/psram.h"
+#include "hardware/structs/usb.h"
+#include "hardware/structs/usb_dpram.h"
 #include "hardware/vreg.h"
 #include "pico/multicore.h"
 #include "pico/stdlib.h"
@@ -116,6 +118,7 @@ static void diag_report(uint32_t secs) {
         printf("\n    descriptor (%u bytes):", diag_mouse_desc_len);
         for (int i = 0; i < diag_mouse_desc_len && i < DIAG_MOUSE_DESC; ++i)
             printf("%s%02x", i % 32 ? " " : "\n      ", diag_mouse_desc[i]);
+        printf("\n    read as: %s", diag_mouse_layout);
         printf("\n    last reports, oldest first:");
         uint32_t n = diag_mouse_logged < DIAG_MOUSE_LOG ? diag_mouse_logged : DIAG_MOUSE_LOG;
         for (uint32_t k = diag_mouse_logged - n; k < diag_mouse_logged; ++k) {
@@ -124,6 +127,38 @@ static void diag_report(uint32_t secs) {
             for (int i = 0; i < e[0] && i < 8; ++i) printf(" %02x", e[i + 1]);
         }
         printf("\n");
+    }
+    for (int i = 0; i < DIAG_DEVS; ++i)
+        if (diag_devs[i].dev)
+            printf("  device %04x:%04x, %u HID interfaces\n", diag_devs[i].vid, diag_devs[i].pid, diag_devs[i].hid);
+    if (diag_pad_vid || diag_pad_desc_len) {
+        printf("  %s %04x:%04x, reports %lu, up to %u bytes; card's 8 bytes:", card.pads[0] ? "pad 0" : "unclaimed HID",
+               diag_pad_vid, diag_pad_pid, (unsigned long)diag_usb_pad, diag_pad_len_max);
+        for (int i = 0; i < VC_PAD_SIZE; ++i) printf(" %02x", card.pads[i]);
+        printf("\n    bits changed:");
+        for (int i = 0; i < diag_pad_len_max && i < DIAG_PAD_BYTES; ++i) printf(" %02x", diag_pad_changed[i]);
+        printf("\n    %s (%u bytes):", diag_pad_cfg == 3 ? "config descriptor" : "descriptor", diag_pad_desc_len);
+        for (int i = 0; i < diag_pad_desc_len && i < DIAG_PAD_DESC; ++i)
+            printf("%s%02x", i % 32 ? " " : "\n      ", diag_pad_desc[i]);
+        printf("\n    read as: %s\n    last changes, oldest first:", diag_pad_layout);
+        uint32_t n = diag_pad_logged < DIAG_PAD_LOG ? diag_pad_logged : DIAG_PAD_LOG;
+        for (uint32_t k = diag_pad_logged - n; k < diag_pad_logged; ++k) {
+            const uint8_t *e = diag_pad_log[k % DIAG_PAD_LOG];
+            printf(" |");
+            for (int i = 0; i < e[0]; ++i) printf(" %02x", e[i + 1]);
+        }
+        printf("\n");
+    }
+    if (diag_pad_dev) {
+        printf("  pad 0: device %u, speed %u, read waiting at mount %u, now %u\n", diag_pad_dev, diag_pad_speed,
+               diag_pad_armed0, diag_pad_armed());
+        printf("  USB: int_ep_ctrl %08lx buf_status %08lx sie_status %08lx\n", (unsigned long)usb_hw->int_ep_ctrl,
+               (unsigned long)usb_hw->buf_status, (unsigned long)usb_hw->sie_status);
+        for (int i = 0; i < USB_HOST_INTERRUPT_ENDPOINTS; ++i)
+            if (usb_hw->int_ep_addr_ctrl[i])
+                printf("    int ep %d: addr %08lx ctrl %08lx buf %08lx\n", i, (unsigned long)usb_hw->int_ep_addr_ctrl[i],
+                       (unsigned long)usbh_dpram->int_ep_ctrl[i].ctrl,
+                       (unsigned long)usbh_dpram->int_ep_buffer_ctrl[i].ctrl);
     }
     printf("  data port reads answered stale: %lu (while a reset's clear went on: %lu)\n",
            (unsigned long)diag_stale_reads, (unsigned long)diag_stale_clearing);

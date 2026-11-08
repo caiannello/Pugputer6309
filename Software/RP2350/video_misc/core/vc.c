@@ -49,6 +49,7 @@ static int s16(const uint8_t *p) { return (int16_t)(uint16_t)be16(p); }
 uint8_t vc_peek(const vc_card *c, uint32_t a) {
     a &= 0xFFFFFF;
     if (a < VC_VRAM_SIZE) return c->vram[a];
+    if (a - VC_PAD_BASE < sizeof c->pads) return c->pads[a - VC_PAD_BASE];
     if (a - VC_CFG_BASE < VC_CFG_SIZE) return c->cfg[a - VC_CFG_BASE];
     if (a >= VC_PSRAM_BASE && c->psram) return c->psram[a - VC_PSRAM_BASE];
     return 0;
@@ -66,6 +67,8 @@ void vc_poke(vc_card *c, uint32_t a, uint8_t v) {
     if (a < VC_VRAM_SIZE) {
         c->vram[a] = v;
         if (in_sprite_table(c, a)) BUMP(c->spr_gen); /* (after: see vc_palette) */
+    } else if (a - VC_PAD_BASE < sizeof c->pads) {
+        /* (read only) */
     } else if (a - VC_CFG_BASE < VC_CFG_SIZE) {
         uint32_t o = a - VC_CFG_BASE;
         c->cfg[o] = v;
@@ -518,6 +521,21 @@ void vc_key(vc_card *c, uint8_t usage, int down) {
         ++c->keyq_len;
     }
     SET_FLAGS(c, VC_IRQ_INPUT);
+}
+
+void vc_pad(vc_card *c, int n, const uint8_t *state) {
+    uint8_t next[VC_PAD_SIZE] = {0};
+    uint8_t *p;
+    if (n < 0 || n >= VC_PADS) return;
+    p = c->pads + n * VC_PAD_SIZE;
+    if (state) {
+        memcpy(next, state, VC_PAD_SIZE);
+        next[VC_PAD_FLAGS] |= VC_PAD_CONNECTED;
+    }
+    if (memcmp(p, next, VC_PAD_SIZE)) {
+        memcpy(p, next, VC_PAD_SIZE);
+        SET_FLAGS(c, VC_IRQ_INPUT);
+    }
 }
 
 int vc_irq(const vc_card *c) { return (c->ien & c->isr) != 0; }

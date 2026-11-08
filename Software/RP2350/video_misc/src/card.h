@@ -38,7 +38,9 @@ bool card_waiting(void);
 /* Input, from the USB host (usbhost.c, in the main loop): a key pressed or let go (its USB
  * usage code), and a mouse's movement, buttons and wheel clicks. */
 void card_key(uint8_t usage, bool down);
+void card_key_repeat(uint8_t usage); /* a held key, pressed again */
 void card_mouse(int dx, int dy, uint8_t buttons, int wheel);
+void card_pad(int n, const uint8_t *state); /* a gamepad's bytes (vc_pad), or NULL: unplugged */
 
 /* A reset, as writing VC_CTRL bit 7 does, from the main loop. */
 void card_reset(void);

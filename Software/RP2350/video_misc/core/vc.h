@@ -25,6 +25,7 @@ extern "C" {
 #define VC_VRAM_SIZE 0x40000u   /* $000000-$03FFFF video memory */
 #define VC_CFG_BASE 0x040000u   /* $040000-$0403FF display settings and palette */
 #define VC_CFG_SIZE 0x400u
+#define VC_PAD_BASE 0x040040u   /* $040040-$04005F the gamepads, read only (VC_PAD_*) */
 #define VC_PAL_BASE 0x040200u   /* 256 colors, 2 bytes each (RGB565, big-endian) */
 #define VC_PSRAM_BASE 0x800000u /* $800000-$FFFFFF the 8MB PSRAM, when there is one */
 #define VC_PSRAM_SIZE 0x800000u
@@ -66,7 +67,7 @@ enum {
 #define VC_IRQ_VSYNC 0x01   /* the start of vertical blank (line 480) */
 #define VC_IRQ_LINE 0x02    /* the start of the line set with VC_LINE_H/L */
 #define VC_IRQ_CMDDONE 0x04 /* the command queue has emptied */
-#define VC_IRQ_INPUT 0x08   /* a key event was queued, or the mouse moved or clicked */
+#define VC_IRQ_INPUT 0x08   /* a key event was queued, the mouse moved or clicked, or a pad changed */
 
 #define VC_IN_POINTER 0x01 /* VC_IN_CTRL: sprite 0 is put where the mouse is, each frame */
 #define VC_IN_KEYS 0x02    /* VC_IN_CTRL: keys typed go to the card (the emulator: not the UART) */
@@ -83,6 +84,25 @@ enum {
 #define VC_MOD_RGUI 0x80
 
 #define VC_KEY_QUEUE 32 /* key events the card holds; more are lost */
+
+/* The gamepads: VC_PADS of them at VC_PAD_BASE, VC_PAD_SIZE bytes each. */
+#define VC_PADS 4
+#define VC_PAD_SIZE 8
+enum {
+    VC_PAD_FLAGS = 0, /* bit 7: connected (all 8 bytes read 0 if not) */
+    VC_PAD_DPAD = 1,  /* VC_PAD_UP etc. */
+    VC_PAD_BTN1 = 2,  /* buttons 1-8, bit 0 is button 1 */
+    VC_PAD_BTN2 = 3,  /* buttons 9-16 */
+    VC_PAD_LX = 4,    /* the sticks, signed, -127 to 127, 0 in the middle: + is right */
+    VC_PAD_LY = 5,    /* + is down */
+    VC_PAD_RX = 6,
+    VC_PAD_RY = 7
+};
+#define VC_PAD_CONNECTED 0x80
+#define VC_PAD_UP 0x01
+#define VC_PAD_DOWN 0x02
+#define VC_PAD_LEFT 0x04
+#define VC_PAD_RIGHT 0x08
 
 /* The display settings, at VC_CFG_BASE + these offsets. */
 enum {
@@ -167,7 +187,8 @@ typedef struct vc_card {
     uint8_t key_char;            /* VC_KEY_CHAR: the last event taken */
     uint8_t keyq[VC_KEY_QUEUE][2]; /* usage, character | $80 if released */
     uint8_t keyq_head, keyq_len;
-    uint32_t pal_gen;            /* counts changes to the palette (see vc_palette) */
+    uint8_t pads[VC_PADS * VC_PAD_SIZE];
+    uint32_t pal_gen;           /* counts changes to the palette (see vc_palette) */
     uint32_t spr_gen;            /* counts changes to the sprites: their table, its settings
                                   * (anything that writes there without vc_poke() counts
                                   * itself: see vc_palette) */
@@ -200,11 +221,15 @@ void vc_poke(vc_card *c, uint32_t addr, uint8_t value);
  * (VC_MOUSE_BTN's bits 0-2); the wheel, clicks turned; a key pressed or released, as its
  * USB HID usage code (page 7: 4 is A, $28 Enter, $E0-$E7 the modifiers). The card works out
  * the character a key types itself (a US layout), so the firmware and the emulator agree.
- * vc_reset() leaves the mouse's position and the keys held alone: they are the hardware's. */
+ * A gamepad n (0 to VC_PADS-1), its VC_PAD_SIZE bytes as a program reads them, or NULL when
+ * it is unplugged (the connected bit is set here).
+ * vc_reset() leaves the mouse's position, the keys held and the pads alone: they are the
+ * hardware's. */
 void vc_mouse_to(vc_card *c, int x, int y, uint8_t buttons);
 void vc_mouse_by(vc_card *c, int dx, int dy, uint8_t buttons);
 void vc_mouse_wheel(vc_card *c, int clicks);
 void vc_key(vc_card *c, uint8_t usage, int down);
+void vc_pad(vc_card *c, int n, const uint8_t *state);
 
 /* The beam has reached `line` (0-524): the interrupt flags and frame count follow it. */
 void vc_begin_line(vc_card *c, uint16_t line);
