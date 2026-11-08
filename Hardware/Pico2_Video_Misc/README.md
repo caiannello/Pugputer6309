@@ -9,8 +9,9 @@ through 19.
 
 Since this olimex module has an SD card slot on it, and USB, I may as well try to shoehorn SD card functions,
 as well as keyboard, mouse, gamepad, connections. (The firmware does the SD card, and USB keyboards and
-mice through a small unpowered hub, which needs the bus's 5V on the board's VBUS pin; gamepads
-aren't in it yet.) No room for a 4-port hub and usb connectors at the moment..
+mice through a small unpowered hub; gamepads aren't in it yet. Bus-powered USB devices need
+a jumper from VSYS to VBUS: VSYS already comes from the bus's 5V through a Schottky diode, and
+the board's own diode only lets VBUS power VSYS, not the other way.) No room for a 4-port hub and usb connectors at the moment..
 maybe if I find some a wacky-sideways HDMI connector? I agree it feels like cheating to use a modern MCU 
 to provide so many functions for the Pugputer 6309. Maybe someday there will be a discrete TTL logic version.
 

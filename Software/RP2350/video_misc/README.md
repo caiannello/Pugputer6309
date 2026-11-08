@@ -23,8 +23,9 @@ commands and how it all works are in the emulator's
 **Status (2026-11-07):**
 - **Working on the hardware:** booting DOS from the SD card, and every video demo (VIDDEMO,
   VIDTEXT, VIDGFX, VIDTILES).
-- **USB keyboards and mice** (TinyUSB host, through a hub): written, not yet tried. The hub needs
-  5V on the board's VBUS pin, from the bus through a diode.
+- **USB keyboards and mice** (TinyUSB host): working on the hardware (VIDMOUSE), each plugged in
+  directly; a hub is next. Bus-powered devices need VBUS powered: a jumper from VSYS to VBUS
+  (VSYS already comes from the bus through a Schottky diode).
 - **Not in yet:** gamepads, and the repeat of a held key.
 
 `vidcard.uf2` here is built and ready to flash.

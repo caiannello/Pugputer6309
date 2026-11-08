@@ -17,6 +17,11 @@
 
 #if VIDCARD_DIAG
 volatile uint32_t diag_usb_devices, diag_usb_keys, diag_usb_mouse;
+uint8_t diag_mouse_desc[DIAG_MOUSE_DESC];
+uint16_t diag_mouse_desc_len, diag_mouse_vid, diag_mouse_pid;
+uint8_t diag_mouse_proto, diag_mouse_len_min, diag_mouse_len_max, diag_mouse_seen[8];
+uint8_t diag_mouse_log[DIAG_MOUSE_LOG][9];
+uint32_t diag_mouse_logged;
 #endif
 
 /* Each keyboard's last report, to see what changed. */
@@ -76,6 +81,17 @@ static void keyboard(int s, const uint8_t *r, uint16_t len) {
 
 /* A mouse's report: buttons, X, Y (and the wheel, if it sends one). */
 static void mouse(const uint8_t *r, uint16_t len) {
+#if VIDCARD_DIAG
+    {
+        uint8_t n = (uint8_t)(len > 8 ? 8 : len);
+        if (!diag_mouse_len_min || len < diag_mouse_len_min) diag_mouse_len_min = (uint8_t)(len > 255 ? 255 : len);
+        if (len > diag_mouse_len_max) diag_mouse_len_max = (uint8_t)(len > 255 ? 255 : len);
+        for (int i = 0; i < n; ++i) diag_mouse_seen[i] |= r[i];
+        uint8_t *e = diag_mouse_log[diag_mouse_logged++ % DIAG_MOUSE_LOG];
+        e[0] = (uint8_t)(len > 255 ? 255 : len);
+        memcpy(e + 1, r, n);
+    }
+#endif
     if (len < 3) return;
     card_mouse((int8_t)r[1], (int8_t)r[2], (uint8_t)(r[0] & 7), len >= 4 ? (int8_t)r[3] : 0);
 #if VIDCARD_DIAG
@@ -101,6 +117,17 @@ void tuh_hid_mount_cb(uint8_t dev, uint8_t idx, uint8_t const *desc, uint16_t le
     (void)desc;
     (void)len;
     uint8_t p = tuh_hid_interface_protocol(dev, idx);
+#if VIDCARD_DIAG
+    if (p == HID_ITF_PROTOCOL_MOUSE) {
+        tuh_vid_pid_get(dev, &diag_mouse_vid, &diag_mouse_pid);
+        diag_mouse_proto = tuh_hid_get_protocol(dev, idx);
+        diag_mouse_desc_len = desc ? len : 0;
+        memcpy(diag_mouse_desc, desc, diag_mouse_desc_len > DIAG_MOUSE_DESC ? DIAG_MOUSE_DESC : diag_mouse_desc_len);
+        diag_mouse_len_min = diag_mouse_len_max = 0;
+        memset(diag_mouse_seen, 0, sizeof diag_mouse_seen);
+        diag_mouse_logged = 0;
+    }
+#endif
     if (p == HID_ITF_PROTOCOL_KEYBOARD) kbd_slot(dev, idx, 1);
     if (p == HID_ITF_PROTOCOL_KEYBOARD || p == HID_ITF_PROTOCOL_MOUSE) tuh_hid_receive_report(dev, idx);
 }

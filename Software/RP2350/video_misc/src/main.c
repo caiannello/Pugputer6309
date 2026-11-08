@@ -109,6 +109,22 @@ static void diag_report(uint32_t secs) {
     printf("  USB: devices %lu, key events %lu, mouse reports %lu; mouse at %u,%u buttons %02x\n",
            (unsigned long)diag_usb_devices, (unsigned long)diag_usb_keys, (unsigned long)diag_usb_mouse,
            card.mouse_x, card.mouse_y, card.buttons);
+    if (diag_mouse_vid || diag_mouse_desc_len) {
+        printf("  mouse %04x:%04x, protocol %s, reports %u-%u bytes, bits seen:", diag_mouse_vid, diag_mouse_pid,
+               diag_mouse_proto ? "report" : "boot", diag_mouse_len_min, diag_mouse_len_max);
+        for (int i = 0; i < diag_mouse_len_max && i < 8; ++i) printf(" %02x", diag_mouse_seen[i]);
+        printf("\n    descriptor (%u bytes):", diag_mouse_desc_len);
+        for (int i = 0; i < diag_mouse_desc_len && i < DIAG_MOUSE_DESC; ++i)
+            printf("%s%02x", i % 32 ? " " : "\n      ", diag_mouse_desc[i]);
+        printf("\n    last reports, oldest first:");
+        uint32_t n = diag_mouse_logged < DIAG_MOUSE_LOG ? diag_mouse_logged : DIAG_MOUSE_LOG;
+        for (uint32_t k = diag_mouse_logged - n; k < diag_mouse_logged; ++k) {
+            const uint8_t *e = diag_mouse_log[k % DIAG_MOUSE_LOG];
+            printf(" |");
+            for (int i = 0; i < e[0] && i < 8; ++i) printf(" %02x", e[i + 1]);
+        }
+        printf("\n");
+    }
     printf("  data port reads answered stale: %lu (while a reset's clear went on: %lu)\n",
            (unsigned long)diag_stale_reads, (unsigned long)diag_stale_clearing);
     printf("  lines drawn %lu (core 0 %lu), late %lu, frames helped %lu, longest %lu us; row 1 \"%s\" color %u, DC_CTRL %02x\n",

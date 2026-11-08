@@ -181,4 +181,6 @@ the hardware.
 
 - Firmware: key repeat for USB keyboards (the emulator's README promises it).
 - Firmware: gamepads (needs HID report-descriptor parsing).
-- Test USB on the hardware. VBUS needs 5 V from the bus through a Schottky diode.
+- USB on the hardware: a keyboard and a mouse each work plugged in directly (VIDMOUSE), with
+  VBUS jumpered to VSYS. Still to try: a hub, and the mouse wheel. (The emulator's vidcard
+  README already says so.)
