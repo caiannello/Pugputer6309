@@ -119,26 +119,47 @@ identical to this repo's before the bring-up, so copying it over lost nothing.
   bytes at a time and waits while `STATUS` says "queue full". VIDGFX's page 1 sends about
   5.2 KB at once.
 
-## 7. The video card's command queue, in the emulator (in progress)
+## 7. The video card's command queue, in the emulator
 
 The emulator ran every drawing command the moment its last byte arrived, so `STATUS` was never
 busy for long and never full. On the card the queue holds 64 KB, says full with 64 bytes or
-fewer left, and loses bytes sent while full. Commands take real time, more while core 0 is
-helping draw a heavy screen. A program that doesn't wait for "busy" before reading or reusing
-video memory works in the emulator and can glitch on the hardware.
+fewer left, and loses bytes sent while full. Commands take real time: about 200 ns a pixel
+(measured below), so a 320x240 CLEAR takes about 16 ms. A program that doesn't wait for
+"busy" before reading or reusing video memory works in an instant emulator and goes wrong on
+the hardware.
 
 - [x] **The core counts each command's work** in `vc_card.work`: pixels, or bytes COPYed or
   FILLed. BLIT and CHAR count every pixel they look at.
-- [x] **The diag firmware times every command type** (`vidcard_diag27_cmdtime.uf2`). It fits
-  cycles = a + b × work for each opcode, and reports the main loop's gaps between batches.
-- [ ] **Measure on the hardware:** VIDGFX (both pages), MANDEL and VIDDEMO, with the diag
-  build's `commands:` and `command gaps` lines.
-- [ ] **The emulator's `VideoDevice`:**
-  - queue `VC_CMD` bytes as the card does (64 KB, full at 64 left, bytes lost when full);
-  - feed them to the core at the measured rates, by CPU cycles;
-  - take STATUS's busy and full bits from the queue, and raise CMDDONE when it empties.
-- [ ] Tests: a program that overruns the queue loses bytes; BUSY lasts about as long as on
-  the card.
+- [x] **Measured on the hardware,** with the diag27 firmware, over VIDGFX (both pages), MANDEL
+  and VIDDEMO:
+  - about 0.45 us for any command;
+  - about 180-250 ns a pixel drawn;
+  - 188 ns a byte COPYed and 113 ns a byte FILLed;
+  - 613 ns a pixel for BLIT from the PSRAM, and 97 ns a pixel for CHAR;
+  - CLEAR up to 74 ms (640x480).
+
+  The main loop's other work between batches is small: a mean of 3.6 us, at most 31 us.
+- [x] **The emulator's `VideoDevice`** (`simulator/src/pugputer/video_device.cpp`):
+  - a 64 KB queue: full at 64 left, and bytes lost when it's full;
+  - each command takes its measured time (`command_cycles`), and the next one waits;
+  - STATUS is busy while anything is queued or running;
+  - CMDDONE comes at a command's end;
+  - a reset drops the queue.
+
+  A command's pixels are all there from its start, where the card's appear as it draws.
+  `set_instant_commands(true)` gives the old behaviour, for tests.
+- [x] **Tests:** `vidcard_device_commands_take_the_cards_time`, and
+  `..._command_queue_fills_loses_and_is_dropped_by_a_reset`.
+- [x] **What it found:**
+  - **BASIC never waited for the card.** A `VPOKE` straight after a `GCLS` would land first
+    and be cleared. Now `VCSET`, which every data-port statement goes through (VPOKE, VPEEK,
+    PALETTE, SPRITE, TPRINT, SCREEN), waits until the drawing sent before it is done.
+  - **The BASIC video and TILEKIT tests** checked the screen the moment a line or key was done.
+    They now let the card finish drawing first, as a person would see it.
+  - **TILEKIT already waits** (`WAITCMD`) before reusing memory a command may still read.
+- [ ] Optional: audit TILEKIT and the demos for data-port accesses that don't wait.
+- [ ] BASIC doesn't watch "queue full". Filling it would take something like a minute of
+  `GCLS` in a tight loop (one byte each, 16 ms each to draw), so it's left as is.
 
 ## 8. Compatibility, next (suggestions)
 
