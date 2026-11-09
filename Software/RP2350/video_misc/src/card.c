@@ -323,6 +323,13 @@ void card_mouse(int dx, int dy, uint8_t buttons, int wheel) {
     copy_unlock(s);
 }
 
+void card_pad_id(int n, uint16_t vid, uint16_t pid) {
+    uint32_t s = copy_lock();
+    vc_pad_id(&card, n, vid, pid);
+    refresh_state(); /* (a data port may be pointing at it) */
+    copy_unlock(s);
+}
+
 void card_pad(int n, const uint8_t *state) {
     uint32_t s = copy_lock();
     vc_pad(&card, n, state);

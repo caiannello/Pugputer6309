@@ -392,6 +392,9 @@ static void pad_mount(uint8_t dev, uint8_t idx, const uint8_t *desc, uint16_t le
     if (s == VC_PADS) return;
     t.dev = dev, t.idx = idx, t.used = 1;
     pads[s] = t;
+    uint16_t vid = 0, pid = 0;
+    tuh_vid_pid_get(dev, &vid, &pid);
+    card_pad_id(s, vid, pid); /* (which button map its reports go through) */
     const uint8_t neutral[VC_PAD_SIZE] = {0};
     card_pad(s, neutral); /* (connected: its first report may be a while coming) */
 #if VIDCARD_DIAG

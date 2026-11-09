@@ -4,6 +4,7 @@
 #include <string.h>
 
 #define VRAM_MASK (VC_VRAM_SIZE - 1)
+#define PADMAP_END (VC_PADMAP_BASE + VC_PADMAPS * VC_PADMAP_SIZE - VC_CFG_BASE) /* (an offset in cfg) */
 
 /* The interrupt flags are set by the beam (vc_begin_line), the commands and the input, and
  * cleared by the CPU. The card's firmware does those on two cores and in an interrupt
@@ -67,8 +68,8 @@ void vc_poke(vc_card *c, uint32_t a, uint8_t v) {
     if (a < VC_VRAM_SIZE) {
         c->vram[a] = v;
         if (in_sprite_table(c, a)) BUMP(c->spr_gen); /* (after: see vc_palette) */
-    } else if (a - VC_PAD_BASE < sizeof c->pads) {
-        /* (read only) */
+    } else if (a - VC_PAD_BASE < VC_PADMAP_BASE - VC_PAD_BASE) {
+        /* (the pads and what each one is: read only) */
     } else if (a - VC_CFG_BASE < VC_CFG_SIZE) {
         uint32_t o = a - VC_CFG_BASE;
         c->cfg[o] = v;
@@ -104,7 +105,9 @@ void vc_reset_state(vc_card *c) {
     static int pal_ready;
     uint8_t *cp = c->cfg + (VC_PAL_BASE - VC_CFG_BASE);
     int i;
-    memset(c->cfg, 0, sizeof c->cfg);
+    /* (What each pad is and the button maps stay: they are the hardware's, and PADMAP's.) */
+    memset(c->cfg, 0, VC_PADID_BASE - VC_CFG_BASE);
+    memset(c->cfg + PADMAP_END, 0, VC_CFG_SIZE - PADMAP_END);
     /* The palette: xterm's 256 colors, so text colors are the ones ANSI terminals use. */
     if (!pal_ready) {
         for (i = 0; i < 16; ++i) set_color(c, i, base16[i][0], base16[i][1], base16[i][2]);
@@ -523,14 +526,60 @@ void vc_key(vc_card *c, uint8_t usage, int down) {
     SET_FLAGS(c, VC_IRQ_INPUT);
 }
 
+/* Pads known without being set up, as VC_PADMAP_SIZE-byte entries. */
+#define NO VC_BTN_NONE
+static const uint8_t k_pad_maps[][VC_PADMAP_SIZE] = {
+    /* 8BitDo SN30 Pro, D-input (its buttons 3, 6 and 16 don't exist) */
+    {0x2D, 0xC8, 0x60, 0x01, VC_BTN_EAST, VC_BTN_SOUTH, NO, VC_BTN_NORTH, VC_BTN_WEST, NO, VC_BTN_L, VC_BTN_R, VC_BTN_L2,
+     VC_BTN_R2, VC_BTN_SELECT, VC_BTN_START, VC_BTN_HOME, VC_BTN_L3, VC_BTN_R3, NO},
+};
+#undef NO
+
+/* The map for a pad with these IDs: the user's first, then the card's own. NULL: none. */
+static const uint8_t *pad_map(const vc_card *c, const uint8_t *id) {
+    const uint8_t *t = c->cfg + (VC_PADMAP_BASE - VC_CFG_BASE);
+    size_t i;
+    if (!(id[0] | id[1] | id[2] | id[3])) return NULL;
+    for (i = 0; i < VC_PADMAPS; ++i, t += VC_PADMAP_SIZE)
+        if (!memcmp(t, id, 4)) return t;
+    for (i = 0; i < sizeof k_pad_maps / sizeof k_pad_maps[0]; ++i)
+        if (!memcmp(k_pad_maps[i], id, 4)) return k_pad_maps[i];
+    return NULL;
+}
+
+void vc_pad_id(vc_card *c, int n, uint16_t vid, uint16_t pid) {
+    uint8_t *id;
+    if (n < 0 || n >= VC_PADS) return;
+    id = c->cfg + (VC_PADID_BASE - VC_CFG_BASE) + n * VC_PAD_SIZE;
+    id[VC_PADID_VID_H] = (uint8_t)(vid >> 8);
+    id[VC_PADID_VID_L] = (uint8_t)vid;
+    id[VC_PADID_PID_H] = (uint8_t)(pid >> 8);
+    id[VC_PADID_PID_L] = (uint8_t)pid;
+}
+
 void vc_pad(vc_card *c, int n, const uint8_t *state) {
     uint8_t next[VC_PAD_SIZE] = {0};
-    uint8_t *p;
+    uint8_t *p, *id;
     if (n < 0 || n >= VC_PADS) return;
     p = c->pads + n * VC_PAD_SIZE;
+    id = c->cfg + (VC_PADID_BASE - VC_CFG_BASE) + n * VC_PAD_SIZE;
     if (state) {
+        const uint8_t *map = pad_map(c, id);
         memcpy(next, state, VC_PAD_SIZE);
         next[VC_PAD_FLAGS] |= VC_PAD_CONNECTED;
+        id[VC_PADID_RAW1] = state[VC_PAD_BTN1];
+        id[VC_PADID_RAW2] = state[VC_PAD_BTN2];
+        if (map) {
+            unsigned raw = (unsigned)state[VC_PAD_BTN1] | (unsigned)state[VC_PAD_BTN2] << 8, out = 0;
+            int i;
+            for (i = 0; i < 16; ++i)
+                if ((raw >> i & 1) && map[4 + i] < 16) out |= 1u << map[4 + i];
+            next[VC_PAD_BTN1] = (uint8_t)out;
+            next[VC_PAD_BTN2] = (uint8_t)(out >> 8);
+            next[VC_PAD_FLAGS] |= VC_PAD_MAPPED;
+        }
+    } else {
+        memset(id, 0, VC_PAD_SIZE);
     }
     if (memcmp(p, next, VC_PAD_SIZE)) {
         memcpy(p, next, VC_PAD_SIZE);
@@ -771,6 +820,84 @@ VC_INLINE void tile_row(uint16_t *out, const uint16_t *pal, int base, int scale,
     }
 }
 
+/* A whole row of a tile of 4 bits a pixel (nb bytes from s, flipped across or not), from lx
+ * on: a byte, two pixels, at a time. Inlined for each constant base, scale and flip, so the
+ * loop itself tests only what the pixels make it. */
+VC_INLINE void tile4_row(uint16_t *out, const uint16_t *pal, int base, int scale, int lx, const uint8_t *s, int nb,
+                         int flip, uint32_t pal16) {
+    const uint16_t *set = pal + pal16;
+    uint16_t back = pal[0];
+    int k;
+    out += scale * lx;
+    for (k = 0; k < nb; ++k) {
+        unsigned b = s[flip ? nb - 1 - k : k];
+        unsigned p0 = flip ? b & 15 : b >> 4, p1 = flip ? b >> 4 : b & 15;
+        if (base) {
+            uint16_t c0 = p0 ? set[p0] : back, c1 = p1 ? set[p1] : back;
+            if (scale == 1) {
+                put32(out + 2 * k, PAIR(c0, c1));
+            } else {
+                put32(out + 4 * k, PAIR(c0, c0));
+                put32(out + 4 * k + 2, PAIR(c1, c1));
+            }
+        } else if (b) {
+            if (scale == 1) {
+                if (p0 && p1) put32(out + 2 * k, PAIR(set[p0], set[p1]));
+                else if (p0) out[2 * k] = set[p0];
+                else out[2 * k + 1] = set[p1];
+            } else {
+                if (p0) put32(out + 4 * k, PAIR(set[p0], set[p0]));
+                if (p1) put32(out + 4 * k + 2, PAIR(set[p1], set[p1]));
+            }
+        }
+    }
+}
+
+/* The whole tiles of a stretch of map of 4 or 8 bits a pixel: count cells from m (which
+ * doesn't wrap), the first at lx. A map is mostly the same tile again, and mostly tiles with
+ * nothing on this row, and the screen can have 120 of them a line (3 layers of 8x8), so what
+ * a cell needs is worked out only when it differs from the last, and an empty row is
+ * skipped whole. Returns how many it drew: fewer than count at a tile whose row would run
+ * off the end of the memory (the caller's slower way takes that one). */
+VC_INLINE int tile_run(const uint8_t *vram, uint16_t *out, const uint16_t *pal, int base, int scale, int bpp, int ts,
+                       int lx, const uint8_t *m, int count, uint32_t tilebase, int row_in_tile) {
+    uint32_t row_bytes = (uint32_t)(ts * bpp / 8), tile_bytes = (uint32_t)ts * row_bytes, pal16 = 0, k;
+    const uint8_t *s = vram;
+    unsigned last = 0x10000u; /* (no entry is this) */
+    int flip = 0, blank = 0, i;
+    for (i = 0; i < count; ++i, m += 2, lx += ts) {
+        unsigned e = (unsigned)be16(m);
+        if (e != last) {
+            int ty = e & 0x800 ? ts - 1 - row_in_tile : row_in_tile;
+            uint32_t trow = (tilebase + (e & 0x3FF) * tile_bytes + (uint32_t)ty * row_bytes) & VRAM_MASK;
+            if (trow > VC_VRAM_SIZE - row_bytes) return i;
+            s = vram + trow;
+            flip = (e & 0x400) != 0;
+            pal16 = (e >> 12) * 16;
+            last = e;
+            blank = 1;
+            for (k = 0; k < row_bytes; k += 4) {
+                if (get32(s + k)) {
+                    blank = 0;
+                    break;
+                }
+            }
+        }
+        if (blank) {
+            if (base) fill(out, pal[0], scale, lx, ts);
+        } else if (bpp == 8) {
+            const uint8_t *p = flip ? s + ts - 1 : s;
+            int step = flip ? -1 : 1, j;
+            for (j = 0; j < ts; ++j, p += step) put(out, pal, base, scale, lx + j, *p);
+        } else if (!flip) {
+            tile4_row(out, pal, base, scale, lx, s, (int)row_bytes, 0, pal16);
+        } else {
+            tile4_row(out, pal, base, scale, lx, s, (int)row_bytes, 1, pal16);
+        }
+    }
+    return i;
+}
+
 /* One layer's line, in colors: every pixel (base 1), or only those that show (base 0). */
 VC_INLINE void render_layer(const vc_card *c, const uint8_t *l, int y, uint16_t *out, const uint16_t *pal,
                             int base) {
@@ -828,6 +955,25 @@ VC_INLINE void render_layer(const vc_card *c, const uint8_t *l, int y, uint16_t 
         uint32_t row_bytes = (uint32_t)(ts * bpp / 8);
         lx = 0;
         while (lx < width) {
+            if (bpp >= 4 && !(px & (ts - 1))) { /* whole tiles, as far as the map goes on */
+                int cell = px >> shift, count = (width - lx) >> shift;
+                uint32_t a = (row + 2u * (uint32_t)cell) & VRAM_MASK;
+                if (count > mapw - cell) count = mapw - cell;
+                if (count > 0 && a <= VC_VRAM_SIZE - 2u * (uint32_t)count) {
+                    const uint8_t *m = vram + a;
+                    int done;
+                    if (bpp == 4) {
+                        if (scale == 1) done = tile_run(vram, out, pal, base, 1, 4, ts, lx, m, count, tilebase, row_in_tile);
+                        else done = tile_run(vram, out, pal, base, 2, 4, ts, lx, m, count, tilebase, row_in_tile);
+                    } else {
+                        if (scale == 1) done = tile_run(vram, out, pal, base, 1, 8, ts, lx, m, count, tilebase, row_in_tile);
+                        else done = tile_run(vram, out, pal, base, 2, 8, ts, lx, m, count, tilebase, row_in_tile);
+                    }
+                    lx += done * ts;
+                    px = (px + done * ts) & wmask;
+                    if (done == count) continue;
+                }
+            }
             uint32_t e = be16(vram + ((row + 2u * (uint32_t)(px >> shift)) & VRAM_MASK));
             int flip = (e & 0x400) != 0, tx = px & (ts - 1), n = ts - tx;
             int ty = e & 0x800 ? ts - 1 - row_in_tile : row_in_tile;
@@ -835,12 +981,9 @@ VC_INLINE void render_layer(const vc_card *c, const uint8_t *l, int y, uint16_t 
             const uint8_t *s = vram + (trow & VRAM_MASK);
             int whole = (trow & VRAM_MASK) <= VC_VRAM_SIZE - row_bytes; /* (none of it wraps) */
             if (n > width - lx) n = width - lx;
-            if (n == ts && whole && bpp < 8) {
+            if (n == ts && whole && bpp < 4) {
                 if (bpp == 1) tile_row(out, pal, base, scale, lx, s, (int)row_bytes, 1, flip, pal16);
-                else if (bpp == 2) tile_row(out, pal, base, scale, lx, s, (int)row_bytes, 2, flip, pal16);
-                else tile_row(out, pal, base, scale, lx, s, (int)row_bytes, 4, flip, pal16);
-            } else if (n == ts && whole && bpp == 8) {
-                for (i = 0; i < ts; ++i) put(out, pal, base, scale, lx + i, s[flip ? ts - 1 - i : i]);
+                else tile_row(out, pal, base, scale, lx, s, (int)row_bytes, 2, flip, pal16);
             } else {
                 for (i = 0; i < n; ++i, ++tx) {
                     uint32_t bit = (uint32_t)(flip ? ts - 1 - tx : tx) * (uint32_t)bpp;
@@ -944,6 +1087,21 @@ VC_INLINE void sprite4_row(uint16_t *out, const uint16_t *pal, int scale, int x,
     }
 }
 
+/* Pixels i0 to i1 of a row of a sprite of 8 bits a pixel (w wide, from s, flipped across or
+ * not) at x. Inlined for each constant scale and flip. */
+VC_INLINE void sprite8_row(uint16_t *out, const uint16_t *pal, int scale, int x, const uint8_t *s, int i0, int i1,
+                           int w, int flip) {
+    int i;
+    for (i = i0; i < i1; ++i) {
+        unsigned v = s[flip ? w - 1 - i : i];
+        if (v) {
+            uint16_t col = pal[v];
+            if (scale == 1) out[x + i] = col;
+            else put32(out + 2 * (x + i), PAIR(col, col));
+        }
+    }
+}
+
 /* Which halves of a pair of pixels a byte of 4-bit pixels shows (made once). */
 static uint32_t pair_mask[256];
 static int pair_mask_made;
@@ -1041,14 +1199,10 @@ static void render_sprites(const vc_card *c, const line_sprite *list, int n, int
         i1 = width - x < w ? width - x : w;
         if (bpp == 8 && ((img + rowbit / 8) & VRAM_MASK) <= VC_VRAM_SIZE - (uint32_t)w) {
             const uint8_t *s = c->vram + ((img + rowbit / 8) & VRAM_MASK); /* (none of it wraps) */
-            for (i = i0; i < i1; ++i) {
-                unsigned v = s[flip ? w - 1 - i : i];
-                if (v) {
-                    uint16_t col = pal[v];
-                    if (scale == 1) out[x + i] = col;
-                    else put32(out + 2 * (x + i), PAIR(col, col));
-                }
-            }
+            if (scale == 1 && !flip) sprite8_row(out, pal, 1, x, s, i0, i1, w, 0);
+            else if (scale == 1) sprite8_row(out, pal, 1, x, s, i0, i1, w, 1);
+            else if (!flip) sprite8_row(out, pal, 2, x, s, i0, i1, w, 0);
+            else sprite8_row(out, pal, 2, x, s, i0, i1, w, 1);
             continue;
         }
         if (bpp == 4 && ((img + rowbit / 8) & VRAM_MASK) <= VC_VRAM_SIZE - (uint32_t)w / 2) {

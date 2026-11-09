@@ -48,10 +48,14 @@ static void clocks_init(void) {
     pll_init(pll_usb, 1, 756 * MHZ, 6, 1);
     clock_configure_undivided(clk_hstx, 0, CLOCKS_CLK_HSTX_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB, 126 * MHZ);
 #endif
-    /* The PSRAM's timing, for the new clock. */
-    if (psram_is_available())
+    /* The PSRAM's timing, for the new clock. (psram_configure_params only works the numbers
+     * out; psram_reinitialize gives them to the QMI. Without it the PSRAM runs at the boot
+     * clock's divider: 168 MHz here, on a part good for 133. The XIP cache hides that until
+     * something has more than fits in it, 16KB, and it starts writing lines back.) */
+    if (psram_is_available() &&
         psram_configure_params(PICO_DEFAULT_PSRAM_MAX_FREQ, PICO_DEFAULT_PSRAM_MAX_SELECT,
-                               PICO_DEFAULT_PSRAM_MIN_DESELECT);
+                               PICO_DEFAULT_PSRAM_MIN_DESELECT) == PICO_OK)
+        psram_reinitialize();
 }
 
 /* A line on the reset screen's text (80x30 in a 128-wide map), in gray on black. */
@@ -71,7 +75,7 @@ static void on_reset(uint gpio, uint32_t events) {
 }
 
 #if VIDCARD_DIAG
-/* Once a second, on the UART: how long it's been up, whether the picture is running
+/* Every 10 seconds (and at 1 and 2), on the UART: how long it's been up, whether the picture is running
  * (FRAME counts), the resets (each one clears the screen), the pins as they are, what a
  * read of the ID/version and SD registers would get, and every register the CPU has
  * read (R) or written (W), with counts. A line on the screen too (row 3), so a black
@@ -111,7 +115,8 @@ static void diag_report(uint32_t secs) {
     printf("  USB: devices %lu, key events %lu, mouse reports %lu; mouse at %u,%u buttons %02x\n",
            (unsigned long)diag_usb_devices, (unsigned long)diag_usb_keys, (unsigned long)diag_usb_mouse,
            card.mouse_x, card.mouse_y, card.buttons);
-    if (diag_mouse_vid || diag_mouse_desc_len) {
+    bool usb_detail = secs == 1 || secs % 30 == 0; /* (printing holds up the mouse: not every time) */
+    if (usb_detail && (diag_mouse_vid || diag_mouse_desc_len)) {
         printf("  mouse %04x:%04x, protocol %s, reports %u-%u bytes, bits seen:", diag_mouse_vid, diag_mouse_pid,
                diag_mouse_proto ? "report" : "boot", diag_mouse_len_min, diag_mouse_len_max);
         for (int i = 0; i < diag_mouse_len_max && i < 8; ++i) printf(" %02x", diag_mouse_seen[i]);
@@ -128,10 +133,10 @@ static void diag_report(uint32_t secs) {
         }
         printf("\n");
     }
-    for (int i = 0; i < DIAG_DEVS; ++i)
+    for (int i = 0; usb_detail && i < DIAG_DEVS; ++i)
         if (diag_devs[i].dev)
             printf("  device %04x:%04x, %u HID interfaces\n", diag_devs[i].vid, diag_devs[i].pid, diag_devs[i].hid);
-    if (diag_pad_vid || diag_pad_desc_len) {
+    if (usb_detail && (diag_pad_vid || diag_pad_desc_len)) {
         printf("  %s %04x:%04x, reports %lu, up to %u bytes; card's 8 bytes:", card.pads[0] ? "pad 0" : "unclaimed HID",
                diag_pad_vid, diag_pad_pid, (unsigned long)diag_usb_pad, diag_pad_len_max);
         for (int i = 0; i < VC_PAD_SIZE; ++i) printf(" %02x", card.pads[i]);
@@ -149,7 +154,7 @@ static void diag_report(uint32_t secs) {
         }
         printf("\n");
     }
-    if (diag_pad_dev) {
+    if (usb_detail && diag_pad_dev) {
         printf("  pad 0: device %u, speed %u, read waiting at mount %u, now %u\n", diag_pad_dev, diag_pad_speed,
                diag_pad_armed0, diag_pad_armed());
         printf("  USB: int_ep_ctrl %08lx buf_status %08lx sie_status %08lx\n", (unsigned long)usb_hw->int_ep_ctrl,
@@ -238,7 +243,7 @@ int main(void) {
 #if VIDCARD_DIAG
         if ((int32_t)(time_us_32() - next) >= 0) {
             next += 1000000;
-            diag_report(++secs);
+            if (++secs <= 2 || secs % 10 == 0) diag_report(secs); /* (slow enough to select and copy) */
             if (secs == 2) { /* (DOS has loaded by now) */
                 bench_run();
                 card_reset();

@@ -26,6 +26,8 @@ extern "C" {
 #define VC_CFG_BASE 0x040000u   /* $040000-$0403FF display settings and palette */
 #define VC_CFG_SIZE 0x400u
 #define VC_PAD_BASE 0x040040u   /* $040040-$04005F the gamepads, read only (VC_PAD_*) */
+#define VC_PADID_BASE 0x040060u /* $040060-$04007F what each pad is, read only (VC_PADID_*) */
+#define VC_PADMAP_BASE 0x040080u /* $040080-$04011F the button maps (VC_PADMAP_*); a reset keeps them */
 #define VC_PAL_BASE 0x040200u   /* 256 colors, 2 bytes each (RGB565, big-endian) */
 #define VC_PSRAM_BASE 0x800000u /* $800000-$FFFFFF the 8MB PSRAM, when there is one */
 #define VC_PSRAM_SIZE 0x800000u
@@ -91,18 +93,41 @@ enum {
 enum {
     VC_PAD_FLAGS = 0, /* bit 7: connected (all 8 bytes read 0 if not) */
     VC_PAD_DPAD = 1,  /* VC_PAD_UP etc. */
-    VC_PAD_BTN1 = 2,  /* buttons 1-8, bit 0 is button 1 */
-    VC_PAD_BTN2 = 3,  /* buttons 9-16 */
+    VC_PAD_BTN1 = 2,  /* VC_BTN_SOUTH (bit 0) to VC_BTN_R2 (bit 7) */
+    VC_PAD_BTN2 = 3,  /* VC_BTN_SELECT (bit 0) on */
     VC_PAD_LX = 4,    /* the sticks, signed, -127 to 127, 0 in the middle: + is right */
     VC_PAD_LY = 5,    /* + is down */
     VC_PAD_RX = 6,
     VC_PAD_RY = 7
 };
 #define VC_PAD_CONNECTED 0x80
+#define VC_PAD_MAPPED 0x40 /* VC_PAD_FLAGS: a map applies. If not, BTN1 and 2 are the pad's own buttons 1-16 */
 #define VC_PAD_UP 0x01
 #define VC_PAD_DOWN 0x02
 #define VC_PAD_LEFT 0x04
 #define VC_PAD_RIGHT 0x08
+
+/* The standard buttons, as bit numbers across BTN1 and BTN2. The face buttons are named by
+ * where they are, since the labels on them differ from one maker to another. */
+enum {
+    VC_BTN_SOUTH, VC_BTN_EAST, VC_BTN_WEST, VC_BTN_NORTH, VC_BTN_L, VC_BTN_R, VC_BTN_L2, VC_BTN_R2,
+    VC_BTN_SELECT, VC_BTN_START, VC_BTN_HOME, VC_BTN_L3, VC_BTN_R3,
+    VC_BTNS
+};
+#define VC_BTN_NONE 0xFF
+
+/* What each pad is: VC_PAD_SIZE bytes each at VC_PADID_BASE. */
+enum {
+    VC_PADID_VID_H = 0, VC_PADID_VID_L, VC_PADID_PID_H, VC_PADID_PID_L,
+    VC_PADID_RAW1 = 4, /* its own buttons 1-8, whatever the map does with them */
+    VC_PADID_RAW2 = 5  /* and 9-16 */
+};
+
+/* The button maps: VC_PADMAPS at VC_PADMAP_BASE, VC_PADMAP_SIZE bytes each: the USB vendor
+ * and product IDs (high byte first; both 0: an empty entry), then for the pad's buttons 1 to
+ * 16 which VC_BTN_* each one is, or VC_BTN_NONE. Looked for before the card's own list. */
+#define VC_PADMAPS 8
+#define VC_PADMAP_SIZE 20
 
 /* The display settings, at VC_CFG_BASE + these offsets. */
 enum {
@@ -221,14 +246,16 @@ void vc_poke(vc_card *c, uint32_t addr, uint8_t value);
  * (VC_MOUSE_BTN's bits 0-2); the wheel, clicks turned; a key pressed or released, as its
  * USB HID usage code (page 7: 4 is A, $28 Enter, $E0-$E7 the modifiers). The card works out
  * the character a key types itself (a US layout), so the firmware and the emulator agree.
- * A gamepad n (0 to VC_PADS-1), its VC_PAD_SIZE bytes as a program reads them, or NULL when
- * it is unplugged (the connected bit is set here).
- * vc_reset() leaves the mouse's position, the keys held and the pads alone: they are the
- * hardware's. */
+ * A gamepad n (0 to VC_PADS-1): vc_pad_id() once when it appears (0, 0: not known), then
+ * vc_pad() with its VC_PAD_SIZE bytes, BTN1 and BTN2 being its own buttons 1-16 (the map is
+ * applied here, and the connected bit set), or NULL when it is unplugged.
+ * vc_reset() leaves the mouse's position, the keys held, the pads and their maps alone: they
+ * are the hardware's. */
 void vc_mouse_to(vc_card *c, int x, int y, uint8_t buttons);
 void vc_mouse_by(vc_card *c, int dx, int dy, uint8_t buttons);
 void vc_mouse_wheel(vc_card *c, int clicks);
 void vc_key(vc_card *c, uint8_t usage, int down);
+void vc_pad_id(vc_card *c, int n, uint16_t vid, uint16_t pid);
 void vc_pad(vc_card *c, int n, const uint8_t *state);
 
 /* The beam has reached `line` (0-524): the interrupt flags and frame count follow it. */

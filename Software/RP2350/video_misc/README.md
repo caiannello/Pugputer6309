@@ -26,8 +26,10 @@ commands and how it all works are in the emulator's
 - **USB keyboards and mice** (TinyUSB host): working on the hardware (VIDMOUSE), together through
   a hub, wheel and key repeat included. Bus-powered devices need VBUS powered: a jumper from VSYS
   to VBUS (VSYS already comes from the bus through a Schottky diode).
-- **USB gamepads:** generic HID pads (D-input), four at once. An 8BitDo SN30 Pro's reports reach
-  the card. **Not in yet:** XInput and PlayStation pads.
+- **USB gamepads:** generic HID pads (D-input), four at once. An 8BitDo SN30 Pro works in VIDPAD.
+  Each pad's buttons go through a map found by its USB IDs, so a game sees standard buttons: the
+  SN30 Pro's is built in (`vc.c`), and PADMAP makes others. **Not in yet:** XInput and PlayStation
+  pads.
 
 `vidcard.uf2` here is built and ready to flash.
 
