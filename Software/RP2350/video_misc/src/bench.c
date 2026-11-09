@@ -6,6 +6,10 @@
  * draws the same states meanwhile, and core 0's help is off.) */
 #include "bench.h"
 
+#ifndef VIDCARD_BENCH
+#define VIDCARD_BENCH 0
+#endif
+
 #if VIDCARD_DIAG
 #include <stdio.h>
 #include <string.h>
@@ -259,6 +263,9 @@ static void cpu_bench(void) {
 }
 
 void bench_run(void) {
+#if !VIDCARD_BENCH /* (the RAM is wanted: the report's own check of the live picture) */
+    return;
+#endif
     psram_test();
     cpu_bench();
     dvi_solo = true;

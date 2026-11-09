@@ -172,6 +172,8 @@ static void diag_report(uint32_t secs) {
            (unsigned long)diag_help_frames, (unsigned long)diag_render_us_max, row1,
            card.vram[VC_RESET_TEXT_MAP + 128 * 4 + 5], card.cfg[VC_DC_CTRL]);
     diag_render_us_max = 0;
+    printf("  layer modes %02x %02x %02x (bit 2: 640x480)\n", card.cfg[VC_LAYER0 + VC_L_MODE],
+           card.cfg[VC_LAYER0 + VC_LAYER_SIZE + VC_L_MODE], card.cfg[VC_LAYER0 + 2 * VC_LAYER_SIZE + VC_L_MODE]);
     /* The picture by 16 lines: the slowest drawn, and the most sprites on one. */
     printf("  by 16 lines, slowest us/most sprites:");
     for (int i = 0; i < 30; ++i) {
@@ -179,7 +181,21 @@ static void diag_report(uint32_t secs) {
         diag_strip_us[i] = 0;
         diag_strip_sprites[i] = 0;
     }
-    printf("\n  sprite table decoded %lu times\n", (unsigned long)dvi_decodes());
+    printf("\n  mean us a line: core 0 %lu (%lu lines), core 1 %lu (%lu lines)\n",
+           (unsigned long)(diag_core_lines[0] ? diag_core_us[0] / diag_core_lines[0] : 0), (unsigned long)diag_core_lines[0],
+           (unsigned long)(diag_core_lines[1] ? diag_core_us[1] / diag_core_lines[1] : 0), (unsigned long)diag_core_lines[1]);
+    diag_core_us[0] = diag_core_us[1] = diag_core_lines[0] = diag_core_lines[1] = 0;
+    {
+        static const int ys[4] = {40, 200, 440, 470};
+        uint32_t t[4][4];
+        for (int i = 0; i < 4; ++i) dvi_retime(ys[i], t[i]);
+        printf("  same line again (core 0 alone, core 1 alone, together 0 and 1):");
+        for (int i = 0; i < 4; ++i)
+            printf(" y%d: %lu %lu %lu %lu;", ys[i], (unsigned long)t[i][0], (unsigned long)t[i][1], (unsigned long)t[i][2],
+                   (unsigned long)t[i][3]);
+        printf("\n");
+    }
+    printf("  sprite table decoded %lu times\n", (unsigned long)dvi_decodes());
     /* The drawing commands so far, by opcode: how many, and the line fitted to their times,
      * a + b * work (pixels, or bytes COPYed or FILLed), in ns; the longest, in us. */
     static const char *const ops[VC_C_COUNT] = {"NOP", "TARGET", "COLOR", "PLOT", "LINE", "RECT",

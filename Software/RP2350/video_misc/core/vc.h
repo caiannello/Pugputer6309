@@ -272,7 +272,7 @@ typedef struct vc_palette {
     int ready;
     uint16_t raw0;     /* color 0 (index 0 is transparent: col[0] holds the backdrop) */
     uint16_t col[256];
-    /* For 4-bit sprites, a table for each of the 16 sets of 16 colors, made when first
+    /* For 4-bit sprites and 640x480 tiles, a table for each of the 16 sets of 16 colors, made when first
      * wanted after the palette is worked out (its epoch counts those): a byte's two
      * pixels, as colors side by side (0 where see-through). */
     uint32_t epoch;

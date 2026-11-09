@@ -820,36 +820,71 @@ VC_INLINE void tile_row(uint16_t *out, const uint16_t *pal, int base, int scale,
     }
 }
 
-/* A whole row of a tile of 4 bits a pixel (nb bytes from s, flipped across or not), from lx
- * on: a byte, two pixels, at a time. Inlined for each constant base, scale and flip, so the
- * loop itself tests only what the pixels make it. */
-VC_INLINE void tile4_row(uint16_t *out, const uint16_t *pal, int base, int scale, int lx, const uint8_t *s, int nb,
-                         int flip, uint32_t pal16) {
+/* Which halves of a pair of pixels a byte of 4-bit pixels shows (made once). */
+static uint32_t pair_mask[256];
+static int pair_mask_made;
+
+/* The pair table for 16-color set p (see vc_palette), made. */
+VC_NOINLINE void make_pairs(vc_palette *cache, int p) { /* (out of the way: rare) */
+    uint32_t *t = cache->pair[p];
+    {
+        const uint16_t *pal = cache->col + 16 * p;
+        int hi, lo;
+        for (hi = 0; hi < 16; ++hi)
+            for (lo = 0; lo < 16; ++lo) t[hi * 16 + lo] = PAIR(hi ? pal[hi] : 0, lo ? pal[lo] : 0);
+        cache->pair_epoch[p] = cache->epoch;
+    }
+    if (!pair_mask_made) { /* (both cores may: they make the same) */
+        int b;
+        for (b = 0; b < 256; ++b) pair_mask[b] = PAIR(b >> 4 ? 0xFFFF : 0, b & 15 ? 0xFFFF : 0);
+        pair_mask_made = 1;
+    }
+}
+
+/* The pair table for 16-color set p, made first if out of date. */
+VC_INLINE const uint32_t *pair_table(vc_palette *cache, int p) {
+    if (cache->pair_epoch[p] != cache->epoch || !pair_mask_made) make_pairs(cache, p);
+    return cache->pair[p];
+}
+
+/* A whole row of a tile of 4 bits a pixel at 320x240 (nb bytes from s, flipped across or
+ * not), from lx on: a byte, two pixels, four on the screen, at a time. Inlined for each
+ * constant base and flip, so the loop itself tests only what the pixels make it. */
+VC_INLINE void tile4_row(uint16_t *out, const uint16_t *pal, int base, int lx, const uint8_t *s, int nb, int flip,
+                         uint32_t pal16) {
     const uint16_t *set = pal + pal16;
     uint16_t back = pal[0];
     int k;
-    out += scale * lx;
+    out += 2 * lx;
     for (k = 0; k < nb; ++k) {
         unsigned b = s[flip ? nb - 1 - k : k];
         unsigned p0 = flip ? b & 15 : b >> 4, p1 = flip ? b >> 4 : b & 15;
         if (base) {
             uint16_t c0 = p0 ? set[p0] : back, c1 = p1 ? set[p1] : back;
-            if (scale == 1) {
-                put32(out + 2 * k, PAIR(c0, c1));
-            } else {
-                put32(out + 4 * k, PAIR(c0, c0));
-                put32(out + 4 * k + 2, PAIR(c1, c1));
-            }
+            put32(out + 4 * k, PAIR(c0, c0));
+            put32(out + 4 * k + 2, PAIR(c1, c1));
         } else if (b) {
-            if (scale == 1) {
-                if (p0 && p1) put32(out + 2 * k, PAIR(set[p0], set[p1]));
-                else if (p0) out[2 * k] = set[p0];
-                else out[2 * k + 1] = set[p1];
-            } else {
-                if (p0) put32(out + 4 * k, PAIR(set[p0], set[p0]));
-                if (p1) put32(out + 4 * k + 2, PAIR(set[p1], set[p1]));
-            }
+            if (p0) put32(out + 4 * k, PAIR(set[p0], set[p0]));
+            if (p1) put32(out + 4 * k + 2, PAIR(set[p1], set[p1]));
         }
+    }
+}
+
+/* The same at 640x480, from the pair table t: a byte's two pixels in one load and one
+ * store, with no test for each pixel. (Base 1: the backdrop where see-through. Else what's
+ * there stays there: read only for a byte with one pixel showing.) */
+VC_INLINE void tile4_pairs(uint16_t *d, const uint32_t *t, uint16_t back, int base, const uint8_t *s, int nb, int flip) {
+    uint32_t bk = PAIR(back, back);
+    int k;
+    for (k = 0; k < nb; ++k, d += 2) {
+        unsigned b = s[flip ? nb - 1 - k : k];
+        uint32_t m;
+        if (!base && !b) continue;
+        if (flip) b = (b >> 4 | b << 4) & 0xFF; /* (its pixels the other way round) */
+        m = pair_mask[b];
+        if (base) put32(d, (bk & ~m) | t[b]);
+        else if (m == 0xFFFFFFFFu) put32(d, t[b]);
+        else put32(d, (get32(d) & ~m) | t[b]);
     }
 }
 
@@ -859,10 +894,11 @@ VC_INLINE void tile4_row(uint16_t *out, const uint16_t *pal, int base, int scale
  * a cell needs is worked out only when it differs from the last, and an empty row is
  * skipped whole. Returns how many it drew: fewer than count at a tile whose row would run
  * off the end of the memory (the caller's slower way takes that one). */
-VC_INLINE int tile_run(const uint8_t *vram, uint16_t *out, const uint16_t *pal, int base, int scale, int bpp, int ts,
-                       int lx, const uint8_t *m, int count, uint32_t tilebase, int row_in_tile) {
+VC_INLINE int tile_run(const uint8_t *vram, vc_palette *cache, uint16_t *out, const uint16_t *pal, int base, int scale,
+                       int bpp, int ts, int lx, const uint8_t *m, int count, uint32_t tilebase, int row_in_tile) {
     uint32_t row_bytes = (uint32_t)(ts * bpp / 8), tile_bytes = (uint32_t)ts * row_bytes, pal16 = 0, k;
     const uint8_t *s = vram;
+    const uint32_t *pairs = 0;
     unsigned last = 0x10000u; /* (no entry is this) */
     int flip = 0, blank = 0, i;
     for (i = 0; i < count; ++i, m += 2, lx += ts) {
@@ -874,6 +910,7 @@ VC_INLINE int tile_run(const uint8_t *vram, uint16_t *out, const uint16_t *pal, 
             s = vram + trow;
             flip = (e & 0x400) != 0;
             pal16 = (e >> 12) * 16;
+            if (bpp == 4 && scale == 1) pairs = pair_table(cache, (int)(e >> 12));
             last = e;
             blank = 1;
             for (k = 0; k < row_bytes; k += 4) {
@@ -889,18 +926,21 @@ VC_INLINE int tile_run(const uint8_t *vram, uint16_t *out, const uint16_t *pal, 
             const uint8_t *p = flip ? s + ts - 1 : s;
             int step = flip ? -1 : 1, j;
             for (j = 0; j < ts; ++j, p += step) put(out, pal, base, scale, lx + j, *p);
+        } else if (scale == 1) {
+            if (!flip) tile4_pairs(out + lx, pairs, pal[0], base, s, (int)row_bytes, 0);
+            else tile4_pairs(out + lx, pairs, pal[0], base, s, (int)row_bytes, 1);
         } else if (!flip) {
-            tile4_row(out, pal, base, scale, lx, s, (int)row_bytes, 0, pal16);
+            tile4_row(out, pal, base, lx, s, (int)row_bytes, 0, pal16);
         } else {
-            tile4_row(out, pal, base, scale, lx, s, (int)row_bytes, 1, pal16);
+            tile4_row(out, pal, base, lx, s, (int)row_bytes, 1, pal16);
         }
     }
     return i;
 }
 
 /* One layer's line, in colors: every pixel (base 1), or only those that show (base 0). */
-VC_INLINE void render_layer(const vc_card *c, const uint8_t *l, int y, uint16_t *out, const uint16_t *pal,
-                            int base) {
+VC_INLINE void render_layer(const vc_card *c, vc_palette *cache, const uint8_t *l, int y, uint16_t *out,
+                            const uint16_t *pal, int base) {
     int mode = l[VC_L_MODE], type = mode & 3, hires = (mode >> 2) & 1, big = (mode >> 5) & 1;
     int bpp = 1 << ((mode >> 3) & 3), scale = hires ? 1 : 2, width = VC_WIDTH / scale;
     int ly = y / scale, lx, i;
@@ -963,11 +1003,11 @@ VC_INLINE void render_layer(const vc_card *c, const uint8_t *l, int y, uint16_t 
                     const uint8_t *m = vram + a;
                     int done;
                     if (bpp == 4) {
-                        if (scale == 1) done = tile_run(vram, out, pal, base, 1, 4, ts, lx, m, count, tilebase, row_in_tile);
-                        else done = tile_run(vram, out, pal, base, 2, 4, ts, lx, m, count, tilebase, row_in_tile);
+                        if (scale == 1) done = tile_run(vram, cache, out, pal, base, 1, 4, ts, lx, m, count, tilebase, row_in_tile);
+                        else done = tile_run(vram, cache, out, pal, base, 2, 4, ts, lx, m, count, tilebase, row_in_tile);
                     } else {
-                        if (scale == 1) done = tile_run(vram, out, pal, base, 1, 8, ts, lx, m, count, tilebase, row_in_tile);
-                        else done = tile_run(vram, out, pal, base, 2, 8, ts, lx, m, count, tilebase, row_in_tile);
+                        if (scale == 1) done = tile_run(vram, cache, out, pal, base, 1, 8, ts, lx, m, count, tilebase, row_in_tile);
+                        else done = tile_run(vram, cache, out, pal, base, 2, 8, ts, lx, m, count, tilebase, row_in_tile);
                     }
                     lx += done * ts;
                     px = (px + done * ts) & wmask;
@@ -1100,33 +1140,6 @@ VC_INLINE void sprite8_row(uint16_t *out, const uint16_t *pal, int scale, int x,
             else put32(out + 2 * (x + i), PAIR(col, col));
         }
     }
-}
-
-/* Which halves of a pair of pixels a byte of 4-bit pixels shows (made once). */
-static uint32_t pair_mask[256];
-static int pair_mask_made;
-
-/* The pair table for 16-color set p (see vc_palette), made. */
-VC_NOINLINE void make_pairs(vc_palette *cache, int p) { /* (out of the way: rare) */
-    uint32_t *t = cache->pair[p];
-    {
-        const uint16_t *pal = cache->col + 16 * p;
-        int hi, lo;
-        for (hi = 0; hi < 16; ++hi)
-            for (lo = 0; lo < 16; ++lo) t[hi * 16 + lo] = PAIR(hi ? pal[hi] : 0, lo ? pal[lo] : 0);
-        cache->pair_epoch[p] = cache->epoch;
-    }
-    if (!pair_mask_made) { /* (both cores may: they make the same) */
-        int b;
-        for (b = 0; b < 256; ++b) pair_mask[b] = PAIR(b >> 4 ? 0xFFFF : 0, b & 15 ? 0xFFFF : 0);
-        pair_mask_made = 1;
-    }
-}
-
-/* The pair table for 16-color set p, made first if out of date. */
-VC_INLINE const uint32_t *pair_table(vc_palette *cache, int p) {
-    if (cache->pair_epoch[p] != cache->epoch || !pair_mask_made) make_pairs(cache, p);
-    return cache->pair[p];
 }
 
 /* A whole row of a hires 4-bit sprite (nb bytes from s, flipped across or not) at d: a
@@ -1306,8 +1319,8 @@ void vc_render_line_with(const vc_card *c, int y, uint16_t *out, vc_palette *cac
     for (layer = 0; layer < 3; ++layer) {
         if (ctrl & (1 << layer)) {
             const uint8_t *l = c->cfg + VC_LAYER0 + VC_LAYER_SIZE * layer;
-            if (drawn) render_layer(c, l, y, out, pal, 0);
-            else render_layer(c, l, y, out, pal, 1);
+            if (drawn) render_layer(c, cache, l, y, out, pal, 0);
+            else render_layer(c, cache, l, y, out, pal, 1);
             drawn = 1;
         }
         if (prios & (2 << layer)) { /* sprites in front of this layer */

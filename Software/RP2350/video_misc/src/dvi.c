@@ -32,6 +32,7 @@ volatile uint32_t dvi_late_lines;
 
 #if VIDCARD_DIAG
 volatile uint32_t diag_render_us_max, diag_lines_drawn, diag_lines_core0, diag_help_frames;
+volatile uint32_t diag_core_us[2], diag_core_lines[2]; /* each core's time drawing, and lines */
 volatile uint16_t diag_strip_us[30]; /* by 16 lines: the slowest drawn (either core) */
 volatile uint8_t diag_strip_sprites[30]; /* and the most sprites on one */
 volatile bool dvi_solo, dvi_park;
@@ -129,6 +130,8 @@ static void draw(uint32_t n, int y) {
     drawn[n % BUFFERS] = n;
 #if VIDCARD_DIAG
     uint32_t dt = time_us_32() - t0;
+    diag_core_us[get_core_num()] += dt;
+    ++diag_core_lines[get_core_num()];
     if (dt > diag_strip_us[y >> 4]) diag_strip_us[y >> 4] = (uint16_t)dt; /* (a race between the cores: no matter) */
     p->sprites = card.cfg[VC_DC_CTRL] & 8 ? p->sprites : 0;
     if (p->sprites > diag_strip_sprites[y >> 4]) diag_strip_sprites[y >> 4] = (uint8_t)p->sprites;
@@ -136,6 +139,62 @@ static void draw(uint32_t n, int y) {
 }
 
 #if VIDCARD_DIAG
+/* The report's check: a line of the live picture drawn again, off the screen, by each core
+ * alone (core 0 with its interrupts off) and by both at once, on neighboring lines. */
+/* (one buffer, for the RAM: nothing reads it, and core 1's is 32 bytes on, in step with
+ * the memory banks as the real buffers are, 1280 bytes apart) */
+static uint16_t __attribute__((aligned(4))) diag_line[H_ACTIVE + 16];
+static volatile int sample_y = -1;
+static volatile bool sample_started;
+static volatile uint32_t sample_us;
+
+static void core1_sample(void) {
+    int y = sample_y;
+    if (y < 0) return;
+    sample_started = true;
+    uint32_t t0 = time_us_32();
+    vc_render_line_with(&card, y, diag_line + 16, &palettes[1]);
+    sample_us = time_us_32() - t0;
+    sample_y = -1;
+}
+
+static uint32_t core0_draw(int y) {
+    uint32_t irq = save_and_disable_interrupts();
+    uint32_t t0 = time_us_32();
+    vc_render_line_with(&card, y, diag_line, &palettes[0]);
+    uint32_t dt = time_us_32() - t0;
+    restore_interrupts(irq);
+    return dt;
+}
+
+/* Asks core 1 for line y; true once it has begun. */
+static bool core1_begin(int y) {
+    sample_started = false;
+    sample_us = 0;
+    sample_y = y;
+    __sev();
+    for (uint32_t t0 = time_us_32(); !sample_started; )
+        if (time_us_32() - t0 > 3000) return false;
+    return true;
+}
+
+static void core1_wait(void) {
+    for (uint32_t t0 = time_us_32(); sample_y >= 0 && time_us_32() - t0 < 3000; ) {}
+}
+
+void dvi_retime(int y, uint32_t r[4]) {
+    r[0] = core0_draw(y);
+    core1_begin(y);
+    core1_wait();
+    r[1] = sample_us;
+    busy_wait_us(1000);
+    core1_begin(y);
+    r[2] = core0_draw(y + 1); /* (the next line: as they share them) */
+    core1_wait();
+    r[3] = sample_us;
+    busy_wait_us(1000);
+}
+
 uint32_t dvi_decodes(void) { return palettes[0].decodes + palettes[1].decodes; }
 vc_palette *dvi_bench_palette(void) { return &palettes[0]; }
 #endif
@@ -300,6 +359,7 @@ void dvi_run(void) {
             __wfe();
             continue;
         }
+        core1_sample();
 #endif
         if (!take_line(&n, &y)) {
             __wfe(); /* (until the DMA's interrupt: SEV) */
