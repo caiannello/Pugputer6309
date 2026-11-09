@@ -39,6 +39,7 @@ static const uint8_t k_params[VC_C_COUNT] = {
     12, /* TRIANGLE */
     4,  /* FONT */
     5,  /* CHAR */
+    1,  /* TERM */
 };
 
 static uint32_t be16(const uint8_t *p) { return (uint32_t)p[0] << 8 | p[1]; }
@@ -140,6 +141,7 @@ void vc_reset_state(vc_card *c) {
     c->wheel = 0;
     c->key_char = 0;
     c->keyq_head = c->keyq_len = 0;
+    vc_term_reset(c);
     BUMP(c->pal_gen); /* (a new palette) */
     BUMP(c->spr_gen); /* (and sprites' settings) */
 }
@@ -362,6 +364,7 @@ static void run_command(vc_card *c) {
         c->work = w0 + 8u * c->font_h; /* (every pixel of the cell) */
         break;
     }
+    case VC_C_TERM: vc_term_byte(c, p[0]); break;
     default: break;
     }
 }
@@ -396,7 +399,9 @@ uint8_t vc_read(vc_card *c, uint8_t reg) {
         return v;
     case VC_STATUS:
         return (uint8_t)((c->line >= VC_HEIGHT ? VC_STATUS_VBLANK : 0) | (c->cmd_len ? VC_STATUS_BUSY : 0) |
-                         (c->keyq_len ? VC_STATUS_KEY : 0));
+                         (c->console ? VC_STATUS_CONSOLE : 0) |
+                         (vc_term_has_keys(c) ? (c->term.in_head != c->term.in_tail ? VC_STATUS_KEY : 0)
+                                              : (c->keyq_len ? VC_STATUS_KEY : 0)));
     case VC_IEN: return c->ien;
     case VC_ISR: return c->isr;
     case VC_LINE_H: return (uint8_t)(c->line >> 8);
@@ -425,10 +430,10 @@ uint8_t vc_read(vc_card *c, uint8_t reg) {
         c->keyq_head = (uint8_t)((c->keyq_head + 1) % VC_KEY_QUEUE);
         --c->keyq_len;
         return v;
-    case VC_KEY_CHAR: return c->key_char;
+    case VC_KEY_CHAR: return vc_term_has_keys(c) ? vc_term_read(c) : c->key_char;
     case VC_KEY_MODS: return c->mods;
     case VC_ID: return 'V';
-    case VC_VERSION: return 0x11;
+    case VC_VERSION: return 0x12;
     default: return 0;
     }
 }
@@ -515,6 +520,13 @@ void vc_key(vc_card *c, uint8_t usage, int down) {
         c->mods = (uint8_t)(down ? c->mods | bit : c->mods & ~bit);
     } else if (usage == 0x39 && down) {
         c->caps_lock = !c->caps_lock;
+    }
+    if (vc_term_has_keys(c)) { /* the console's: what a terminal would send for it */
+        if (down && usage) {
+            vc_term_key(c, usage, key_char(c, usage));
+            SET_FLAGS(c, VC_IRQ_INPUT);
+        }
+        return;
     }
     if (!usage || c->keyq_len == VC_KEY_QUEUE) return; /* (full: the event is lost) */
     {
@@ -1256,6 +1268,25 @@ static void render_sprites(const vc_card *c, const line_sprite *list, int n, int
     }
 }
 
+/* The terminal's cursor: a blinking underscore on the bottom two lines of its cell, painted
+ * over the finished line, so it costs nothing on the rest of the picture and never touches
+ * video memory. Only while a text layer is showing the terminal's screen, unscrolled. */
+static void term_cursor(const vc_card *c, int y, uint16_t *out, const uint16_t *pal) {
+    const vc_term *t = &c->term;
+    int layer, x, col;
+    if ((y & 15) < 14 || (y >> 4) != t->y || !t->started || t->cursor_off || (c->frame & 0x20)) return;
+    for (layer = 0; layer < 3; ++layer) {
+        const uint8_t *l = c->cfg + VC_LAYER0 + VC_LAYER_SIZE * layer;
+        if ((c->cfg[VC_DC_CTRL] & (1 << layer)) && (l[VC_L_MODE] & 0x27) == 0x24 &&
+            be24(l + VC_L_MAPBASE) == VC_RESET_TEXT_MAP && !be16(l + VC_L_HSCROLL) && !be16(l + VC_L_VSCROLL)) {
+            col = t->x < VC_TERM_COLS ? t->x : VC_TERM_COLS - 1;
+            uint16_t ink = pal[c->vram[VC_RESET_TEXT_MAP + (uint32_t)t->y * 512u + (uint32_t)col * 4u + 1u]];
+            for (x = 0; x < 8; ++x) out[col * 8 + x] = ink;
+            return;
+        }
+    }
+}
+
 void vc_render_line(const vc_card *c, int y, uint16_t *out) {
     static vc_palette p; /* (too big for a stack; worked out again each time) */
     p.ready = 0;
@@ -1330,4 +1361,5 @@ void vc_render_line_with(const vc_card *c, int y, uint16_t *out, vc_palette *cac
         }
     }
     if (!drawn) fill(out, pal[0], 1, 0, VC_WIDTH);
+    term_cursor(c, y, out, pal);
 }

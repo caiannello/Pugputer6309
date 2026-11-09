@@ -14,12 +14,13 @@
 ;------------------------------------------------------------------------------
 V_NMI           EXTERN      ; time.asm - real-time interrupt (wired direct)
 UT_INIT         EXTERN      ; serio.asm
-UT_PUTS         EXTERN
 S_HEXA          EXTERN      ; helpers.asm
 S_EOL           EXTERN
 DEV_INIT        EXTERN      ; devio.asm
 DEV_STDIO_ALIAS EXTERN
 DEV_VC_DETECT   EXTERN
+CON_VIDEO       EXTERN
+CON_PUTS        EXTERN
 BIOS_DQUERY     EXTERN
 BIOS_REG_DEV    EXTERN
 BIOS_DEREG_DEV  EXTERN
@@ -53,6 +54,7 @@ LOADER_START    EXTERN      ; loader.asm - boot prompt entry point
 ; Exported for use by other modules
 ;------------------------------------------------------------------------------
 JT_IRQ          EXPORT      ; RAM jump table IRQ slot -- serio.asm hooks it
+BOOT_AGAIN      EXPORT      ; loader.asm: a key at the "insert a disk" message
 ; RAM vector table for a resident DOS's calls: NUM_DOS_JT plain 2-byte
 ; addresses, in function-code order (not JMP instructions -- BIOS_DOS JSRs
 ; indirect through them and the routine RTSes back, unlike RAM_JTAB's
@@ -106,6 +108,8 @@ FAULTBUF        RMB  8      ; scratch for the fault handler's hex PC + EOL
 
 MSG_HELLO   FCC  "Pugputer 6309 BIOS v0.1.0"
             FCB  LF,CR,0
+MSG_NODISK  FCC  "Insert a bootable SD card and press a key."
+            FCB  LF,CR,0
 ; -----------------------------------------------------------------------------
 ; Interrupt Service Routines. RESET and NMI are hard-coded in the fixed
 ; hardware vector table below and can't be redirected. The rest are jumped
@@ -149,7 +153,11 @@ FAULT_COMMON
             CLRA
             TFR  A,DP
             JSR  BANKS_IDENTITY
-            JSR  UT_PUTS
+            TST  CON_VIDEO      ; the console is the card: the program may have left it
+            BEQ  FAULT_SAY      ; showing anything, so back to its text screen
+            LDA  #VC_RESET
+            STA  VCARD_BASE+VC_CTRL_REG
+FAULT_SAY   JSR  CON_PUTS
             LDX  #FAULTBUF
             PULS D
             JSR  S_HEXA         ; PC high byte
@@ -157,7 +165,7 @@ FAULT_COMMON
             JSR  S_HEXA         ; PC low byte
             JSR  S_EOL
             LDY  #FAULTBUF
-            JSR  UT_PUTS
+            JSR  CON_PUTS
             ANDCC #$AF          ; interrupts on: the console needs them
             LDA  #B_EXIT        ; not resumable. With a DOS in RAM, restart the shell
             SWI2                ; (this doesn't come back) ...
@@ -345,10 +353,20 @@ DJ_FILL     LDD  #DOS_NOTPRESENT
             JSR  DEV_VC_DETECT  ; devio.asm: the video card, as F_VDP, if it's there
             ANDCC #$AF          ; Enable IRQ and FIRQ interrupts
             LDY  #MSG_HELLO
-            JSR  UT_PUTS
+            JSR  CON_PUTS
             JSR  SD_BOOT_TRY    ; tries a disk boot; only returns if none
                                  ; found (see sdcard.asm)
-            JMP  LOADER_START
+            TST  CON_VIDEO      ; with the card as the console: say what to do (the
+            BEQ  NO_DISK        ; UART's S-record loader stays open all the same)
+            LDY  #MSG_NODISK
+            JSR  CON_PUTS
+NO_DISK     JMP  LOADER_START
+; A key at that message: the boot again, as from the reset (the machine has no reset
+; button). Off the stack the reset is about to zero, and with interrupts off, since the
+; IRQ vector is in that RAM too.
+BOOT_AGAIN  ORCC #$50
+            LDS  #$1000
+            JMP  V_RESET
 ;------------------------------------------------------------------------------
     ENDSECT
 ;------------------------------------------------------------------------------

@@ -26,6 +26,17 @@ VCARD_BASE  equ  $FF80      ; ff80 - ff9f: the video card (optional; its registe
 VC_ID_REG   equ  $1E        ; the card's ID register: reads 'V'
 VC_VER_REG  equ  $1F        ; its version (major*16 + minor): $11 or later
 VC_VERSION_MIN equ $11      ; (the BIOS looks for these at boot: see F_VDP)
+VC_CTRL_REG equ  $0C        ; write VC_RESET: reset the card
+VC_RESET    equ  $80
+VC_STATUS_REG equ $0D       ; read: the bits below
+VC_ST_CONSOLE equ $01       ; the card wants to be the console (see DEV_VC_DETECT)
+VC_ST_KEY   equ  $10        ; a byte is waiting in VC_KEYCHAR_REG
+VC_ST_FULL  equ  $20        ; the command queue is full
+VC_CMD_REG  equ  $12        ; drawing commands
+VC_C_TERM   equ  $10        ; the command: one byte for the card's ANSI terminal
+VC_INCTRL_REG equ $14       ; bit 1 (VC_TAKE_KEYS) set: a program has taken the keys
+VC_TAKE_KEYS  equ  $02
+VC_KEYCHAR_REG equ $1C      ; the console: reads the next byte typed
 VC_WAKE     equ  2          ; spells of $FFFF polls (~0.27s each) the BIOS gives the
                              ; card to start answering at boot (DEV_VC_DETECT)
 
@@ -105,8 +116,10 @@ F_STDIN     equ  $02
 F_STDERR    equ  $03        ; (reserved numbering: 4-7 unused for now)
 F_UART      equ  $08        ; Direct access to the UART, bypassing stdio
 F_VDP       equ  $09        ; the video card: registered at boot when the card is
-                             ; there (so B_DQUERY's bit 9 says so); no character
-                             ; driver yet (reads give nothing, writes are dropped)
+                             ; there (so B_DQUERY's bit 9 says so). When it is the
+                             ; console, its ANSI terminal and USB keyboard; if not
+                             ; (see DEV_VC_DETECT), reads give nothing and writes
+                             ; are dropped
 F_VIA_KB    equ  $0A        ; reserved for a future VIA/keyboard driver
 NUM_DEVICES equ  $0C        ; size of the device driver table (0..$0B)
 

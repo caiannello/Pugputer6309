@@ -42,9 +42,10 @@ add_executable(vidcard
     src/bench.c
     src/usbhost.c
     ${CORE}/vc.c
+    ${CORE}/vc_term.c
     ${CORE}/vc_font.c
 )
-set_source_files_properties(src/main.c src/card.c src/bus.c src/dvi.c src/sd.c src/blockdev.c src/bench.c src/usbhost.c ${CORE}/vc.c
+set_source_files_properties(src/main.c src/card.c src/bus.c src/dvi.c src/sd.c src/blockdev.c src/bench.c src/usbhost.c ${CORE}/vc.c ${CORE}/vc_term.c
     PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra")
 pico_generate_pio_header(vidcard ${CMAKE_CURRENT_LIST_DIR}/src/bus.pio)
 target_include_directories(vidcard PRIVATE src ${CORE})

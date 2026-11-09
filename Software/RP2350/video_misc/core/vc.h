@@ -57,14 +57,15 @@ enum {
     VC_KEY_CHAR = 0x1C, /* that event's character (0: none), bit 7 set if it was a release */
     VC_KEY_MODS = 0x1D, /* the modifier keys held now (VC_MOD_*) */
     VC_ID = 0x1E,     /* 'V' */
-    VC_VERSION = 0x1F /* $11: 1.1 */
+    VC_VERSION = 0x1F /* $12: 1.2 */
 };
 #define VC_REGS 0x20
 
 #define VC_STATUS_VBLANK 0x80
 #define VC_STATUS_BUSY 0x40
 #define VC_STATUS_FULL 0x20
-#define VC_STATUS_KEY 0x10 /* a key event is waiting */
+#define VC_STATUS_KEY 0x10 /* a key event is waiting (the console: a byte to read) */
+#define VC_STATUS_CONSOLE 0x01 /* the card is the machine's console (VC_C_TERM, vc_card.console) */
 
 #define VC_IRQ_VSYNC 0x01   /* the start of vertical blank (line 480) */
 #define VC_IRQ_LINE 0x02    /* the start of the line set with VC_LINE_H/L */
@@ -172,6 +173,7 @@ enum {
     VC_C_TRIANGLE = 0x0D, /* x0 y0 x1 y1 x2 y2, filled */
     VC_C_FONT = 0x0E,     /* addr:3 height:1 */
     VC_C_CHAR = 0x0F,     /* x y ch:1 */
+    VC_C_TERM = 0x10,     /* ch:1 -- the next byte for the terminal (vc_term.c) */
     VC_C_COUNT
 };
 
@@ -181,6 +183,27 @@ enum {
 #define VC_RESET_FONT 0x03F000u
 
 #define VC_MAX_LINE_SPRITES 32
+
+/* The terminal (vc_term.c), on the reset's text screen. While a program has the alternate
+ * screen, the normal one is kept in video memory at VC_TERM_SAVE. */
+#define VC_TERM_COLS 80
+#define VC_TERM_ROWS 30
+#define VC_TERM_SAVE 0x03C000u
+#define VC_TERM_IN 64     /* bytes waiting for the CPU; a power of 2 */
+#define VC_TERM_PARAMS 12
+typedef struct vc_term {
+    uint8_t x, y, save_x, save_y;
+    uint8_t alt_x, alt_y;   /* where it was when the alternate screen began (not ESC 7's: EDIT uses that too) */
+    uint8_t top, bot;       /* the scroll region, inclusive */
+    uint8_t fg, bg, bold, inverse;
+    uint8_t pending;        /* the last column was written: the next character wraps */
+    uint8_t no_wrap, cursor_off, alt;
+    uint8_t started;        /* something has been printed since the reset: the cursor shows */
+    uint8_t state, nparam, priv;
+    uint16_t param[VC_TERM_PARAMS];
+    uint8_t in[VC_TERM_IN]; /* typed, or the terminal's replies: for the CPU */
+    volatile uint8_t in_head, in_tail; /* run free; one writer each */
+} vc_term;
 
 typedef struct vc_card {
     uint8_t vram[VC_VRAM_SIZE];
@@ -213,6 +236,9 @@ typedef struct vc_card {
     uint8_t keyq[VC_KEY_QUEUE][2]; /* usage, character | $80 if released */
     uint8_t keyq_head, keyq_len;
     uint8_t pads[VC_PADS * VC_PAD_SIZE];
+    uint8_t console;             /* the card is the machine's console: the firmware sets this, the
+                                  * emulator when it has a window. A reset leaves it. */
+    vc_term term;
     uint32_t pal_gen;           /* counts changes to the palette (see vc_palette) */
     uint32_t spr_gen;            /* counts changes to the sprites: their table, its settings
                                   * (anything that writes there without vc_poke() counts
@@ -257,6 +283,15 @@ void vc_mouse_wheel(vc_card *c, int clicks);
 void vc_key(vc_card *c, uint8_t usage, int down);
 void vc_pad_id(vc_card *c, int n, uint16_t vid, uint16_t pid);
 void vc_pad(vc_card *c, int n, const uint8_t *state);
+
+/* The terminal (vc_term.c). The bytes come through VC_C_TERM; while the card is the console
+ * and the program hasn't taken the keys, keys go to vc_term_key() instead of the queue. */
+void vc_term_reset(vc_card *c);
+void vc_term_byte(vc_card *c, uint8_t b);
+void vc_term_key(vc_card *c, uint8_t usage, uint8_t ch);
+uint8_t vc_term_peek(const vc_card *c); /* the next byte for the CPU (0: none), left there */
+uint8_t vc_term_read(vc_card *c);       /* and taken */
+static inline int vc_term_has_keys(const vc_card *c) { return c->console && !(c->in_ctrl & VC_IN_KEYS); }
 
 /* The beam has reached `line` (0-524): the interrupt flags and frame count follow it. */
 void vc_begin_line(vc_card *c, uint16_t line);

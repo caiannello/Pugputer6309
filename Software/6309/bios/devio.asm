@@ -21,6 +21,9 @@
 DEV_INIT        EXPORT
 DEV_STDIO_ALIAS EXPORT
 DEV_VC_DETECT   EXPORT
+CON_VIDEO       EXPORT       ; nonzero: the console is the video card
+CON_PUTS        EXPORT       ; Y=string: to the UART, and the card if it's the console
+CON_KEY         EXPORT       ; -> carry clear if a key was waiting on the card
 DEV_REGISTER    EXPORT       ; B=devref,X=read,Y=write,U=ioctl -> A=status,C
 DEV_DEREGISTER  EXPORT       ; B=devref -> A=status, carry
 BIOS_DQUERY     EXPORT
@@ -40,6 +43,9 @@ BIOS_NOTIMPL    EXPORT       ; shared stub for FSTAT/FDIR/FDELETE/FMOVE/FSEEK
 BC_OK       EXTERN           ; main.asm: write ERR_OK+carry-clear to frame
 BC_ERR      EXTERN           ; main.asm: A already holds error code
 S_LEN       EXTERN           ; helpers.asm
+UT_READ     EXTERN           ; serio.asm
+UT_IOCTL    EXTERN
+UT_PUTS     EXTERN
 ;------------------------------------------------------------------------------
     SECT bss
 ;------------------------------------------------------------------------------
@@ -55,6 +61,8 @@ GETC_SCRATCH RMB 1           ; 1-byte buffer for B_GETC's single-char read
 GETS_DST     RMB 2           ; B_GETS loop state
 GETS_REMAIN  RMB 2
 GETS_READFN  RMB 2
+
+CON_VIDEO    RMB 1           ; nonzero: stdio is the video card (DEV_VC_DETECT)
 ;------------------------------------------------------------------------------
     ENDSECT
 ;------------------------------------------------------------------------------
@@ -98,9 +106,11 @@ NUL_READ    LDY  #0          ; never anything to read
 NUL_WRITE   RTS              ; discard silently, "accept" instantly
 ;------------------------------------------------------------------------------
 ; Is the video card on the bus? If so it is registered as F_VDP, so B_DQUERY
-; reports it (bit 9). It has no character driver (yet): its slot takes the null
-; device's routines, so reads give nothing and writes are discarded. Called once
-; at boot.
+; reports it (bit 9). If the card says it is to be the console (VC_ST_CONSOLE:
+; the firmware always does, the emulator when it has a window), it is reset, and
+; stdin, stdout and stderr become it: see CON_READ and VC_WRITE. If not, its slot
+; takes the null device's routines, and the console stays on the UART. Called once
+; at boot, after DEV_STDIO_ALIAS.
 ;
 ; Its last two registers identify it: ID reads 'V', VERSION $11 (or later). Only
 ; reads: a write would wake the emulator's video window. With no card there, a
@@ -130,12 +140,112 @@ VD_ID       LDA  VCARD_BASE+VC_VER_REG
             BLO  VD_NONE
             CMPA #$7F        ; (a version, not the bus floating high)
             BHI  VD_NONE
+            LDA  VCARD_BASE+VC_STATUS_REG
+            BITA #VC_ST_CONSOLE
+            BNE  VD_CONSOLE
             LDB  #F_VDP
             LDX  #NUL_READ
             LDY  #NUL_WRITE
             LDU  #0
             JSR  DEV_REGISTER
 VD_NONE     RTS
+VD_CONSOLE  LDA  #VC_RESET       ; (a clean screen, also when a key restarted the boot)
+            STA  VCARD_BASE+VC_CTRL_REG
+            INC  CON_VIDEO
+            LDB  #F_VDP
+            LDX  #VC_READ
+            LDY  #VC_WRITE
+            LDU  #0
+            JSR  DEV_REGISTER
+            LDB  #F_STDERR       ; F_STDERR, F_STDIN, F_STDOUT
+VD_ALIAS    PSHS B
+            LDX  #CON_READ
+            LDY  #VC_WRITE
+            LDU  #UT_IOCTL
+            JSR  DEV_REGISTER
+            PULS B
+            DECB
+            BNE  VD_ALIAS
+            RTS
+;------------------------------------------------------------------------------
+; The video card as a character device. devdrv.write: X=buf, Y=len: each byte is
+; a command for the card's terminal, which parses the ANSI sequences itself.
+;------------------------------------------------------------------------------
+VC_WRITE    PSHS A,X,Y
+VW_LOOP     CMPY #0
+            BEQ  VW_DONE
+VW_WAIT     LDA  VCARD_BASE+VC_STATUS_REG
+            BITA #VC_ST_FULL
+            BNE  VW_WAIT
+            LDA  #VC_C_TERM
+            STA  VCARD_BASE+VC_CMD_REG
+            LDA  ,X+
+            STA  VCARD_BASE+VC_CMD_REG
+            LEAY -1,Y
+            BRA  VW_LOOP
+VW_DONE     PULS A,X,Y,PC
+;------------------------------------------------------------------------------
+; devdrv.read: X=buf, Y=most wanted -> Y=how many: the bytes waiting on the card,
+; which are what was typed at its keyboard (arrows and the like as a terminal
+; sends them) and its terminal's replies. None while a program has the keys.
+;------------------------------------------------------------------------------
+VC_READ     LDW  #0
+            LDA  VCARD_BASE+VC_INCTRL_REG
+            BITA #VC_TAKE_KEYS
+            BNE  VR_DONE
+VR_LOOP     CMPR W,Y
+            BEQ  VR_DONE
+            LDA  VCARD_BASE+VC_STATUS_REG
+            BITA #VC_ST_KEY
+            BEQ  VR_DONE
+            LDA  VCARD_BASE+VC_KEYCHAR_REG
+            STA  ,X+
+            INCW
+            BRA  VR_LOOP
+VR_DONE     TFR  W,Y
+            RTS
+;------------------------------------------------------------------------------
+; stdin when the card is the console: the card's keyboard, or else the UART.
+;------------------------------------------------------------------------------
+CON_READ    PSHS X,Y
+            BSR  VC_READ
+            CMPY #0
+            BNE  CR_GOT
+            PULS X,Y
+            JMP  UT_READ
+CR_GOT      LEAS 4,S
+            RTS
+;------------------------------------------------------------------------------
+; Y=a NUL-terminated string, for ROM code's own messages (the banner, a crash):
+; to the UART always, and to the screen too when the card is the console.
+;------------------------------------------------------------------------------
+CON_PUTS    JSR  UT_PUTS
+            TST  CON_VIDEO
+            BEQ  CP_DONE
+            PSHS D,X,Y
+            TFR  Y,X
+            JSR  S_LEN
+            TFR  D,Y
+            BSR  VC_WRITE
+            PULS D,X,Y
+CP_DONE     RTS
+;------------------------------------------------------------------------------
+; Takes a byte typed at the card's keyboard, if the card is the console and there
+; is one. -> carry clear if so.
+;------------------------------------------------------------------------------
+CON_KEY     TST  CON_VIDEO
+            BEQ  CK_NO
+            PSHS X,Y
+            LDX  #GETC_SCRATCH
+            LDY  #1
+            BSR  VC_READ
+            CMPY #0
+            PULS X,Y
+            BEQ  CK_NO
+            ANDCC #$FE
+            RTS
+CK_NO       ORCC #$01
+            RTS
 ;------------------------------------------------------------------------------
 ; Copy the UART's driver entry (F_UART, already registered by serio.asm's
 ; UT_INIT) into the stdio aliases. Called once at boot, after UT_INIT.

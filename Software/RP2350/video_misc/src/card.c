@@ -167,6 +167,7 @@ static uint8_t peek_reg(int r) {
     case VC_MOUSE_Y_L: return (uint8_t)card.mouse_y;
     case VC_MOUSE_WHEEL: return (uint8_t)card.wheel;
     case VC_KEY: return card.keyq_len ? card.keyq[card.keyq_head][0] : 0;
+    case VC_KEY_CHAR: return vc_term_has_keys(&card) ? vc_term_peek(&card) : card.key_char;
     default: return vc_read(&card, (uint8_t)r); /* (the rest have no side effects) */
     }
 }
@@ -216,6 +217,7 @@ void card_init(void) {
     gpio_init(PIN_IRQ);
     gpio_put(PIN_IRQ, 0);
     gpio_set_dir(PIN_IRQ, GPIO_OUT);
+    card.console = 1; /* the BIOS sends the console here (STATUS says so) */
     vc_reset(&card);
     uint32_t s = copy_lock();
     refresh_all();
@@ -237,7 +239,7 @@ bool card_bus_event(uint32_t e) {
         data_read(r == VC_DATA1, v);
         return true;
     }
-    if (EV_READ(e) && r != VC_MOUSE_X_H && r != VC_MOUSE_WHEEL && r != VC_KEY)
+    if (EV_READ(e) && r != VC_MOUSE_X_H && r != VC_MOUSE_WHEEL && r != VC_KEY && r != VC_KEY_CHAR)
         return true; /* (a read without side effects, such as a program polling ISR) */
     if (!EV_READ(e) && (r == VC_DATA0 || r == VC_DATA1)) { /* (the other one in a hurry) */
         data_write(r == VC_DATA1, v);
@@ -249,6 +251,7 @@ bool card_bus_event(uint32_t e) {
         case VC_MOUSE_X_H:  /* the snapshot */
         case VC_MOUSE_WHEEL: /* back to 0 */
         case VC_KEY:        /* the event taken: its character, and the next */
+        case VC_KEY_CHAR:   /* (the console: the byte taken) */
             vc_read(&card, (uint8_t)r);
             refresh_state();
             refresh(VC_MOUSE_WHEEL);

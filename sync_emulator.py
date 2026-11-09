@@ -56,7 +56,7 @@ def pairs():
     out = []
     for f in BIOS_FILES:
         out.append((os.path.join(EMU, 'bios', f), os.path.join(HW, 'Software/6309/bios', f), None))
-    for f in ('vc.c', 'vc.h', 'vc_font.c'):
+    for f in ('vc.c', 'vc.h', 'vc_term.c', 'vc_font.c'):
         out.append((os.path.join(HW, FW, 'core', f), os.path.join(EMU, 'vidcard/core', f), None))
     for f in sorted(os.listdir(os.path.join(HW, FW, 'src'))):
         out.append((os.path.join(HW, FW, 'src', f), os.path.join(EMU, 'vidcard/firmware/src', f), None))

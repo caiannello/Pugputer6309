@@ -20,6 +20,8 @@ UT_GETC     EXTERN
 USER_RAM    EXTERN          ; main.asm: the start of RAM the BIOS doesn't own
 S_LEN       EXTERN          ; helpers.asm
 S_HEXA      EXTERN
+CON_KEY     EXTERN          ; devio.asm
+BOOT_AGAIN  EXTERN          ; main.asm
 ;------------------------------------------------------------------------------
 RUN_ADRS    equ  $2000      ; '.' JSRs here -- matches the old bootloader's
                              ; convention so existing example programs don't
@@ -53,8 +55,11 @@ LOADER_START
             JSR  UT_PUTS
             LDX  #LINBUF
 KLOOP       JSR  UT_GETC
-            BCS  KLOOP          ; nothing yet -- keep polling
-            CMPA #ESCAPE
+            BCC  KGOT
+            JSR  CON_KEY        ; nothing yet. A key on the card's keyboard (when the
+            BCS  KLOOP          ; card is the console) means a disk was put in:
+            JMP  BOOT_AGAIN     ; try the boot again
+KGOT        CMPA #ESCAPE
             BEQ  L_CANCEL
             CMPA #CR
             BEQ  GOTCR

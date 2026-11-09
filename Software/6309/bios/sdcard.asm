@@ -38,7 +38,7 @@ SD_BOOT_TRY     EXPORT
 BC_OK       EXTERN          ; main.asm
 BC_ERR      EXTERN
 USER_RAM    EXTERN
-UT_PUTS     EXTERN          ; serio.asm
+CON_PUTS     EXTERN          ; devio.asm
 JT_DOS         EXTERN     ; main.asm -- DOS call vectors, patched by dos/dos.asm at boot
 DOSMASK        EXTERN     ; (defaulting to DOS_NOTPRESENT if no disk-resident DOS ever ran)
 ;------------------------------------------------------------------------------
@@ -368,7 +368,7 @@ SDBOOT_GO   LDX  #DOS_LOAD
             JMP  ,X             ; hand off to DOS -- never returns
 SDBOOT_LOADERR
             LDY  #MSG_BOOTERR
-            JSR  UT_PUTS
+            JSR  CON_PUTS
 SDBOOT_NONE RTS                 ; caller falls through to LOADER_START
 MSG_BOOTERR FCC  "Disk boot failed: could not read DOS."
             FCB  LF,CR,0
