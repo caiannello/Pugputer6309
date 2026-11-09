@@ -23,10 +23,13 @@ commands and how it all works are in the emulator's
 **Status (2026-11-07):**
 - **Working on the hardware:** booting DOS from the SD card, and every video demo (VIDDEMO,
   VIDTEXT, VIDGFX, VIDTILES).
-- **USB keyboards and mice** (TinyUSB host): working on the hardware (VIDMOUSE), each plugged in
-  directly; a hub is next. Bus-powered devices need VBUS powered: a jumper from VSYS to VBUS
-  (VSYS already comes from the bus through a Schottky diode).
-- **Not in yet:** gamepads, and the repeat of a held key.
+- **USB keyboards and mice** (TinyUSB host): working on the hardware (VIDMOUSE), together through
+  a hub, wheel and key repeat included. Bus-powered devices need VBUS powered: a jumper from VSYS
+  to VBUS (VSYS already comes from the bus through a Schottky diode).
+- **USB gamepads:** generic HID pads (D-input), four at once. An 8BitDo SN30 Pro works in VIDPAD.
+  Each pad's buttons go through a map found by its USB IDs, so a game sees standard buttons: the
+  SN30 Pro's is built in (`vc.c`), and PADMAP makes others. **Not in yet:** XInput and PlayStation
+  pads.
 
 `vidcard.uf2` here is built and ready to flash.
 
@@ -39,7 +42,7 @@ commands and how it all works are in the emulator's
 | `src/bus.pio`, `src/bus.c` | the bus: reads answered by PIO and DMA from a copy of the registers; every access logged by DMA for core 0's interrupt |
 | `src/card.c` | the card between the bus, the drawing commands (a 64KB queue) and the beam; keeps the register copy up to date; puts video memory back after a reset |
 | `src/dvi.c` | the picture: HSTX's TMDS encoder, two DMA channels, 8 line buffers; core 1 draws, and core 0 helps when lines run long |
-| `src/usbhost.c`, `src/tusb_config.h` | USB host (TinyUSB): boot-protocol keyboards and mice, through a hub |
+| `src/usbhost.c`, `src/tusb_config.h` | USB host (TinyUSB): keyboards, mice (with report-protocol wheels) and generic HID gamepads, through a hub |
 | `src/bench.c` | (diagnostic builds only, `VIDCARD_DIAG=1`) timings printed on the UART |
 | `src/sd.c` | the microSD card in SPI mode (SDSC, SDHC and SDXC) |
 | `src/blockdev.c` | the SD interface's registers, on `sd.c` |

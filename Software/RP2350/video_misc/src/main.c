@@ -17,6 +17,8 @@
 #include "hardware/gpio.h"
 #include "hardware/pll.h"
 #include "hardware/psram.h"
+#include "hardware/structs/usb.h"
+#include "hardware/structs/usb_dpram.h"
 #include "hardware/vreg.h"
 #include "pico/multicore.h"
 #include "pico/stdlib.h"
@@ -46,10 +48,14 @@ static void clocks_init(void) {
     pll_init(pll_usb, 1, 756 * MHZ, 6, 1);
     clock_configure_undivided(clk_hstx, 0, CLOCKS_CLK_HSTX_CTRL_AUXSRC_VALUE_CLKSRC_PLL_USB, 126 * MHZ);
 #endif
-    /* The PSRAM's timing, for the new clock. */
-    if (psram_is_available())
+    /* The PSRAM's timing, for the new clock. (psram_configure_params only works the numbers
+     * out; psram_reinitialize gives them to the QMI. Without it the PSRAM runs at the boot
+     * clock's divider: 168 MHz here, on a part good for 133. The XIP cache hides that until
+     * something has more than fits in it, 16KB, and it starts writing lines back.) */
+    if (psram_is_available() &&
         psram_configure_params(PICO_DEFAULT_PSRAM_MAX_FREQ, PICO_DEFAULT_PSRAM_MAX_SELECT,
-                               PICO_DEFAULT_PSRAM_MIN_DESELECT);
+                               PICO_DEFAULT_PSRAM_MIN_DESELECT) == PICO_OK)
+        psram_reinitialize();
 }
 
 /* A line on the reset screen's text (80x30 in a 128-wide map), in gray on black. */
@@ -69,7 +75,7 @@ static void on_reset(uint gpio, uint32_t events) {
 }
 
 #if VIDCARD_DIAG
-/* Once a second, on the UART: how long it's been up, whether the picture is running
+/* Every 10 seconds (and at 1 and 2), on the UART: how long it's been up, whether the picture is running
  * (FRAME counts), the resets (each one clears the screen), the pins as they are, what a
  * read of the ID/version and SD registers would get, and every register the CPU has
  * read (R) or written (W), with counts. A line on the screen too (row 3), so a black
@@ -109,13 +115,15 @@ static void diag_report(uint32_t secs) {
     printf("  USB: devices %lu, key events %lu, mouse reports %lu; mouse at %u,%u buttons %02x\n",
            (unsigned long)diag_usb_devices, (unsigned long)diag_usb_keys, (unsigned long)diag_usb_mouse,
            card.mouse_x, card.mouse_y, card.buttons);
-    if (diag_mouse_vid || diag_mouse_desc_len) {
+    bool usb_detail = secs == 1 || secs % 30 == 0; /* (printing holds up the mouse: not every time) */
+    if (usb_detail && (diag_mouse_vid || diag_mouse_desc_len)) {
         printf("  mouse %04x:%04x, protocol %s, reports %u-%u bytes, bits seen:", diag_mouse_vid, diag_mouse_pid,
                diag_mouse_proto ? "report" : "boot", diag_mouse_len_min, diag_mouse_len_max);
         for (int i = 0; i < diag_mouse_len_max && i < 8; ++i) printf(" %02x", diag_mouse_seen[i]);
         printf("\n    descriptor (%u bytes):", diag_mouse_desc_len);
         for (int i = 0; i < diag_mouse_desc_len && i < DIAG_MOUSE_DESC; ++i)
             printf("%s%02x", i % 32 ? " " : "\n      ", diag_mouse_desc[i]);
+        printf("\n    read as: %s", diag_mouse_layout);
         printf("\n    last reports, oldest first:");
         uint32_t n = diag_mouse_logged < DIAG_MOUSE_LOG ? diag_mouse_logged : DIAG_MOUSE_LOG;
         for (uint32_t k = diag_mouse_logged - n; k < diag_mouse_logged; ++k) {
@@ -125,6 +133,38 @@ static void diag_report(uint32_t secs) {
         }
         printf("\n");
     }
+    for (int i = 0; usb_detail && i < DIAG_DEVS; ++i)
+        if (diag_devs[i].dev)
+            printf("  device %04x:%04x, %u HID interfaces\n", diag_devs[i].vid, diag_devs[i].pid, diag_devs[i].hid);
+    if (usb_detail && (diag_pad_vid || diag_pad_desc_len)) {
+        printf("  %s %04x:%04x, reports %lu, up to %u bytes; card's 8 bytes:", card.pads[0] ? "pad 0" : "unclaimed HID",
+               diag_pad_vid, diag_pad_pid, (unsigned long)diag_usb_pad, diag_pad_len_max);
+        for (int i = 0; i < VC_PAD_SIZE; ++i) printf(" %02x", card.pads[i]);
+        printf("\n    bits changed:");
+        for (int i = 0; i < diag_pad_len_max && i < DIAG_PAD_BYTES; ++i) printf(" %02x", diag_pad_changed[i]);
+        printf("\n    %s (%u bytes):", diag_pad_cfg == 3 ? "config descriptor" : "descriptor", diag_pad_desc_len);
+        for (int i = 0; i < diag_pad_desc_len && i < DIAG_PAD_DESC; ++i)
+            printf("%s%02x", i % 32 ? " " : "\n      ", diag_pad_desc[i]);
+        printf("\n    read as: %s\n    last changes, oldest first:", diag_pad_layout);
+        uint32_t n = diag_pad_logged < DIAG_PAD_LOG ? diag_pad_logged : DIAG_PAD_LOG;
+        for (uint32_t k = diag_pad_logged - n; k < diag_pad_logged; ++k) {
+            const uint8_t *e = diag_pad_log[k % DIAG_PAD_LOG];
+            printf(" |");
+            for (int i = 0; i < e[0]; ++i) printf(" %02x", e[i + 1]);
+        }
+        printf("\n");
+    }
+    if (usb_detail && diag_pad_dev) {
+        printf("  pad 0: device %u, speed %u, read waiting at mount %u, now %u\n", diag_pad_dev, diag_pad_speed,
+               diag_pad_armed0, diag_pad_armed());
+        printf("  USB: int_ep_ctrl %08lx buf_status %08lx sie_status %08lx\n", (unsigned long)usb_hw->int_ep_ctrl,
+               (unsigned long)usb_hw->buf_status, (unsigned long)usb_hw->sie_status);
+        for (int i = 0; i < USB_HOST_INTERRUPT_ENDPOINTS; ++i)
+            if (usb_hw->int_ep_addr_ctrl[i])
+                printf("    int ep %d: addr %08lx ctrl %08lx buf %08lx\n", i, (unsigned long)usb_hw->int_ep_addr_ctrl[i],
+                       (unsigned long)usbh_dpram->int_ep_ctrl[i].ctrl,
+                       (unsigned long)usbh_dpram->int_ep_buffer_ctrl[i].ctrl);
+    }
     printf("  data port reads answered stale: %lu (while a reset's clear went on: %lu)\n",
            (unsigned long)diag_stale_reads, (unsigned long)diag_stale_clearing);
     printf("  lines drawn %lu (core 0 %lu), late %lu, frames helped %lu, longest %lu us; row 1 \"%s\" color %u, DC_CTRL %02x\n",
@@ -132,6 +172,8 @@ static void diag_report(uint32_t secs) {
            (unsigned long)diag_help_frames, (unsigned long)diag_render_us_max, row1,
            card.vram[VC_RESET_TEXT_MAP + 128 * 4 + 5], card.cfg[VC_DC_CTRL]);
     diag_render_us_max = 0;
+    printf("  layer modes %02x %02x %02x (bit 2: 640x480)\n", card.cfg[VC_LAYER0 + VC_L_MODE],
+           card.cfg[VC_LAYER0 + VC_LAYER_SIZE + VC_L_MODE], card.cfg[VC_LAYER0 + 2 * VC_LAYER_SIZE + VC_L_MODE]);
     /* The picture by 16 lines: the slowest drawn, and the most sprites on one. */
     printf("  by 16 lines, slowest us/most sprites:");
     for (int i = 0; i < 30; ++i) {
@@ -139,7 +181,21 @@ static void diag_report(uint32_t secs) {
         diag_strip_us[i] = 0;
         diag_strip_sprites[i] = 0;
     }
-    printf("\n  sprite table decoded %lu times\n", (unsigned long)dvi_decodes());
+    printf("\n  mean us a line: core 0 %lu (%lu lines), core 1 %lu (%lu lines)\n",
+           (unsigned long)(diag_core_lines[0] ? diag_core_us[0] / diag_core_lines[0] : 0), (unsigned long)diag_core_lines[0],
+           (unsigned long)(diag_core_lines[1] ? diag_core_us[1] / diag_core_lines[1] : 0), (unsigned long)diag_core_lines[1]);
+    diag_core_us[0] = diag_core_us[1] = diag_core_lines[0] = diag_core_lines[1] = 0;
+    {
+        static const int ys[4] = {40, 200, 440, 470};
+        uint32_t t[4][4];
+        for (int i = 0; i < 4; ++i) dvi_retime(ys[i], t[i]);
+        printf("  same line again (core 0 alone, core 1 alone, together 0 and 1):");
+        for (int i = 0; i < 4; ++i)
+            printf(" y%d: %lu %lu %lu %lu;", ys[i], (unsigned long)t[i][0], (unsigned long)t[i][1], (unsigned long)t[i][2],
+                   (unsigned long)t[i][3]);
+        printf("\n");
+    }
+    printf("  sprite table decoded %lu times\n", (unsigned long)dvi_decodes());
     /* The drawing commands so far, by opcode: how many, and the line fitted to their times,
      * a + b * work (pixels, or bytes COPYed or FILLed), in ns; the longest, in us. */
     static const char *const ops[VC_C_COUNT] = {"NOP", "TARGET", "COLOR", "PLOT", "LINE", "RECT",
@@ -203,7 +259,7 @@ int main(void) {
 #if VIDCARD_DIAG
         if ((int32_t)(time_us_32() - next) >= 0) {
             next += 1000000;
-            diag_report(++secs);
+            if (++secs <= 2 || secs % 10 == 0) diag_report(secs); /* (slow enough to select and copy) */
             if (secs == 2) { /* (DOS has loaded by now) */
                 bench_run();
                 card_reset();

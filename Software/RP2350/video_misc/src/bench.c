@@ -6,12 +6,18 @@
  * draws the same states meanwhile, and core 0's help is off.) */
 #include "bench.h"
 
+#ifndef VIDCARD_BENCH
+#define VIDCARD_BENCH 0
+#endif
+
 #if VIDCARD_DIAG
 #include <stdio.h>
 #include <string.h>
 
 #include "card.h"
 #include "dvi.h"
+#include "hardware/psram.h"
+#include "hardware/structs/qmi.h"
 #include "hardware/timer.h"
 
 static uint16_t __attribute__((aligned(4))) line[VC_WIDTH];
@@ -53,6 +59,81 @@ static void timed(const char *what, int y0, int y1) {
     dvi_park = false;
     printf("  %-36s %3lu.%lu us  (alone %3lu.%lu)\n", what, (unsigned long)(both / 10), (unsigned long)(both % 10),
            (unsigned long)(alone / 10), (unsigned long)(alone % 10));
+}
+
+/* The card with n layers of 64x64 16x16 tiles, none of their pixels see-through. */
+static void tile_layers(int n, int hires, int bpp8) {
+    vc_reset(&card);
+    card.cfg[VC_DC_CTRL] = (uint8_t)((1 << n) - 1);
+    for (int k = 0; k < n; ++k) {
+        uint8_t *l = layer(k);
+        memset(l, 0, 16);
+        l[VC_L_MODE] = (uint8_t)(VC_TILE | (hires ? 0x04 : 0) | (bpp8 ? 0x18 : 0x10) | 0x20);
+        l[VC_L_MAP] = 1 | 4;
+        put24(l + VC_L_MAPBASE, 0x4000u * (uint32_t)k);
+        put24(l + VC_L_TILEBASE, 0x10000);
+    }
+    for (int i = 0; i < 3 * 64 * 64; ++i) {
+        uint16_t e = (uint16_t)(rnd() % 16 | (rnd() & 0xF000));
+        uint32_t a = 0x4000u * (uint32_t)(i / (64 * 64)) + 2u * (uint32_t)(i % (64 * 64));
+        card.vram[a] = (uint8_t)(e >> 8), card.vram[a + 1] = (uint8_t)e;
+    }
+    for (int i = 0; i < 16 * 256; ++i) card.vram[0x10000 + i] = (uint8_t)(rnd() | 0x11);
+}
+
+/* TILEKIT's new project: its 3 layers all shown, 64x64 maps of nothing but tile 0, the first
+ * of a 4-bit set, with its first pixels colored (a row at a time). */
+static void kit_layers(int big, int pixels) {
+    int ts = big ? 16 : 8;
+    vc_reset(&card);
+    card.cfg[VC_DC_CTRL] = 0x07;
+    for (int k = 0; k < 3; ++k) {
+        uint8_t *l = layer(k);
+        memset(l, 0, 16);
+        l[VC_L_MODE] = (uint8_t)(VC_TILE | 0x10 | (big ? 0x20 : 0));
+        l[VC_L_MAP] = 1 | 4;
+        put24(l + VC_L_MAPBASE, 0x4000u * (uint32_t)k);
+        put24(l + VC_L_TILEBASE, 0x10000);
+        memset(card.vram + 0x4000u * (uint32_t)k, 0, 8192);
+    }
+    memset(card.vram + 0x10000, 0, (size_t)(ts * ts / 2));
+    for (int i = 0; i < pixels; ++i) card.vram[0x10000 + i / 2] |= (uint8_t)(i & 1 ? 0x0F : 0xF0);
+}
+
+/* TILEKIT's panel (4 columns of 8-bit sprites, from line 416 here) and its status rows
+ * (8 more across the rest, from line 448). */
+static void kit_sprites(void) {
+    card.cfg[VC_DC_CTRL] |= 0x08;
+    card.cfg[VC_SPR_CTRL] = 1;
+    card.cfg[VC_SPR_COUNT] = 12;
+    for (int i = 0; i < 64 * 64; ++i) card.vram[0x30000 + i] = (uint8_t)(rnd() | 1);
+    for (int s = 0; s < 12; ++s) {
+        static const uint16_t px[12] = {464, 528, 592, 624, 0, 64, 128, 192, 256, 320, 384, 448};
+        static const uint8_t size[12] = {0x0F, 0x0F, 0x0E, 0x0D, 0x0B, 0x0B, 0x0B, 0x0B, 0x0B, 0x0B, 0x0B, 0x09};
+        uint8_t *a = card.vram + VC_RESET_SPR_BASE + 8 * s;
+        int img = 0x30000 / 32, x = px[s], y = s < 4 ? 416 : 448;
+        a[0] = (uint8_t)(img >> 8), a[1] = (uint8_t)img, a[2] = (uint8_t)(x >> 8), a[3] = (uint8_t)x;
+        a[4] = (uint8_t)(y >> 8), a[5] = (uint8_t)y, a[6] = size[s] | 0xC0, a[7] = 0x80;
+    }
+}
+
+/* All of the PSRAM written, then read back: far more than the XIP cache holds, so the
+ * lines really go to the chip and come back from it. */
+static void psram_test(void) {
+    volatile uint32_t *p = (volatile uint32_t *)card.psram;
+    uint32_t words = (uint32_t)psram_get_size() / 4, bad = 0, first = 0;
+    if (!p) {
+        printf("PSRAM: none\n");
+        return;
+    }
+    uint32_t t0 = time_us_32();
+    for (uint32_t i = 0; i < words; ++i) p[i] = (i + 1) * 0x9E3779B1u;
+    uint32_t t1 = time_us_32();
+    for (uint32_t i = 0; i < words; ++i)
+        if (p[i] != (i + 1) * 0x9E3779B1u && !bad++) first = i * 4;
+    printf("PSRAM: M1 timing %08lx, %lu KB in %lu ms, back in %lu ms: %lu words wrong (first at %06lx)\n",
+           (unsigned long)qmi_hw->m[1].timing, (unsigned long)(words / 256), (unsigned long)((t1 - t0) / 1000),
+           (unsigned long)((time_us_32() - t1) / 1000), (unsigned long)bad, (unsigned long)first);
 }
 
 static void text_screen(void) {
@@ -182,6 +263,10 @@ static void cpu_bench(void) {
 }
 
 void bench_run(void) {
+#if !VIDCARD_BENCH /* (the RAM is wanted: the report's own check of the live picture) */
+    return;
+#endif
+    psram_test();
     cpu_bench();
     dvi_solo = true;
     printf("\nDrawing a line (it has 31.7 us), the slowest:\n");
@@ -448,6 +533,47 @@ void bench_run(void) {
     }
     timed("VIDTILES 2, a line without sprites", 0, 64);
     timed("VIDTILES 2, 32 sprites on the line", 300, 316);
+
+    /* 16x16 tiles, every pixel showing, in each size of screen and depth. */
+    tile_layers(1, 0, 0);
+    timed("1 layer 320x240 4-bit", 0, 16);
+    tile_layers(1, 1, 0);
+    timed("1 layer 640x480 4-bit", 0, 16);
+    tile_layers(1, 0, 1);
+    timed("1 layer 320x240 8-bit", 0, 16);
+    tile_layers(1, 1, 1);
+    timed("1 layer 640x480 8-bit", 0, 16);
+    tile_layers(2, 1, 1);
+    timed("2 layers 640x480 8-bit", 0, 16);
+    tile_layers(3, 0, 0);
+    timed("3 layers 320x240 4-bit", 0, 16);
+    tile_layers(3, 1, 0);
+    timed("3 layers 640x480 4-bit", 0, 16);
+    tile_layers(3, 0, 1);
+    timed("3 layers 320x240 8-bit", 0, 16);
+    tile_layers(3, 1, 1);
+    timed("3 layers 640x480 8-bit", 0, 16);
+
+    /* TILEKIT's screen, every pixel of its panel showing: one 320x240 layer of 16x16
+     * 4-bit tiles behind the panel's 4 columns of 8-bit sprites, and on the last 32
+     * lines the status rows' 8 sprites across the rest. */
+    tile_layers(1, 0, 0);
+    kit_sprites();
+    timed("TILEKIT, the panel's lines", 416, 432);
+    timed("TILEKIT, panel and status lines", 448, 464);
+
+    /* TILEKIT as it starts, on the panel's lines: its 3 layers, all one tile. */
+    kit_layers(0, 0), kit_sprites();
+    timed("new 8x8 project, tile empty", 416, 432);
+    kit_layers(0, 8), kit_sprites();
+    timed("new 8x8 project, 8 pixels", 416, 432);
+    kit_layers(0, 64), kit_sprites();
+    timed("new 8x8 project, all 64 pixels", 416, 432);
+    timed("new 8x8 project, all 64, status too", 448, 464);
+    kit_layers(1, 118), kit_sprites();
+    timed("new 16x16 project, 118 pixels", 416, 432);
+    kit_layers(1, 256), kit_sprites();
+    timed("new 16x16 project, all 256 pixels", 416, 432);
     printf("\n");
     vc_reset(&card);
     dvi_solo = false;

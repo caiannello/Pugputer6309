@@ -179,8 +179,12 @@ the hardware.
 
 ## Still to do in this repo (not the emulator)
 
-- Firmware: key repeat for USB keyboards (the emulator's README promises it).
-- Firmware: gamepads (needs HID report-descriptor parsing).
-- USB on the hardware: a keyboard and a mouse each work plugged in directly (VIDMOUSE), with
-  VBUS jumpered to VSYS. Still to try: a hub, and the mouse wheel. (The emulator's vidcard
-  README already says so.)
+- USB on the hardware, with VBUS jumpered to VSYS (VIDMOUSE): a keyboard and a mouse, wheel and
+  key repeat included, work together through a hub, plugged in before power-on or hot-plugged.
+- Gamepads, generic HID (D-input): an 8BitDo SN30 Pro works in VIDPAD on the hardware. To see on
+  the hardware: button maps (the SN30 Pro's built-in one in VIDPAD, then PADMAP saving to
+  `/CMD/PADMAP.INI`). Not done: boot sending `/CMD/PADMAP.INI` to the card (with the BIOS work; until
+  then run PADMAP and press Esc), maps for the sticks, XInput and PlayStation pads.
+- Emulator: PC gamepads reach the card only in the Windows window. The Linux window
+  (`pugputer_video.cpp`) doesn't send them yet: it needs a `$FF 'P'` record and a build on Linux
+  to test it.

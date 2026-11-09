@@ -21,6 +21,8 @@ extern volatile uint32_t dvi_late_lines;
 /* The longest a line took core 1 to draw (us), the lines each drew, and the frames core 0
  * helped with: main.c reports them. dvi_solo: core 1 alone (bench.c times lines). */
 extern volatile uint32_t diag_render_us_max, diag_lines_drawn, diag_lines_core0, diag_help_frames;
+extern volatile uint32_t diag_core_us[2], diag_core_lines[2];
+void dvi_retime(int y, uint32_t r[4]); /* core 0 alone, core 1 alone, both: core 0, core 1 (us) */
 extern volatile bool dvi_solo, dvi_park; /* (dvi_park: core 1 draws nothing) */
 /* By 16 lines: the slowest drawn (us) and the most sprites on one, since they were last
  * cleared; and the times the sprite table has been decoded (both cores). */
