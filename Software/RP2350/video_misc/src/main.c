@@ -136,6 +136,7 @@ static void diag_report(uint32_t secs) {
     for (int i = 0; usb_detail && i < DIAG_DEVS; ++i)
         if (diag_devs[i].dev)
             printf("  device %04x:%04x, %u HID interfaces\n", diag_devs[i].vid, diag_devs[i].pid, diag_devs[i].hid);
+    if (usb_detail) diag_kbd_print();
     if (usb_detail && (diag_pad_vid || diag_pad_desc_len)) {
         printf("  %s %04x:%04x, reports %lu, up to %u bytes; card's 8 bytes:", card.pads[0] ? "pad 0" : "unclaimed HID",
                diag_pad_vid, diag_pad_pid, (unsigned long)diag_usb_pad, diag_pad_len_max);

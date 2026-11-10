@@ -308,6 +308,8 @@ void card_key(uint8_t usage, bool down) {
     copy_unlock(s);
 }
 
+bool card_caps_lock(void) { return card.caps_lock != 0; }
+
 void card_key_repeat(uint8_t usage) {
     uint32_t s = copy_lock();
     /* (only into a queue with room: if nothing is reading, the release must still fit) */

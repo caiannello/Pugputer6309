@@ -39,6 +39,7 @@ bool card_waiting(void);
  * usage code), and a mouse's movement, buttons and wheel clicks. */
 void card_key(uint8_t usage, bool down);
 void card_key_repeat(uint8_t usage); /* a held key, pressed again */
+bool card_caps_lock(void);           /* Caps Lock is on (for the keyboards' lights) */
 void card_mouse(int dx, int dy, uint8_t buttons, int wheel);
 void card_pad_id(int n, uint16_t vid, uint16_t pid); /* which pad it is (vc_pad_id), before card_pad */
 void card_pad(int n, const uint8_t *state); /* a gamepad's bytes (vc_pad), or NULL: unplugged */

@@ -45,6 +45,7 @@ extern diag_dev diag_devs[DIAG_DEVS];
  * mounted, and whether diag_pad_desc holds its configuration descriptor by now (3). */
 extern uint8_t diag_pad_dev, diag_pad_idx, diag_pad_speed, diag_pad_armed0, diag_pad_cfg;
 bool diag_pad_armed(void); /* a read is waiting at the pad now */
+void diag_kbd_print(void);  /* each keyboard: IDs, protocol, report lengths, lights */
 #endif
 
 #endif

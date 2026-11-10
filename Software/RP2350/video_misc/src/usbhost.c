@@ -9,6 +9,10 @@
  * send in report protocol. Gamepads (generic HID ones) report in a form of their own, read
  * by the same means, and go to vc_pad().
  *
+ * Keyboards are told the lock lights (Num, Caps, Scroll) as a PC does: once they're up,
+ * and whenever one changes. Some keyboards wait for that before lighting their backlight
+ * (a Dierya DK63 does).
+ *
  * The hub and the devices take their power from VBUS, which the card has to supply (the
  * board's VBUS is otherwise only fed by a PC, for flashing). Everything here runs in core
  * 0's main loop (tuh_task); TinyUSB's interrupt is under the bus's. */
@@ -40,12 +44,25 @@ diag_dev diag_devs[DIAG_DEVS];
 uint8_t diag_pad_dev, diag_pad_idx, diag_pad_speed, diag_pad_armed0, diag_pad_cfg;
 #endif
 
-/* Each keyboard's last report, to see what changed. */
+/* Each keyboard's last report, to see what changed, and its lock lights. */
 #define KEYBOARDS 4
 static struct {
     uint8_t dev, idx, used;
     uint8_t mods, keys[6];
+    uint8_t leds_sent; /* the lights it was last told (0xFF: none yet) */
+    uint8_t led;       /* the report being sent (it must last until it's gone) */
+#if VIDCARD_DIAG
+    uint8_t len_min, len_max;
+#endif
 } kbd[KEYBOARDS];
+
+/* The lock lights, as the LED output report has them. Caps Lock is the card's own (it
+ * shifts letters); Num and Scroll Lock change nothing, so they're only kept here. The
+ * keypad always types digits, so Num Lock starts on. */
+static uint8_t num_lock = 1, scroll_lock;
+static uint8_t lock_leds(void) {
+    return (uint8_t)((num_lock ? 1 : 0) | (card_caps_lock() ? 2 : 0) | (scroll_lock ? 4 : 0));
+}
 
 /* Where in a report something is: its first bit (after any report ID) and how many
  * (0: the report hasn't got one). */
@@ -441,6 +458,7 @@ static int kbd_slot(uint8_t dev, uint8_t idx, int make) {
         if (!kbd[i].used) {
             memset(&kbd[i], 0, sizeof kbd[i]);
             kbd[i].used = 1, kbd[i].dev = dev, kbd[i].idx = idx;
+            kbd[i].leds_sent = 0xFF;
             return i;
         }
     return -1;
@@ -455,6 +473,8 @@ static uint32_t repeat_at;
 
 static void key(uint8_t usage, int down) {
     card_key(usage, down != 0);
+    if (down && usage == 0x53) num_lock = !num_lock;
+    if (down && usage == 0x47) scroll_lock = !scroll_lock;
 #if VIDCARD_DIAG
     ++diag_usb_keys;
 #endif
@@ -474,7 +494,13 @@ static int has(const uint8_t *keys, uint8_t k) {
 
 /* A keyboard's report: the keys let go of, then those pressed (modifiers first). */
 static void keyboard(int s, const uint8_t *r, uint16_t len) {
-    if (s < 0 || len < 8) return;
+    if (s < 0) return;
+#if VIDCARD_DIAG
+    uint8_t l8 = (uint8_t)(len > 255 ? 255 : len);
+    if (!kbd[s].len_min || l8 < kbd[s].len_min) kbd[s].len_min = l8;
+    if (l8 > kbd[s].len_max) kbd[s].len_max = l8;
+#endif
+    if (len < 8) return;
     const uint8_t mods = r[0], *keys = r + 2;
     if (keys[0] == 1) return; /* (too many keys held: "rollover", which says nothing) */
     uint8_t changed = (uint8_t)(mods ^ kbd[s].mods);
@@ -656,7 +682,38 @@ void usbhost_poll(void) {
             if (tuh_hid_set_protocol(m->dev, m->idx, HID_PROTOCOL_BOOT)) m->step = STEP_NONE, m->gave_up = 1;
         }
     }
+    /* Each keyboard's lights, whenever they're not what it was last told. */
+    uint8_t leds = lock_leds();
+    for (int i = 0; i < KEYBOARDS; ++i) {
+        if (!kbd[i].used || kbd[i].leds_sent == leds) continue;
+        kbd[i].led = leds;
+        if (tuh_hid_set_report(kbd[i].dev, kbd[i].idx, 0, HID_REPORT_TYPE_OUTPUT, &kbd[i].led, 1))
+            kbd[i].leds_sent = leds;
+    }
 }
+
+#if VIDCARD_DIAG
+static uint32_t diag_led_ok, diag_led_failed;
+
+void tuh_hid_set_report_complete_cb(uint8_t dev, uint8_t idx, uint8_t id, uint8_t type, uint16_t len) {
+    (void)dev, (void)idx, (void)id, (void)type;
+    if (len) ++diag_led_ok;
+    else ++diag_led_failed;
+}
+
+void diag_kbd_print(void) {
+    for (int i = 0; i < KEYBOARDS; ++i) {
+        if (!kbd[i].used) continue;
+        uint16_t vid = 0, pid = 0;
+        tuh_vid_pid_get(kbd[i].dev, &vid, &pid);
+        printf("  keyboard %04x:%04x, protocol %s, reports %u-%u bytes, lights %x\n", vid, pid,
+               tuh_hid_get_protocol(kbd[i].dev, kbd[i].idx) ? "report" : "boot", kbd[i].len_min, kbd[i].len_max,
+               kbd[i].leds_sent);
+    }
+    printf("  keyboard light reports: %lu taken, %lu refused\n", (unsigned long)diag_led_ok,
+           (unsigned long)diag_led_failed);
+}
+#endif
 
 void tuh_hid_umount_cb(uint8_t dev, uint8_t idx) {
     int m = mouse_slot(dev, idx, 0);
