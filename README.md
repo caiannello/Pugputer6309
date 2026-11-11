@@ -84,6 +84,9 @@ an inferior rare chip.
 
 ## Gallery
 
+Demo for new video card, which shows a parallax-scrolling bayou, and plays some bluegrass music via OPL3. The tilemap is saved as a project for the built-in TILEKIT map editor.
+![parallax swamp demo](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Parallax_Swamp_demo.png)
+
 Graphics from SquareSoft's Seiken Densetsu 3 for Super NES ([Source code](https://github.com/caiannello/Pugputer6309/blob/main/Software/6309/Demos/mana_tilemap.asm))
 ![mana](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/Squaresoft%20Tilemap%20Seiken%20Densetsu%203.jpg)
 
