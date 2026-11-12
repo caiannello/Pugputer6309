@@ -85,7 +85,8 @@ an inferior rare chip.
 ## Gallery
 
 Demo for new video card, which shows a parallax-scrolling bayou, and plays some bluegrass music via OPL3. 
-The tilemap is saved as a project compatible with the built-in TILEKIT map editor.
+The tilemap is saved as a project compatible with the built-in TILEKIT map editor, and the song can be 
+played/edited in the SONGKIT music sequencer.
 
 ![parallax swamp demo](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Photos/parallax_swamp_music.png)
 
