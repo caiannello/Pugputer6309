@@ -60,7 +60,9 @@ Have made an effort to bring the hardware up to sync with the emulator, and have
 - Fullscreen text editor in the terminal, modelled after GNU Nano
 - VGM player for OPL3 music and "sampled" soundeffects from the WAV2VGM project
 - Demos of graphics, sound, BASIC examples
-- TILEKIT - tilemap editor for games.. Hoping to get a full game development system built for the Pugputer, with scripting, music editor, sprite editor, etc.
+- TILEKIT - tilemap editor for games.. Hoping to get a full game development system built for the Pugputer, with scripting, sprite editor, etc.
+- MUSICKIT - tracker-style music sequencer for OPL3 with a couple hundred 2-op and 4-op GM instruments
+- SWAMP parallax scrolling music demo, with assets and code editable using the above
 - Assembler and Linker running on the Pugputer - (All 6309 sources are on the disk image and can be edited and recompiled right on the pugputer: DOS, BASIC, EDIT, HEXDUMP, ASM/LINK, TILEKIT, VGMPLAY)
 
 ## There's now a (vibe-coded) Emulator!
