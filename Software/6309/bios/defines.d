@@ -281,7 +281,8 @@ RAM_IRQV    equ  $0026       ; the IRQ entry of the BIOS's RAM jump table is a J
                              ; Must be above the BIOS's RAM (EndOfVars in
                              ; pugbios.map); test_bios_layout checks that.
 
-DOS_API_VERSION equ $22      ; major*16 + minor: 2.2 (2.1 added programs, 2.2 B_PATH)
+DOS_API_VERSION equ $23      ; major*16 + minor: 2.3 (2.1 added programs, 2.2 B_PATH,
+                             ; 2.3 EXE_MORE)
 PATHVARMAX  equ  79          ; the longest B_PATH search path
 
 ; Program files. Header, all 16-bit values big-endian:
@@ -290,10 +291,16 @@ PATHVARMAX  equ  79          ; the longest B_PATH search path
 ;                      or above the end of DOS's RAM (DOS_END) and the body must end
 ;                      below the ROM ($F000)
 ;   +4  entry address  where execution starts; inside the body
-;   +6  flags          must be 0 (reserved: a later revision will use it to mark a
-;                      header extension with a segment table for banked programs)
+;   +6  flags          0, or EXE_MORE (anything else: not a program file)
+; With EXE_MORE (a program bigger than its body: its other parts for banked RAM),
+;   +8  body length    the body is only this much of what follows (it must still fit
+;                      where it goes); the rest of the file is the program's own. It
+;                      starts with the file still open, its handle in B, at the byte
+;                      after the body: it reads the rest (into pages of its own, say)
+;                      and closes it (or B_EXIT does).
 EXE_MAGIC   equ  $5058       ; "PX"
-EXE_HDRSIZE equ  8
+EXE_HDRSIZE equ  8           ; (EXE_MORE's: 10)
+EXE_MORE    equ  1
 EXE_MAXTOP  equ  $F000       ; a body may not reach the ROM
 DOS_NFILES  equ  8           ; open files at once (handles 0..7)
 DOS_NDIRS   equ  4           ; directory scans open at once
