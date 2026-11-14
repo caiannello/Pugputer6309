@@ -171,11 +171,92 @@ the hardware.
   - MULD's extra 2 cycles for negative operands.
 - [ ] The CPU card's 16 Hz NMI clock tick isn't emulated (the simulator README says so).
 
+## 9. The line budget: SONGKIT's small pattern grid (2026-11-14, parked)
+
+SONGKIT's pattern view was tried with a small font: 4x8 characters, 48 rows by 11 tracks
+instead of 24 by 5. It's parked for now; the work is kept on two unpushed branches in the
+emulator, `songkit-small-font` (086633f) and `songkit-text-grid` (8b7716d). `main` keeps the
+8x16 grid. Everything worked in the emulator, but the emulator draws without time, so it
+couldn't see what went wrong on the card: the card's line budget.
+
+**What the card does with a slow line.** In `dvi.c`, once a line takes core 1 more than
+31 us, core 0 helps draw the next frame, and it keeps helping until a frame has no line over
+28 us. Core 0 draws in an interrupt above its main loop, and the main loop is what runs USB
+and the commands. While it helps on every frame, the main loop starves.
+
+**What was seen on the card.**
+
+- **Tile layers.** The first version drew the grid as two tile layers, then 4-bit tiles to
+  get the renderer's quick `tile_run` path (1 and 2-bit tiles go the slow way, tile by tile).
+  Even at 4 bits, a tile that differs from the last costs a full set-up, and a grid differs on
+  almost every tile: roughly 50-75 us a line. In long playback the card failed:
+  - glyphs went to garbage;
+  - keys and the mouse stopped reaching the CPU;
+  - the picture froze, often at a pattern's end (the whole page drawn again), then went
+    black with artifacts;
+  - only a power cycle brought it back.
+
+  The song kept playing throughout.
+- **Text layers.** The second version drew the grid as two 8x8 text layers: one font with the
+  characters on the left half of a cell, one with them on the right. The diagnostic firmware
+  (`VIDCARD_DIAG=1`) measured it:
+  - 22 us a line on average;
+  - by 16-line strips: 29-31 us for the grid, 32 at the top, 37 for the status line;
+  - core 0 helped on almost every frame, even with the song stopped, and drew about 5 lines
+    for every 1 of core 1's;
+  - while the song played, lines core 0 had begun took up to 170 us (bus writes in between),
+    and `late` climbed.
+
+  The failures were rarer than with tiles, but the same. With the diagnostic build running it
+  then went 1450 s without one.
+- **For comparison.** One 8x16 text layer, the boot screen, is 11 us a line, with core 0
+  never helping. SONGKIT's 8x16 grid is two text layers, about 15 us.
+
+**Calibration, for the emulator.** `vc_render_line_with` on the PC (in a host benchmark),
+times 73, matched the card's diagnostic figures closely: one text layer 150 ns ≈ 11 us; the
+text grid 300 ns ≈ 22 us mean, 425 ns ≈ 31 us worst.
+
+- [ ] **A per-layer line window in the core (`vc.c`), so a layer is drawn only on some
+  lines.** Text and tile layers don't use `L_STRIDE` (`$0C`-`$0D`), so it could hold a first
+  and a last line (in strips of 16, say), with a bit for "everywhere but these".
+  - SONGKIT would show its screen everywhere but lines 80-463, and its grid's two layers only
+    there. No line would then draw more than two layers, about 15 us, and core 0 would never
+    help.
+  - Games would get split screens and status bars.
+  - Needs: `vc.c` (shared: firmware and emulator), the README's layer table, `vidcard.d`, and
+    a test.
+- [ ] **The emulator could warn about the line budget.** It draws without time, so a
+  screen over 31 us a line looks fine there. It could time `vc_render_line_with` (x73), or
+  count the work per line, and report lines over 28 us: in the window title, and for tests.
+- [ ] **A high-water mark for `bus.c`'s event ring** (4096 accesses, about 3.4 ms of `TFM`) in
+  the diagnostic report. Accesses lost to an overflowing ring would be silent: a lost
+  data-port address write sends the bytes after it wherever the port last pointed. With
+  `VIDCARD_DIAG`, at the top of `bus_isr`'s loop: `pend = (events_written() - events_next) &
+  (EVENTS_COUNT - 1)`, and keep the largest. (Not seen yet: just not measured.)
+- Kept for the small grid's return:
+  - the text-grid design (two 8x8 fonts of 41 characters, plus 41 inverted for the cursor's
+    field, at `$020000`);
+  - rows sent as four 80-byte TFMs through data port 1 at step 4;
+  - backgrounds written only when they change.
+
+  Also: SONGKIT's VIEWFIX now lets the rows shown wrap "before" row 0 while the song plays.
+  That fix is on `songkit-text-grid`, and also belongs on `main`, where the old grid shows the
+  same jump for a pattern's first 11 rows.
+
 ## Hardware-only notes (no emulator change; kept here for context)
 
 - The OPL3 module puts out only about 50 mV p-p while a note plays. It's being looked at as an
   analog problem; the digital side works (timer test 0 → 192).
 - About 4 data-port reads in 4096 still come back stale right after a reset.
+- **Phantom bus accesses (2026-11-14, SONGKIT under `VIDCARD_DIAG`).**
+  - In about four minutes of playback, the card counted `W16:16`: writes to `$FF96`, the mouse
+    X low byte, which nothing writes. SONGKIT only reads it, with `LDD VC_MOUSEX`.
+  - `R16` also ran 39 ahead of `R15`, though they're only ever read together.
+  - The index-sampling counters stayed at 0, so the index was steady and R/W (or /CS) wasn't.
+  - The card ignores writes to `$16`. The same glitch on CTRL, CMD, INCTRL or a data port's
+    address would reset the card, start garbage commands, stop the keys and pointer, or send a
+    port's bytes astray: the small-grid failures above look like that.
+  - To check: the selects are qualified by E/Q, as the bus needs (/RD and /WR are ungated).
 
 ## Still to do in this repo (not the emulator)
 
