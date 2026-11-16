@@ -1,6 +1,6 @@
 Photoplotter Info File: C:/Users/caian/Documents/GitHub/Pugputer6309/Hardware/Pico2_Video_Misc/%N.gpi
 
- Date              : 11/08/2026 09:07:29a
+ Date              : 11/16/2026 09:46:16a
  Plotfile          : C:/Users/caian/Documents/GitHub/Pugputer6309/Hardware/Pico2_Video_Misc/%N.GBP
  Apertures         : generated: 
  Device            : Gerber photoplotter with RS-274-X aperture generation
@@ -33,9 +33,10 @@ Apertures used:
 
  Code     Shape     Size                  used
 
- D10      rectangle 0.0433inch x 0.0394inch    20
+ D10      rectangle 0.0433inch x 0.0394inch    24
  D11      rectangle 0.0613inch x 0.3000inch    30
  D12      rectangle 0.0394inch x 0.0433inch    16
  D13      draw      0.0007inch              40
  D14      rectangle 0.0394inch x 0.0551inch     3
+ D15      rectangle 0.0512inch x 0.0591inch     4
 
