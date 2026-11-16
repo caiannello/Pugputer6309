@@ -1,6 +1,6 @@
 Drill Station Info File: C:/Users/caian/Documents/GitHub/Pugputer6309/Hardware/Pico2_Video_Misc/%N.dri
 
- Date              : 11/16/2026 09:46:10a
+ Date              : 11/16/2026 10:29:55a
  Drills            : generated
  Device            : Excellon drill station
 
@@ -25,16 +25,15 @@ Drills used:
 
  Code  Size       used
 
- T01   0.0100inch    87
- T02   0.0236inch     3
- T03   0.0315inch    80
- T04   0.0320inch    28
- T05   0.0400inch    40
- T06   0.0440inch     2
- T07   0.0669inch     2
- T08   0.1024inch     6
+ T01   0.0100inch    92
+ T02   0.0315inch    80
+ T03   0.0320inch    32
+ T04   0.0400inch    40
+ T05   0.0440inch     2
+ T06   0.0669inch     2
+ T07   0.1024inch     6
 
-Total number of drills: 248
+Total number of drills: 254
 
 Plotfiles:
 
