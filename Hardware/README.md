@@ -45,5 +45,8 @@ The output gain increased, from 1X to 2X, and AVCC is filtered through an RC low
 ![3MB layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/RAM%20Expansion/layout.png)
 ![3MB schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/RAM%20Expansion/schematic.png)
 
+Note, when I designed this card-edge connector backplane, Famicom cartridge slots were much cheaper than pin headers!
+Now, they're between $3 and $8 a piece, depending on the vendor, and that's a shame.
+
 ![layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Backplane/Backplane%20Layout.png)
 ![schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Backplane/Backplane%20Schematic.png)
