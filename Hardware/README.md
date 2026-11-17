@@ -42,8 +42,8 @@ all-in-one            Combines CPU, V9958, VIA, SD, OPL3 into one board.
 Noticed low volume and slight hum on OPL3 module, so here's an update. Output gain changed from 1X to 2X, 
 and AVCC is filtered with an RC lowpass filter (4.7K, 100uF)
 
-![OPL3 Module](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_2_layout.png)
-![OPL3 Schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_2_schematic.png)
+![OPL3 Module V2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_2_layout.png)
+![OPL3 Schematic V2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_2_schematic.png)
 
 ![3MB layout](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/RAM%20Expansion/layout.png)
 ![3MB schematic](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/RAM%20Expansion/schematic.png)
