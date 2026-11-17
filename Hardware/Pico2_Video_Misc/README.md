@@ -99,5 +99,5 @@ I noticed a too-low volume and slight hum on the original OPL3 module, so here's
 The output gain increased, from 1X to 2X, and AVCC is filtered through an RC lowpass filter (4.7ohm, 100uF).
 GND and AGND are connected by a 0R resistor.
 
-![OPL3 Module V2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_2_layout.png)
-![OPL3 Schematic V2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/V9958%20Video%20Card/opl3_module_2_schematic.png)
+![OPL3 Module V2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Pico2_Video_Misc/opl3_module_2_layout.png)
+![OPL3 Schematic V2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Pico2_Video_Misc/opl3_module_2_schematic.png)
