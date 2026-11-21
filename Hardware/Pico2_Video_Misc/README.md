@@ -101,3 +101,11 @@ GND and AGND are connected by a 0R resistor.
 
 ![OPL3 Module V2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Pico2_Video_Misc/opl3_module_2_layout.png)
 ![OPL3 Schematic V2](https://raw.githubusercontent.com/caiannello/Pugputer6309/main/Hardware/Pico2_Video_Misc/opl3_module_2_schematic.png)
+
+## Possible Future Work?
+
+I expected that getting rid of the Olimex module and HDMI breakout, and putting the components directly on-board 
+would cut costs, but when I started sourcing parts and pricing out PCB assembly services, the prices climbed quickly!
+For small batches, the current design is much cheaper to build and assemble at home.
+I've only heard from one friend who wants to build a Pugputer, so I think it will stay based on this module for now, 
+even if making an all-in-one version, but I'll maintain compatibility if there is a redesign.
